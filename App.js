@@ -1,20 +1,18 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import 'react-native-gesture-handler'
+
+import React, { useEffect } from 'react'
+import { SafeAreaView, Text, View } from 'react-native'
+
+import AppNavigation from '/Users/zacharynickerson/VokkoApp/src/navigation/appNavigation.js';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { apiCall } from './src/api/openAI';
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
+    useEffect(()=>{
+    }, [])
+    return (
+        <GestureHandlerRootView style={{ flex: 1}}>
+            <AppNavigation />
+        </GestureHandlerRootView>
+    )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
