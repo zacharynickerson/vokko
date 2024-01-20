@@ -136,6 +136,7 @@ export default function HomeScreen() {
                 date: date,
                 month: month,
                 year: year,
+                messages: messages,
               });
               setRecordings(updatedRecordings);
           

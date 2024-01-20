@@ -14,38 +14,42 @@ import { apiCall } from '../api/openAI.js';
 import { useNavigation } from '@react-navigation/native';
 
 export default function VoiceNoteDetails({ route }) {
-  const { uri, messages, recordings, memos, date, month, year, duration } = route.params;
+  const { uri, messages, date, month, year } = route.params;
   const sound = new Audio.Sound();
   const navigation = useNavigation();
-  const ScrollViewRef = useRef(); 
-  
+  const ScrollViewRef = useRef();
   const [parsedExistingNotes, setParsedExistingNotes] = useState([]);
-  const d = ["January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
+  const d = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
   ];
   const formattedDate = d[1]
   const [noteTitle, setNoteTitle] = useState('');
 
-
+  // Use the noteTitle from route.params when the component mounts
   useEffect(() => {
-    // Your existing code...
+    setNoteTitle(route.params.noteTitle || `Recording ${parsedExistingNotes.length + 1}`);
+  }, [route.params.noteTitle, parsedExistingNotes]);
 
-    // Debounce the saveAsyncData function to avoid saving for every character typed
-    const debounceSave = setTimeout(() => {
+  // Debounce the saveAsyncData function to avoid saving for every character typed
+  const debounceSave = useRef(null);
+
+  // Clear the timeout if the component unmounts or noteTitle changes before the timeout completes
+  useEffect(() => {
+    clearTimeout(debounceSave.current);
+    debounceSave.current = setTimeout(() => {
       saveAsyncData({
         date: route.params.date,
         month: route.params.month,
         year: route.params.year,
-        duration: route.params.duration,
         uri: route.params.uri,
+        messages: messages,
         noteTitle: noteTitle || `Recording ${parsedExistingNotes.length + 1}`,
       });
     }, 500); // Adjust the delay as needed (e.g., 500 milliseconds)
-
-    // Clear the timeout if the component unmounts or noteTitle changes before the timeout completes
-    return () => clearTimeout(debounceSave);
   }, [noteTitle, parsedExistingNotes]); // Include noteTitle as a dependency
-
+  
+    
   // Load the saved metadata and transcript from AsyncStorage
   useEffect(() => {
     const loadAsyncData = async () => {
@@ -116,6 +120,7 @@ export default function VoiceNoteDetails({ route }) {
       // Save the updated list back to AsyncStorage
       await AsyncStorage.setItem('voiceNotesList', JSON.stringify(parsedExistingNotes));
   
+      
       console.log('Data saved to AsyncStorage:', parsedExistingNotes);
     } catch (error) {
       console.error('Error saving data to AsyncStorage:', error);
@@ -123,6 +128,8 @@ export default function VoiceNoteDetails({ route }) {
   };
   
   
+
+
     
       
       
@@ -134,12 +141,15 @@ export default function VoiceNoteDetails({ route }) {
           date: route.params.date,
           month: route.params.month,
           d: route.params.d,
-          duration: route.params.duration, // replace with the actual duration from your voice note
           noteTitle: noteTitle,
           year: route.params.year,
-        });
+        });  console.log('VoiceNoteDetails component rerendered with new noteTitle:', noteTitle);
+
       }, [noteTitle]);;
   
+
+      console.log('CURRENT NOT TITLE', noteTitle);
+
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
         <SafeAreaView className="flex-1 flex mx-5">
@@ -159,29 +169,31 @@ export default function VoiceNoteDetails({ route }) {
             Well Spoken!
             </Text>
             <View className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
+              
                 <View className="flex-row items-center space-x-1">
                     <Image
                     source={require("/Users/zacharynickerson/VokkoApp/assets/images/noteicon.png")}
                     style={{ height: hp(3), width: hp(3) }}
                     className="mr-2"
                     />
-                   {/* Add a TextInput for the user to input the note title */}
-                  <TextInput
-                    style={{
-                      height: 40,
-                      borderColor: 'gray',
-                      borderWidth: 1,
-                      fontSize: 18,
-                      color: 'white',
-                      padding: 8,
-                      borderRadius: 5,
-                      borderColor: 'transparent'
-                    }}
-                    placeholder="Name your new voice note"
-                    placeholderTextColor="gray"
-                    value={noteTitle}
-                    onChangeText={(text) => setNoteTitle(text)}
-                  />
+                    {/* Add a TextInput for the user to input the note title */}
+                    
+                    {/* Add a TextInput for the user to input the note title */}
+              <TextInput
+                style={{
+                  height: 40,
+                  borderColor: 'gray',
+                  borderWidth: 1,
+                  fontSize: 18,
+                  color: 'white',
+                  padding: 8,
+                  borderRadius: 5,
+                  borderColor: 'transparent'
+                }}
+                value={noteTitle}
+                onChangeText={(text) => setNoteTitle(text)}
+              />
+
                 </View>
                 <View>
                     <Text style={{ fontSize: wp(3.7)}} className="text-gray-400 font-regular mt-2">
@@ -218,7 +230,7 @@ export default function VoiceNoteDetails({ route }) {
                 </ScrollView>
               </View>
             ) : (
-              <Text style={{ color: 'white' }}>No transcript available.</Text>
+              <Text style={{ color: 'white' }}>{messages}</Text>
             )}
 
                

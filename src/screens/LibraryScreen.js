@@ -88,7 +88,7 @@ export default function LibraryScreen() {
             {/* LIBRARY */}
             <FlatList
             
-              data={voiceNotes.filter(note => note && note.uri)} // Filter out null or invalid items
+              data={voiceNotes.filter(note => note && note.uri).reverse()} // Filter out null or invalid items
               keyExtractor={(item) => item?.uri || ''}
               renderItem={({ item }) => (
                 item ? (
