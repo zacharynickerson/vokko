@@ -6,11 +6,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Sound } from 'expo-av/build/Audio';
 
-const MemoListItem = ({ uri }) => {
+const Playback = ({ uri }) => {
   const [sound, setSound] = useState();
   const [status, setStatus] = useState();
 
   async function loadSound() {
+    console.log('URI:', uri); // Log the URI
     console.log('Loading Sound');
     const { sound } = await Audio.Sound.createAsync(
       { uri },
@@ -150,4 +151,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MemoListItem;
+export default Playback;

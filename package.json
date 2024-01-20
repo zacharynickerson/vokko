@@ -12,7 +12,7 @@
     "dev:tailwind": "concurrently \"tailwindcss --input input.css --output tailwind.css --no-autoprefixer --watch\" \"tailwind-rn --watch\""
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "1.18.2",
+    "@react-native-async-storage/async-storage": "^1.18.2",
     "@react-native-community/masked-view": "^0.1.11",
     "@react-native-community/voice": "^1.1.9",
     "@react-native-firebase/app": "^18.5.0",
