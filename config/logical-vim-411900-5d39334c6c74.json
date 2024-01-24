@@ -1,0 +1,13 @@
+// {
+//   "type": "service_account",
+//   "project_id": "logical-vim-411900",
+//   "private_key_id": "5d39334c6c74283a913bb7139256785edc72cc79",
+//   "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC3nNdfw3CY3vQ8\ntZki0Z/2uBv4V+ig7+1mvHwDTtjlwhqRvWJuS8ZALUfkiLn1sGNeTDNuJ/DY79Tv\nn20YeVKpW4xNXZjkCDFnf8ifkwfaSaVLiNkPYR1vltCBMJ8jJB1sM8VNQBFVhv2g\ncrSB9fbN9eCaXbFOleMc/S3IMPCsEsDY6Nr21B2E8ix0QcurNVVFhJ+6s3QSP2M3\n+HTi9lRp5mFz2sdbZjaPGGFPBfAIDNDrKPVHaMeNIfUea8w9/UhrmLTC+oxtn35X\npYp/Ll1yx7f36EQ9dnY39TyyXSU7BWdevDfM2cpLGiImI3cQycc33UhVbtDP/C8h\n5w9qQw2pAgMBAAECggEABmno3ww7ZmehVe6M/Rmf8hUPyw69DkQbQZOzbEUoj+wG\nFBGuusYUVIEQahP5lPK2oeBdCovEHrvP7xfdTnXMdKSBQ+GRWePMX/5ncmWHKHGa\nn8cVt/MPPWrh+SVK5cYY7gLn8TEb+eYXfW+MTR7bommkkRfVPfa/4m8Ylo3ZFlWZ\nNs8KP6K7Aztfiaha8jGMGWm8IhQZNuESRQuirI1t6+9UMsUZ4AUuaGyilu/hRdc6\nXQGKp2s4pfs9rH6mittSAo+rUaFGE0wfROok8vz7OVO++hB3lR/q4aFjU/QRpEvW\n6nz0G112Yf73PbJfIsgl/It1ulxZAOSllg9Jn2BCtQKBgQDd/YUJx5Ptp7wt3CZu\nemZwuUORjDoX+57K1xMsvqwo2o0ow1HYwexA0KBqw6a8AQH57yeBfFG5H2Bd9tXW\n47imOVb9VshvLbauHv0hYheKXLEKOcfDfZgHH4PcK5b6AoB5+PIxWSfsjYSM0w0/\nmyIezL52ozPBFIhKPqlnEcE6zQKBgQDTviWND/EGWj8M4Go/E2X+hi2Xo0eJNozJ\nApus0itPDWCknpvtKQAFRrJycND94OjEAOijBEaMIKnzGyL+/zNJjwZvAldUZn7g\ntjF/b65h4gIuK1USurmO7tAntUcYQNMSGJ16vo4jPua3GykiVcfHNIbfIrE4zT6O\nDxAt9fHWTQKBgQCTpnoEZTBpE/W/8vvE47ibJT5h4okJRpz5gVAJpNDRY3wcLr2T\nlHhVK+5m1LdjuK/d00nNgCjDHrF0DidxBIneVakcW8p42Ej3SzlGKP5LUxeWG5RY\n3IJvynBj0sJai6t0dTZxyEEbv4z4NbBMLBznq3rLYgWcWNHFwCPgoBiLyQKBgGHC\nnq+8NnnKXOXjDurEWAjlhlNGjZaqWuHLlHh8KIa9FGus1yzuCxZkh6sSr0sn9g/Y\no4/wP2ofApg9ZTD6PoGtyTijihJrqBSzybKeq5KBuKP8WbDmCRoW5IAQ0BxAgbMP\nLlYneJSJTBgqMBmsJSqx87s91zj0efc4uS2fKeLZAoGBAK3vy+1QGGxI+Fqh5CGS\npQvu1rANptjY8CcWmGdNYr610LRG+uqqrTWA3GzvoxprtKqzndS/UvnLezU4ZS0H\noT/O/bC+dJsc1FlYQdY4AfmpAPAMdaxuIKtfhyK82t9mAGKyD4/KvLNd0o/gfy3y\nCSFZtCtkHK+7koZuluE0kPQk\n-----END PRIVATE KEY-----\n",
+//   "client_email": "vokko-mp4-store@logical-vim-411900.iam.gserviceaccount.com",
+//   "client_id": "108635218031704040978",
+//   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+//   "token_uri": "https://oauth2.googleapis.com/token",
+//   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+//   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/vokko-mp4-store%40logical-vim-411900.iam.gserviceaccount.com",
+//   "universe_domain": "googleapis.com"
+// }

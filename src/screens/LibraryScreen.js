@@ -1,31 +1,28 @@
 import { ActivityIndicator, Image, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlatList } from 'react-native-gesture-handler';
-import { useNavigation } from '@react-navigation/native';
 
 export default function LibraryScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
-
-  useEffect(() => {
-    // Load the list of saved voice notes from AsyncStorage
+  
     const loadVoiceNotes = async () => {
       try {
         const savedVoiceNotes = await AsyncStorage.getItem('voiceNotesList');
         console.log('Saved voice notes from AsyncStorage:', savedVoiceNotes);
-
+  
         if (savedVoiceNotes) {
           const parsedNotes = JSON.parse(savedVoiceNotes);
-          console.log('Parsed voice notes:', parsedNotes.filter((note) => note && note.uri));
-
+          // console.log('Parsed voice notes:', parsedNotes.filter((note) => note && note.uri));
+  
           // Sort the voiceNotes array based on date in descending order
           const sortedNotes = parsedNotes.filter((note) => note && note.uri).sort((a, b) => b.date - a.date);
           setVoiceNotes(sortedNotes);
-          
         } else {
           // If 'voiceNotesList' key is not defined, initialize it to an empty array
           await AsyncStorage.setItem('voiceNotesList', JSON.stringify([]));
@@ -37,9 +34,18 @@ export default function LibraryScreen() {
         setLoading(false);
       }
     };
-
-    loadVoiceNotes();
-  }, []);
+  
+    useEffect(() => {
+      // Load voice notes when the component mounts
+      loadVoiceNotes();
+    }, []);
+  
+    // Use useFocusEffect to refresh the voice notes when the screen comes into focus
+    useFocusEffect(
+      React.useCallback(() => {
+        loadVoiceNotes();
+      }, [])
+    );
 
     
 

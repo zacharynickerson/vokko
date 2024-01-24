@@ -7,10 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { Entypo } from "@expo/vector-icons"
 import Features from '/Users/zacharynickerson/VokkoApp/src/components/features.js';
+import { MaterialIcons } from '@expo/vector-icons';
 import Playback from "../components/playback.js"
 import { StatusBar } from 'expo-status-bar';
 import Voice from '@react-native-voice/voice';
 import { apiCall } from '../api/openAI.js';
+import { authenticateGoogleDrive } from '/Users/zacharynickerson/VokkoApp/src/utilities/googleDriveUtils.js'; // Update the path
+import axios from 'axios';
+import { getAccessToken } from '/Users/zacharynickerson/VokkoApp/src/utilities/oauthUtil.js'; // Replace with the correct path
 import { useNavigation } from '@react-navigation/native';
 
 export default function VoiceNoteDetails({ route }) {
@@ -148,8 +152,55 @@ export default function VoiceNoteDetails({ route }) {
       }, [noteTitle]);;
   
 
-      console.log('CURRENT NOT TITLE', noteTitle);
+      console.log('CURRENT NOTE TITLE', noteTitle);
 
+
+
+      const uploadToGoogleDrive = async (accessToken, filePath, noteTitle) => {
+        try {
+          const response = await axios.post(
+            'https://www.googleapis.com/upload/drive/v3/files?uploadType=media',
+            // Include your file content and metadata in the request
+            {
+              name: noteTitle, // Use noteTitle directly
+              mimeType: 'audio/mp4',
+              // Add other file metadata as needed
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'audio/mp4', // Adjust the content type based on your file type
+              },
+            }
+          );
+      
+          console.log('File uploaded to Google Drive:', response.data);
+        } catch (error) {
+          console.error('Error uploading file to Google Drive:', error);
+        }
+      };
+
+      
+
+      const handleUploadToGoogleDrive = async () => {
+        try {
+          console.log('Start handleUploadToGoogleDrive');
+      
+          // Obtain an access token through your OAuth 2.0 authentication flow
+          const accessToken = await getAccessToken();
+          console.log('Access Token:', accessToken);
+      
+          // Replace 'YOUR_FILE_PATH' with the actual file path on your device
+          const filePath = route.params.uri;
+          console.log('File Path:', filePath);
+      
+          console.log('Before uploadToGoogleDrive');
+          uploadToGoogleDrive(accessToken, filePath, noteTitle);
+          console.log('After uploadToGoogleDrive');
+        } catch (error) {
+          console.error('Error in handleUploadToGoogleDrive:', error);
+        }
+      };
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
         <SafeAreaView className="flex-1 flex mx-5">
@@ -203,7 +254,21 @@ export default function VoiceNoteDetails({ route }) {
                 <Playback uri={uri} />
             </View>
 
-
+            {/* Inside your return statement, between the playback and transcript sections */}
+            <TouchableOpacity
+              onPress={handleUploadToGoogleDrive}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#242830',
+                padding: 10,
+                borderRadius: 8,
+                marginVertical: 10,
+              }}
+            >
+              <MaterialIcons name="cloud-upload" size={24} color="white" />
+              <Text style={{ color: 'white', marginLeft: 10 }}>Send to Google Drive</Text>
+            </TouchableOpacity>
 
             {/* TRANSCRIPT SECTION */}
             <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
