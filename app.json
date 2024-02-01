@@ -15,6 +15,7 @@
       "**/*"
     ],
     "ios": {
+      "googleServicesFile":  "GoogleService-Info.plist",
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.VokkoApp"
     },
@@ -32,6 +33,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
       [
         "@react-native-voice/voice",
         {
