@@ -1,10 +1,14 @@
-import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Button, Image, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { FIREBASE_AUTH, auth, firebaseApp } from '../../config/firebase';
 import React, { useState } from 'react'
+import { ref, set } from 'firebase/database';
 
 import { ArrowLeftIcon } from 'react-native-heroicons/solid';
+import { FirebaseAuthTypes } from '@react-native-firebase/app';
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { auth } from '../../config/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/app';
+import { db } from '/Users/zacharynickerson/VokkoApp/config/firebase.js'
+import { firebase } from '@react-native-firebase/app';
 import { useNavigation } from '@react-navigation/native';
 
 export default function SignUpScreen() {
@@ -12,20 +16,51 @@ export default function SignUpScreen() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    // const auth = 1; //DELETE THIS LATER
+
     const handleGoBack = () => {
         navigation.goBack();
       };
 
-    const handleSubmit = async ()=>{
-        if(email && password){
-            try{
-                await createUserWithEmailAndPassword(auth, email, password);
-            }catch(err){
-                console.log('got error: ',err.message);
-            }
-        }
+    const [title, setTitle] = useState('');
+    const [body, setBody] = useState('');
+    const dataAddOn = () => {
+        set(ref(db, 'posts/' + title), {
+            title: title,
+            body:body,
+        });
+        setTitle('');
+        setBody('');
     }
+      
+
+      const createProfile = async (response) => {
+        try {
+            const userData = {
+                name: name,
+                email: response.user.email,
+            };
+    
+            await db().ref(`/users/${response.user.uid}`).set(userData);
+            console.log('Data written to the database successfully!');
+        } catch (error) {
+            console.error('Error writing to the database:', error.message);
+        }
+    };
+
+
+    const handleSubmit = async () => {
+        if (email && password) {
+          try {
+            const response = await createUserWithEmailAndPassword(auth, email, password);
+            if (response.user) {
+              await createProfile(response);
+            }
+          } catch (err) {
+            console.log('got error: ', err.message);
+          }
+        }
+      }
+    
     return (
         <View className="flex-1 bg-emerald-400" style={{ backgroundColor: '#191A23' }}>
             <SafeAreaView className="flex">
@@ -76,6 +111,8 @@ export default function SignUpScreen() {
                             Sign Up
                         </Text>
                     </TouchableOpacity>    
+                    
+                    
                 </View>
                 <Text className="text-xl text-gray-700 font-bold text-center py-5">
                     Or

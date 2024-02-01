@@ -1,35 +1,29 @@
-import { Alert, Button, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native'
-import { FlatList, TextInput } from 'react-native-gesture-handler';
+import { Button, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import React, { startTransition, useEffect, useRef, useState } from 'react';
+import { db, storage } from '/Users/zacharynickerson/VokkoApp/config/firebase.js';
 import {heightPercentageToDP as hp, widthPercentageToDP as wp} from 'react-native-responsive-screen';
+import { ref, set, update } from 'firebase/database';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
-import { Entypo } from "@expo/vector-icons"
-import Features from '/Users/zacharynickerson/VokkoApp/src/components/features.js';
-import { MaterialIcons } from '@expo/vector-icons';
 import Playback from "../components/playback.js"
-import { StatusBar } from 'expo-status-bar';
-import Voice from '@react-native-voice/voice';
-import { apiCall } from '../api/openAI.js';
-import { authenticateGoogleDrive } from '/Users/zacharynickerson/VokkoApp/src/utilities/googleDriveUtils.js'; // Update the path
-import axios from 'axios';
-import { getAccessToken } from '/Users/zacharynickerson/VokkoApp/src/utilities/oauthUtil.js'; // Replace with the correct path
+import auth from "@react-native-firebase/app";
+import uploadAudioFile from '/Users/zacharynickerson/VokkoApp/config/firebase.js';
 import { useNavigation } from '@react-navigation/native';
 
 export default function VoiceNoteDetails({ route }) {
+  // const navigation = useNavigation();
+    // const formattedDate = d[1]
   const { uri, messages, date, month, year } = route.params;
   const sound = new Audio.Sound();
-  const navigation = useNavigation();
   const ScrollViewRef = useRef();
-  const [parsedExistingNotes, setParsedExistingNotes] = useState([]);
+  const [parsedExistingNotes] = useState([]);
   const d = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
-  const formattedDate = d[1]
   const [noteTitle, setNoteTitle] = useState('');
-
+  
   // Use the noteTitle from route.params when the component mounts
   useEffect(() => {
     setNoteTitle(route.params.noteTitle || `Recording ${parsedExistingNotes.length + 1}`);
@@ -66,7 +60,7 @@ export default function VoiceNoteDetails({ route }) {
           console.log('Loaded audio URI:', audioUri);
   
           // Handle undefined or invalid dates
-          const loadedDate = metadata.date || new Date().toISOString(); // Use a default date if undefined
+          // const loadedDate = metadata.date || new Date().toISOString(); // Use a default date if undefined
   
           if (audioUri) {
             // Load the sound asynchronously
@@ -95,8 +89,6 @@ export default function VoiceNoteDetails({ route }) {
     loadAsyncData();
   }, []);
 
-
-  
   const saveAsyncData = async (voiceNote) => {
     try {
       // Retrieve existing voice notes from AsyncStorage
@@ -123,21 +115,13 @@ export default function VoiceNoteDetails({ route }) {
   
       // Save the updated list back to AsyncStorage
       await AsyncStorage.setItem('voiceNotesList', JSON.stringify(parsedExistingNotes));
-  
       
       console.log('Data saved to AsyncStorage:', parsedExistingNotes);
     } catch (error) {
       console.error('Error saving data to AsyncStorage:', error);
     }
   };
-  
-  
 
-
-    
-      
-      
-    
       useEffect(() => {
         // Call saveAsyncData with the data for the new voice note
         saveAsyncData({
@@ -151,56 +135,76 @@ export default function VoiceNoteDetails({ route }) {
 
       }, [noteTitle]);;
   
-
       console.log('CURRENT NOTE TITLE', noteTitle);
 
 
 
-      const uploadToGoogleDrive = async (accessToken, filePath, noteTitle) => {
-        try {
-          const response = await axios.post(
-            'https://www.googleapis.com/upload/drive/v3/files?uploadType=media',
-            // Include your file content and metadata in the request
-            {
-              name: noteTitle, // Use noteTitle directly
-              mimeType: 'audio/mp4',
-              // Add other file metadata as needed
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'audio/mp4', // Adjust the content type based on your file type
-              },
-            }
-          );
-      
-          console.log('File uploaded to Google Drive:', response.data);
-        } catch (error) {
-          console.error('Error uploading file to Google Drive:', error);
-        }
-      };
-
+      ////////////////////////////////////////
+      //THESE ARE THE FIRE BASE TINGS
+      ////////////////////////////////////////
       
 
-      const handleUploadToGoogleDrive = async () => {
-        try {
-          console.log('Start handleUploadToGoogleDrive');
-      
-          // Obtain an access token through your OAuth 2.0 authentication flow
-          const accessToken = await getAccessToken();
-          console.log('Access Token:', accessToken);
-      
-          // Replace 'YOUR_FILE_PATH' with the actual file path on your device
-          const filePath = route.params.uri;
-          console.log('File Path:', filePath);
-      
-          console.log('Before uploadToGoogleDrive');
-          uploadToGoogleDrive(accessToken, filePath, noteTitle);
-          console.log('After uploadToGoogleDrive');
-        } catch (error) {
-          console.error('Error in handleUploadToGoogleDrive:', error);
+
+      //Upload audio file to Firebase Storage
+      const [fileURI, setFileURI] = useState(null);
+      const pickDocument = async () => {
+      try {
+        // Use the URI of the currently loaded voice note instead of picking a new document
+        const uri = route.params.uri;
+
+        if (uri) {
+          setFileURI(uri);
+
+          // Call the function to upload the audio file
+          const downloadURL = await uploadAudioFile(uri);
+          console.log('Download URL from Firebase:', downloadURL);
+        } else {
+          console.log('No URI found for the currently loaded voice note.');
         }
-      };
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    //Upload audio file to Firebase Storage
+    // const saveToFirebase = async (uri, noteTitle) => {
+    //   await db().ref(`/users/${currentUser}/sessions/${sessionId}`.set({
+    //     uri: route.params.uri,
+    //     date: route.params.date,
+    //     month: route.params.month,
+    //     d: route.params.d,
+    //     noteTitle: noteTitle,
+    //     year: route.params.year,
+    //   }))
+    // }
+    
+      // //Add note data to firebase
+      // const addToFirebase = () => {
+      //   const currentNoteTitle = noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
+      //   update(ref(db, `posts/${currentNoteTitle}`), {
+      //     date: route.params.date,
+      //     month: route.params.month,
+      //     year: route.params.year,
+      //     uri: route.params.uri,
+      //     messages: route.params.messages,
+      //     noteTitle: currentNoteTitle,
+      //   });
+      //   setNoteTitle(currentNoteTitle); // Update the state with the currentNoteTitle
+      // };
+
+        
+      //Upload audio file to Firebase Storage
+      const submitForCompletion = async () => {{
+        const currentUser = auth().currentUser
+        console.log('Start firebase submission');
+        if (currentUser) {
+          await addToFirebase(currentUser.uid, uri, noteTitle)
+          console.log('console.log("Successfully uploaded to firebase")');
+        }
+      };      
+    }
+
+
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
         <SafeAreaView className="flex-1 flex mx-5">
@@ -210,7 +214,9 @@ export default function VoiceNoteDetails({ route }) {
             <View className="p-9 space-y-2" >
                 {/* X */}
                 {/* ••• */}
-                    {/* <Button style={StyleSheet.button} onPress={() => Sharing.shareAsync(recordingLine.file)} title="Share"></Button> */}
+                <Button title="Upload Storage" onPress={() => { pickDocument(); }} />
+                <Button title="Upload Database" onPress={() => { submitForCompletion(); }} />
+
             </View>
 
             
@@ -226,10 +232,8 @@ export default function VoiceNoteDetails({ route }) {
                     source={require("/Users/zacharynickerson/VokkoApp/assets/images/noteicon.png")}
                     style={{ height: hp(3), width: hp(3) }}
                     className="mr-2"
-                    />
-                    {/* Add a TextInput for the user to input the note title */}
-                    
-                    {/* Add a TextInput for the user to input the note title */}
+                    />                    
+              {/* Add a TextInput for the user to input the note title */}
               <TextInput
                 style={{
                   height: 40,
@@ -254,21 +258,7 @@ export default function VoiceNoteDetails({ route }) {
                 <Playback uri={uri} />
             </View>
 
-            {/* Inside your return statement, between the playback and transcript sections */}
-            <TouchableOpacity
-              onPress={handleUploadToGoogleDrive}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#242830',
-                padding: 10,
-                borderRadius: 8,
-                marginVertical: 10,
-              }}
-            >
-              <MaterialIcons name="cloud-upload" size={24} color="white" />
-              <Text style={{ color: 'white', marginLeft: 10 }}>Send to Google Drive</Text>
-            </TouchableOpacity>
+            
 
             {/* TRANSCRIPT SECTION */}
             <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
