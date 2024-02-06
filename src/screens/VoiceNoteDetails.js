@@ -7,6 +7,7 @@ import { ref, set, update } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import Playback from "../components/playback.js"
+import { apiCall } from '/Users/zacharynickerson/VokkoApp/src/api/openAI.js';
 import auth from "@react-native-firebase/app";
 import { firebase } from '@react-native-firebase/app';
 import uploadAudioFile from '/Users/zacharynickerson/VokkoApp/config/firebase.js';
@@ -134,13 +135,6 @@ export default function VoiceNoteDetails({ route }) {
     }
   };
   
-  // const generateUniqueKey = () => {
-  //   // Generate a unique key using a library like uuid or a timestamp
-  //   // For example, using uuid:
-  //   const uuid = require('uuid'); // Install it using: npm install uuid
-  //   return uuid.v4();
-  // };
-  
   // Function to update the note title
   const updateNoteTitle = async (originalUniqueKey, newNoteTitle) => {
     try {
@@ -166,7 +160,7 @@ export default function VoiceNoteDetails({ route }) {
           uri: route.params.uri,
           date: route.params.date,
           month: route.params.month,
-          d: route.params.d,
+          // d: route.params.d,
           noteTitle: noteTitle,
           year: route.params.year,
         });  console.log('VoiceNoteDetails component rerendered with new noteTitle:', noteTitle);
@@ -199,6 +193,39 @@ export default function VoiceNoteDetails({ route }) {
         console.log(err);
       }
     };
+
+
+  
+      ////////////////////////////////////////
+      //TRANSCRIBE
+      ////////////////////////////////////////
+    // const fs = require('fs');
+    // const axios = require('axios');
+
+    // async function transcribe(file) {
+    //   const response = await axios.post(
+    //     'https://api.openai.com/v1/audio/transcriptions',
+    //     {
+    //       file,
+    //       model: 'whisper-1'
+    //     },
+    //     {
+    //       headers: {
+    //         'Content-Type': 'multipart/form-data',
+    //         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+    //       }
+    //     }
+    //   );
+
+    //   return response.data.text;
+    // }
+
+    // async function main() {
+    //   const file = fs.createReadStream('audio.mp3');
+    //   const transcript = await transcribe(file);
+
+    //   console.log(transcript);
+    // }
 
 
   

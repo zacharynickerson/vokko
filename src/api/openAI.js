@@ -4,14 +4,24 @@ const { apiKey } = require("/Users/zacharynickerson/VokkoApp/src/constants");
 const client = axios.create({
     headers: {
         "Authorization": "Bearer "+apiKey,
-        "context-Type": "application/json"
+        // "context-Type": "application/json",
+        "Content-Type": "application/json",
     }
 })
 
+const transcriptionEndpoint = 'https://api.openai.com/v1/audio/transcriptions';
 const chatGptEndpoint = 'https://api.openai.com/v1/chat/completions';
 const dalleEndpoint = 'https://api.openai.com/v1/images/generations';
 
 
+// export const chatCompletion = await openai.chat.completions.create({
+//     model: "gpt-3.5-turbo",
+//     messages: [{ role: "user", content: "Say this is a test" }]
+// });
+
+
+
+//API CALL TO SEND MESSAGE TO THE OPENAI CHATBOT
 export const apiCall = async(prompt, messages)=>{
     try{
         const res = await client.post(chatGptEndpoint, {
@@ -36,6 +46,15 @@ export const apiCall = async(prompt, messages)=>{
         return Promise.resolve({success: false, msg: err.message});
     }
 }
+  
+
+export const testOpenAIConfig = async ()=>{
+    const chatCompletion = await openai.createChatCompletion({
+        mode: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: "Say this is a test" }],
+    });
+    console.log(chatCompletion.data.choices[0].message);
+};
 
 const chatgptApiCall = async (prompt, messages)=>{
     try{

@@ -5,12 +5,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlatList } from 'react-native-gesture-handler';
+import { apiCall } from '/Users/zacharynickerson/VokkoApp/src/api/openAI.js';
 
 export default function LibraryScreen() {
+
   const [voiceNotes, setVoiceNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
-  
+
     const loadVoiceNotes = async () => {
       try {
         const savedVoiceNotes = await AsyncStorage.getItem('voiceNotesList');
