@@ -8,20 +8,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import Playback from "../components/playback.js"
 import auth from "@react-native-firebase/app";
+import { firebase } from '@react-native-firebase/app';
 import uploadAudioFile from '/Users/zacharynickerson/VokkoApp/config/firebase.js';
 import { useNavigation } from '@react-navigation/native';
 
 export default function VoiceNoteDetails({ route }) {
   // const navigation = useNavigation();
-    // const formattedDate = d[1]
+
+  ////////////////////////////////////////
+  //ASYNC STORAGE
+  ///////////////////////////////////////
   const { uri, messages, date, month, year } = route.params;
   const sound = new Audio.Sound();
   const ScrollViewRef = useRef();
   const [parsedExistingNotes] = useState([]);
-  const d = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
   const [noteTitle, setNoteTitle] = useState('');
   
   // Use the noteTitle from route.params when the component mounts
@@ -115,12 +115,50 @@ export default function VoiceNoteDetails({ route }) {
   
       // Save the updated list back to AsyncStorage
       await AsyncStorage.setItem('voiceNotesList', JSON.stringify(parsedExistingNotes));
-      
+         
       console.log('Data saved to AsyncStorage:', parsedExistingNotes);
+      saveToFirebaseDatabase(voiceNote);
     } catch (error) {
       console.error('Error saving data to AsyncStorage:', error);
     }
   };
+
+  const saveToFirebaseDatabase = async (voiceNote) => {
+    try {
+      // Use the URI as the key instead of generating a new one
+      const uriKey = voiceNote.uri.replace(/[.#$/[\]]/g, ''); // Clean up the URI to make it a valid key
+      await set(ref(db, `voiceNotes/${uriKey}`), voiceNote);
+      console.log('Data saved to Firebase Realtime Database:', voiceNote);
+    } catch (error) {
+      console.error('Error saving data to Firebase:', error);
+    }
+  };
+  
+  // const generateUniqueKey = () => {
+  //   // Generate a unique key using a library like uuid or a timestamp
+  //   // For example, using uuid:
+  //   const uuid = require('uuid'); // Install it using: npm install uuid
+  //   return uuid.v4();
+  // };
+  
+  // Function to update the note title
+  const updateNoteTitle = async (originalUniqueKey, newNoteTitle) => {
+    try {
+      // Retrieve the existing data using the original unique key
+      const snapshot = await get(ref(db, `voiceNotes/${originalUniqueKey}`));
+      const existingData = snapshot.val();
+  
+      // Update the note title
+      existingData.noteTitle = newNoteTitle;
+  
+      // Save the updated data back to Firebase using the original unique key
+      await set(ref(db, `voiceNotes/${originalUniqueKey}`), existingData);
+      console.log('Note title updated to:', newNoteTitle);
+    } catch (error) {
+      console.error('Error updating note title:', error);
+    }
+  };
+  
 
       useEffect(() => {
         // Call saveAsyncData with the data for the new voice note
@@ -140,12 +178,8 @@ export default function VoiceNoteDetails({ route }) {
 
 
       ////////////////////////////////////////
-      //THESE ARE THE FIRE BASE TINGS
+      //FIREBASE STORAGE
       ////////////////////////////////////////
-      
-
-
-      //Upload audio file to Firebase Storage
       const [fileURI, setFileURI] = useState(null);
       const pickDocument = async () => {
       try {
@@ -166,45 +200,8 @@ export default function VoiceNoteDetails({ route }) {
       }
     };
 
-    //Upload audio file to Firebase Storage
-    // const saveToFirebase = async (uri, noteTitle) => {
-    //   await db().ref(`/users/${currentUser}/sessions/${sessionId}`.set({
-    //     uri: route.params.uri,
-    //     date: route.params.date,
-    //     month: route.params.month,
-    //     d: route.params.d,
-    //     noteTitle: noteTitle,
-    //     year: route.params.year,
-    //   }))
-    // }
-    
-      // //Add note data to firebase
-      // const addToFirebase = () => {
-      //   const currentNoteTitle = noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
-      //   update(ref(db, `posts/${currentNoteTitle}`), {
-      //     date: route.params.date,
-      //     month: route.params.month,
-      //     year: route.params.year,
-      //     uri: route.params.uri,
-      //     messages: route.params.messages,
-      //     noteTitle: currentNoteTitle,
-      //   });
-      //   setNoteTitle(currentNoteTitle); // Update the state with the currentNoteTitle
-      // };
 
-        
-      //Upload audio file to Firebase Storage
-      const submitForCompletion = async () => {{
-        const currentUser = auth().currentUser
-        console.log('Start firebase submission');
-        if (currentUser) {
-          await addToFirebase(currentUser.uid, uri, noteTitle)
-          console.log('console.log("Successfully uploaded to firebase")');
-        }
-      };      
-    }
-
-
+  
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
         <SafeAreaView className="flex-1 flex mx-5">
@@ -215,8 +212,6 @@ export default function VoiceNoteDetails({ route }) {
                 {/* X */}
                 {/* ••• */}
                 <Button title="Upload Storage" onPress={() => { pickDocument(); }} />
-                <Button title="Upload Database" onPress={() => { submitForCompletion(); }} />
-
             </View>
 
             
@@ -287,10 +282,9 @@ export default function VoiceNoteDetails({ route }) {
             ) : (
               <Text style={{ color: 'white' }}>{messages}</Text>
             )}
-
-               
-               
             </View>
         </SafeAreaView>
     </View>
 )}
+
+

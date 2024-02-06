@@ -32,10 +32,7 @@ export default function LoginScreen() {
                         className="bg-white p-2 rounded-tr-2xl rounded-bl-2xl ml-4">
                         <ArrowLeftIcon size="20" color="black" />
                     </TouchableOpacity>    */}
-                
-                
-
-                
+            
                 </View>
                 <View className="flex-row justify-center">
                     <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/glasshead.png')}
@@ -43,8 +40,6 @@ export default function LoginScreen() {
                     />
                 </View>
             </SafeAreaView>
-
-
 
 
             <View className="flex-1 bg-white px-8 pt-8"
