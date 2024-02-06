@@ -1,4 +1,4 @@
-export const apiKey = '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';
+export const apiKey = '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';
 export const dummyMessages = [
     {
         role: 'user',
@@ -17,3 +17,4 @@ export const dummyMessages = [
         content: 'https://storage.googleapis.com/pai-images/ae74b3002bfe4b538493ca7aedb6a300.jpeg'
     },
 ]
+
