@@ -1,12 +1,10 @@
 import 'firebase/storage';
 
+import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
-import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
-import firebase from 'firebase/compat/app';
-import { getAuth } from "firebase/auth";
 import { getDatabase } from 'firebase/database';
 import { initializeApp } from 'firebase/app';
 
@@ -46,7 +44,8 @@ const uploadAudioFile = async (uri) => {
     // Log the upload success and get the download URL
     console.log('Upload successful!', snapshot);
 
-    const downloadURL = await snapshot.ref.getDownloadUrl();
+    const downloadURL = await getDownloadURL(storageRef);
+    
     console.log('Download URL:', downloadURL);
 
     // Return the download URL or any other relevant information
