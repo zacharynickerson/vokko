@@ -154,15 +154,6 @@ export default function HomeScreen() {
             }
           }
 
-         
-            
-           
-                
-   
-        
-              
-
-
         const stopTranscription = async () => {
             try {
               await Voice.stop();
