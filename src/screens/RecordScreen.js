@@ -123,14 +123,44 @@ export default function HomeScreen() {
               });
         
               console.log('Starting recording..');
-              const { recording } = await Audio.Recording.createAsync( Audio.RecordingOptionsPresets.HIGH_QUALITY
-              );
+          
+              // Adjust options to specify WAV format
+              const recordingOptions = {
+                  android: {
+                      extension: '.wav',
+                      outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_PCM,
+                      audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_PCM,
+                  },
+                  ios: {
+                      extension: '.wav',
+                      outputFormat: Audio.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM,
+                      audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_HIGH,
+                      sampleRate: 44100,
+                      numberOfChannels: 1,
+                      bitRate: 128000,
+                      linearPCMBitDepth: 16,
+                      linearPCMIsBigEndian: false,
+                      linearPCMIsFloat: false,
+                  },
+              };
+              // const { recording } = await Audio.Recording.createAsync( Audio.RecordingOptionsPresets.HIGH_QUALITY);
+              const { recording } = await Audio.Recording.createAsync(recordingOptions);
+
+              
               setRecording(recording);
               console.log('Recording started');
             } catch (err) {
               console.error('Failed to start recording', err);
             }
           }
+
+         
+            
+           
+                
+   
+        
+              
 
 
         const stopTranscription = async () => {
@@ -141,7 +171,8 @@ export default function HomeScreen() {
           
               // Save audio file to FileSystem
               const recordingURI = recording.getURI();
-              const audioFileName = `recording_${Date.now()}.m4a`;
+              // const audioFileName = `recording_${Date.now()}.m4a`;
+              const audioFileName = `recording_${Date.now()}.wav`;
               const audioFilePath = `${FileSystem.documentDirectory}${audioFileName}`;
               await FileSystem.moveAsync({
                 from: recordingURI,
