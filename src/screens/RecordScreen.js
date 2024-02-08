@@ -11,7 +11,6 @@ import { apiCall } from '../api/openAI.js';
 import { useNavigation } from '@react-navigation/native';
 
 export default function HomeScreen() {
-  
 
     //Recording variables
     const [recording, setRecording] = React.useState();
@@ -27,24 +26,6 @@ export default function HomeScreen() {
     ];
     const month = d[currentMonth];
     const year = new Date().getFullYear();
-
-        // OLD OPEN AI FETCH RESPONSE FUNCTION
-      //   const getOpenAIResponse = ()=>{
-      //     if(result.trim().length>0){
-            
-      //         messages.push({role: 'user', content: result.trim()});
-      //         apiCall(result.trim(), messages).then(res=>{
-      //             console.log('got api data ',res);
-      //             if(res.success){
-      //                 setMessages([...res.data]);
-      //                 setResult('');
-      //             }else{
-      //                 Alert.alert('Error', res.msg);
-      //             }
-      //         })
-      //     }
-      // }
-
 
     //Format Date
     const formatMillis = (millis) => {
@@ -265,14 +246,6 @@ export default function HomeScreen() {
                 Voice.destroy().then(Voice.removeAllListeners);
             }
         },[])
-
-
-
-
-
-
-
-
 
  return (
         <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
