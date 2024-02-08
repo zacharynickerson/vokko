@@ -24,11 +24,36 @@ export default function VoiceNoteDetails({ route }) {
   const ScrollViewRef = useRef();
   const [parsedExistingNotes] = useState([]);
   const [noteTitle, setNoteTitle] = useState('');
-  
+  const { audioFilePath } = route.params; //WHAT IS THIS?
+  const [transcription, setTranscription] = useState('');
+
   // Use the noteTitle from route.params when the component mounts
   useEffect(() => {
     setNoteTitle(route.params.noteTitle || `Recording ${parsedExistingNotes.length + 1}`);
   }, [route.params.noteTitle, parsedExistingNotes]);
+
+
+
+  useEffect(() => {
+    const fetchTranscription = async () => {
+      try {
+        const transcriptionRef = firebase.storage().ref(`audio/audio/${audioFilePath}.txt`);
+        const transcriptionUrl = await transcriptionRef.getDownloadURL();
+        const response = await fetch(transcriptionUrl);
+        if (!response.ok) {
+          throw new Error('Failed to fetch transcription');
+        }
+        const transcriptionData = await response.text();
+        setTranscription(transcriptionData);
+      } catch (error) {
+        console.error('Error fetching transcription:', error);
+      }
+    };
+  
+    fetchTranscription();
+  }, [audioFilePath]);
+  
+
 
   // Debounce the saveAsyncData function to avoid saving for every character typed
   const debounceSave = useRef(null);
@@ -43,6 +68,7 @@ export default function VoiceNoteDetails({ route }) {
         year: route.params.year,
         uri: route.params.uri,
         messages: messages,
+        transcription: transcription,
         noteTitle: noteTitle || `Recording ${parsedExistingNotes.length + 1}`,
       });
     }, 500); // Adjust the delay as needed (e.g., 500 milliseconds)
@@ -111,6 +137,7 @@ export default function VoiceNoteDetails({ route }) {
       } else {
         // Add the new voice note to the end of the array with a unique default title
         voiceNote.noteTitle = voiceNote.noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
+        voiceNote.transcription = ''; // Add empty transcription field
         parsedExistingNotes.push(voiceNote);
       }
   
@@ -163,6 +190,7 @@ export default function VoiceNoteDetails({ route }) {
           // d: route.params.d,
           noteTitle: noteTitle,
           year: route.params.year,
+          transcription: transcription,
         });  console.log('VoiceNoteDetails component rerendered with new noteTitle:', noteTitle);
 
       }, [noteTitle]);;
@@ -281,10 +309,28 @@ export default function VoiceNoteDetails({ route }) {
             </View>
 
             
+            {/* TRANSCRIPT SECTION */}
+            <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
+              Google Cloud Transcript
+            </Text>
+
+
+              <View style={{ height: hp(45), backgroundColor: '#242830' }} className="bg-neutral-200 rounded-3xl p-4">
+                <ScrollView
+                  ref={ScrollViewRef}
+                  bounces={false}
+                  className="space-y-4"
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Text>{transcription}</Text>
+                </ScrollView>
+              </View>
+              
+
 
             {/* TRANSCRIPT SECTION */}
             <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
-              Transcript
+              Live Transcript
             </Text>
 
             {Array.isArray(messages) && messages.length > 0 ? (
@@ -306,6 +352,7 @@ export default function VoiceNoteDetails({ route }) {
                   ))}
                 </ScrollView>
               </View>
+              
             ) : (
               <Text style={{ color: 'white' }}>{messages}</Text>
             )}
