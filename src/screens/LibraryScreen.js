@@ -1,11 +1,13 @@
 import { ActivityIndicator, Image, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import { onValue, ref } from 'firebase/database';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlatList } from 'react-native-gesture-handler';
 import { apiCall } from '/Users/zacharynickerson/VokkoApp/src/api/openAI.js';
+import { db } from '/Users/zacharynickerson/VokkoApp/config/firebase.js';
 
 export default function LibraryScreen() {
 
@@ -13,41 +15,58 @@ export default function LibraryScreen() {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
 
-    const loadVoiceNotes = async () => {
-      try {
-        const savedVoiceNotes = await AsyncStorage.getItem('voiceNotesList');
-        console.log('Saved voice notes from AsyncStorage:', savedVoiceNotes);
+
+      useEffect(() => {
+        const loadVoiceNotes = () => {
+          const voiceNotesRef = ref(db, 'voiceNotes');
+          onValue(voiceNotesRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+              const voiceNotesArray = Object.values(data);
+              setVoiceNotes(voiceNotesArray);
+            }
+            setLoading(false);
+          });
+        };
+
+        loadVoiceNotes();
+      }, []);
+
+    // const loadVoiceNotes = async () => {
+    //   try {
+    //     const savedVoiceNotes = await AsyncStorage.getItem('voiceNotesList');
+    //     console.log('Saved voice notes from AsyncStorage:', savedVoiceNotes);
   
-        if (savedVoiceNotes) {
-          const parsedNotes = JSON.parse(savedVoiceNotes);
-          // console.log('Parsed voice notes:', parsedNotes.filter((note) => note && note.uri));
+    //     if (savedVoiceNotes) {
+    //       const parsedNotes = JSON.parse(savedVoiceNotes);
+    //       // console.log('Parsed voice notes:', parsedNotes.filter((note) => note && note.uri));
   
-          // Sort the voiceNotes array based on date in descending order
-          const sortedNotes = parsedNotes.filter((note) => note && note.uri).sort((a, b) => b.date - a.date);
-          setVoiceNotes(sortedNotes);
-        } else {
-          // If 'voiceNotesList' key is not defined, initialize it to an empty array
-          await AsyncStorage.setItem('voiceNotesList', JSON.stringify([]));
-        }
-      } catch (error) {
-        console.error('Error loading voice notes:', error);
-      } finally {
-        // Set loading to false when the voice notes are loaded
-        setLoading(false);
-      }
-    };
+    //       // Sort the voiceNotes array based on date in descending order
+    //       const sortedNotes = parsedNotes.filter((note) => note && note.uri).sort((a, b) => b.date - a.date);
+    //       setVoiceNotes(sortedNotes);
+    //     } else {
+    //       // If 'voiceNotesList' key is not defined, initialize it to an empty array
+    //       await AsyncStorage.setItem('voiceNotesList', JSON.stringify([]));
+    //     }
+    //   } catch (error) {
+    //     console.error('Error loading voice notes:', error);
+    //   } finally {
+    //     // Set loading to false when the voice notes are loaded
+    //     setLoading(false);
+    //   }
+    // };
   
-    useEffect(() => {
-      // Load voice notes when the component mounts
-      loadVoiceNotes();
-    }, []);
+    // useEffect(() => {
+    //   // Load voice notes when the component mounts
+    //   loadVoiceNotes();
+    // }, []);
   
     // Use useFocusEffect to refresh the voice notes when the screen comes into focus
-    useFocusEffect(
-      React.useCallback(() => {
-        loadVoiceNotes();
-      }, [])
-    );
+    // useFocusEffect(
+    //   React.useCallback(() => {
+    //     loadVoiceNotes();
+    //   }, [])
+    // );
 
     
 
