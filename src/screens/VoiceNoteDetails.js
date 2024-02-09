@@ -20,14 +20,45 @@ export default function VoiceNoteDetails({ route }) {
   const { uri, messages, date, month, year } = route.params;
   const [noteTitle, setNoteTitle] = useState('');
   const [transcription, setTranscription] = useState('');
-  
-  //Not sure if needed fully but see later
   const ScrollViewRef = useRef();
+
   const [parsedExistingNotes] = useState([]);
   const sound = new Audio.Sound();
   const { audioFilePath } = route.params; //WHAT IS THIS?
 
 
+  const [fileURI, setFileURI] = useState(null);
+  // Ensure uploadDone state is properly defined and initialized
+  const [uploadDone, setUploadDone] = useState(false);
+
+  const pickDocument = async () => {
+    try {
+      // Use the URI of the currently loaded voice note instead of picking a new document
+      const uri = route.params.uri;
+      if (uri && !uploadDone) { // Check if upload is not done
+        setUploadDone(true); // Set upload status to true before processing
+        setFileURI(uri);
+        // Call the function to upload the audio file
+        const downloadURL = await uploadAudioFile(uri);
+        console.log('Download URL from Firebase:', downloadURL);
+      } else {
+        console.log('No URI found for the currently loaded voice note or upload already done.');
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // Modify the dependency array of the useEffect hook to include uploadDone
+  useEffect(() => {
+    if (!uploadDone) {
+      pickDocument();
+    }
+}, [uploadDone]);
+
+
+
+  
   //Save the Voice Note Object to Firebase Real Time Database
   const saveToFirebaseDatabase = async (voiceNote) => {
     try {
@@ -57,27 +88,13 @@ export default function VoiceNoteDetails({ route }) {
     }
   };
 
-  const [fileURI, setFileURI] = useState(null);
-  const pickDocument = async () => {
-  try {
-    // Use the URI of the currently loaded voice note instead of picking a new document
-    const uri = route.params.uri;
-    if (uri) {
-      setFileURI(uri);
-      // Call the function to upload the audio file
-      const downloadURL = await uploadAudioFile(uri);
-      console.log('Download URL from Firebase:', downloadURL);
-    } else {
-      console.log('No URI found for the currently loaded voice note.');
-    }
-  } catch (err) {
-    console.log(err);
-  }};
+  
 
   // Use the noteTitle from route.params when the component mounts
   useEffect(() => {
     setNoteTitle(route.params.noteTitle || `Recording ${parsedExistingNotes.length + 1}`);
   }, [route.params.noteTitle, parsedExistingNotes]);
+  
 
   // Debounce the saveAsyncData function to avoid saving for every character typed
   const debounceSave = useRef(null);
@@ -116,6 +133,26 @@ export default function VoiceNoteDetails({ route }) {
       console.error('Error updating note title:', error);
     }
   };
+
+  useEffect(() => {
+    const fetchVoiceNoteData = async () => {
+      try {
+        const filename = uri.split('/').pop();
+        const uriKey = filename.replace(/[.#$/[\]]/g, '');
+        const existingNoteSnapshot = await ref(db, `voiceNotes/${uriKey}`);
+        const existingNoteData = (await get(existingNoteSnapshot)).val();
+        
+        if (existingNoteData && existingNoteData.transcription) {
+          setTranscription(existingNoteData.transcription); // Update transcription state
+        }
+      } catch (error) {
+        console.error('Error fetching voice note data:', error);
+      }
+    };
+  
+    fetchVoiceNoteData();
+  }, [uri]); // Fetch data when uri changes
+  
   
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
@@ -126,7 +163,7 @@ export default function VoiceNoteDetails({ route }) {
             <View className="p-9 space-y-2" >
                 {/* X */}
                 {/* ••• */}
-                <Button title="Upload Storage" onPress={() => { pickDocument(); }} />
+                {/* <Button title="Upload Storage" onPress={() => { pickDocument(); }} /> */}
             </View>
 
             
@@ -172,8 +209,34 @@ export default function VoiceNoteDetails({ route }) {
             <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
               Live Transcript
             </Text>
+            <View style={{ height: hp(45), backgroundColor: '#242830' }} className="bg-neutral-200 rounded-3xl p-4">
+              <ScrollView
+                ref={ScrollViewRef}
+                bounces={false}
+                className="space-y-4"
+                showsVerticalScrollIndicator={false}
+              >
+                <View className="flex-row justify-left">
+                  <View style={{ width: wp(80) }} className="rounded-xl p-4 rounded-tr-none">
+                    <Text className="text-white font-bold" style={{ fontSize: wp(3.8) }}>
+                      {transcription}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
 
-            {Array.isArray(messages) && messages.length > 0 ? (
+
+            </View>
+        </SafeAreaView>
+    </View>
+)}
+
+
+
+
+
+            {/* {Array.isArray(messages) && messages.length > 0 ? (
               <View style={{ height: hp(45), backgroundColor: '#242830' }} className="bg-neutral-200 rounded-3xl p-4">
                 <ScrollView
                   ref={ScrollViewRef}
@@ -181,11 +244,11 @@ export default function VoiceNoteDetails({ route }) {
                   className="space-y-4"
                   showsVerticalScrollIndicator={false}
                 >
-                  {messages.map((message, index) => (
+                  {messages.map((transcription, index) => (
                     <View key={index} className="flex-row justify-left">
                       <View style={{ width: wp(80) }} className="rounded-xl p-4 rounded-tr-none">
                         <Text className="text-white font-bold" style={{ fontSize: wp(3.8) }}>
-                          {message.content}
+                          {transcription[index]}
                         </Text>
                       </View>
                     </View>
@@ -195,14 +258,7 @@ export default function VoiceNoteDetails({ route }) {
               
             ) : (
               <Text style={{ color: 'white' }}>{messages}</Text>
-            )}
-            </View>
-        </SafeAreaView>
-    </View>
-)}
-
-
-
+            )} */}
 
   // useEffect(() => {
   //   const fetchTranscription = async () => {
