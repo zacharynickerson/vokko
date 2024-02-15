@@ -9,17 +9,33 @@ import { Sound } from 'expo-av/build/Audio';
 const Playback = ({ uri }) => {
   const [sound, setSound] = useState();
   const [status, setStatus] = useState();
+  
 
-  async function loadSound() {
-    console.log('URI:', uri); // Log the URI
-    console.log('Loading Sound');
-    const { sound } = await Audio.Sound.createAsync(
-      { uri },
-      { progressUpdateIntervalMillis: 1000 / 60 },
-      onPlaybackStatusUpdate
-    );
-    setSound(sound);
-  }
+  useEffect(() => {
+    const loadSound = async () => {
+      try {
+        console.log('URI:', uri);
+        console.log('Loading Sound');
+        const { sound } = await Audio.Sound.createAsync(
+          { uri },
+          { progressUpdateIntervalMillis: 1000 / 60 },
+          onPlaybackStatusUpdate
+        );
+        setSound(sound);
+      } catch (error) {
+        console.error('Error loading sound:', error);
+      }
+    };
+
+    loadSound();
+
+    return () => {
+      if (sound) {
+        console.log('Unloading Sound');
+        sound.unloadAsync();
+      }
+    };
+  }, [uri]);
 
   const onPlaybackStatusUpdate = useCallback(async (newStatus) => {
     setStatus(newStatus);
@@ -33,9 +49,7 @@ const Playback = ({ uri }) => {
     }
   }, [sound]);
 
-  useEffect(() => {
-    loadSound();
-  }, [uri]);
+
 
   async function playSound() {
     if (!sound) {
