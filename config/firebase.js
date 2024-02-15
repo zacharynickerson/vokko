@@ -71,4 +71,4 @@ export const auth = getAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
 });
 
-export { db };
+export { db, storage };
