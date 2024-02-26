@@ -1,28 +1,21 @@
-import {Image, SafeAreaView, ScrollView, Text, TextInput, View} from 'react-native'
+import {Button, Image, SafeAreaView, ScrollView, Text, TextInput, View} from 'react-native'
 import React, { useEffect, useRef, useState } from 'react';
 import { db, storage } from '/Users/zacharynickerson/VokkoApp/config/firebase.js';
-import { get, ref, set } from 'firebase/database';
+import { get, onValue, ref, set } from 'firebase/database';
 import {heightPercentageToDP as hp, widthPercentageToDP as wp} from 'react-native-responsive-screen';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import Playback from "../components/playback.js"
-// import { apiCall } from '/Users/zacharynickerson/VokkoApp/src/api/openAI.js';
-// import auth from "@react-native-firebase/app";
-// import { firebase } from '@react-native-firebase/app';
 import uploadAudioFile from '/Users/zacharynickerson/VokkoApp/config/firebase.js';
 
 // import { useNavigation } from '@react-navigation/native';
 
-// Add console.log statements to check db and storage
-// console.log('DB:', db);
-// console.log('Storage:', storage);
-
 export default function VoiceNoteDetails({ route }) {
-    // Separate state variables for different URIs
-    const [playbackURI, setPlaybackURI] = useState(route.params.uri); // Full URI for playback
-    const [databaseURI, setDatabaseURI] = useState(null); // Cleaned-up URI for Firebase
+
   // const navigation = useNavigation();
+
+
 
   //Voice note attributes
   const { uri, messages, date, month, year } = route.params;
@@ -31,78 +24,33 @@ export default function VoiceNoteDetails({ route }) {
   const ScrollViewRef = useRef();
   const [parsedExistingNotes] = useState([]);
   const sound = new Audio.Sound();
-  // const { audioFilePath } = route.params; //WHAT IS THIS?
-  // const [fileURI, setFileURI] = useState(null);
-  // Ensure uploadDone state is properly defined and initialized
-  const [uploadDone, setUploadDone] = useState(false);
+  const [savedToFirebaseStorage, setSavedToFirebaseStorage] = useState(false); // <-- Track if saved to Firebase Storage
 
-  const [downloadURL, setDownloadURL] = useState(null);
-
- 
-  useEffect(() => {
-    if (!uploadDone) {
-      saveToFirebaseStorage();
-    }
-  }, [uploadDone]);
-
-  const saveToFirebaseStorage = async () => {
-    try {
-      const uri = route.params.uri;
-      if (uri && !uploadDone) {
-        setUploadDone(true);
-        const downloadURL = await uploadAudioFile(uri);
-        setDownloadURL(downloadURL);
-        console.log('Download URL from Firebase:', downloadURL);
-        return downloadURL;
-      } else {
-        console.log('No URI found for the currently loaded voice note or upload already done.');
+    // Save the Voice Note Recording to Firebase Storage only once
+    const saveToFirebaseStorageOnce = async () => {
+      if (!savedToFirebaseStorage) {
+        const uri = route.params.uri;
+        uploadAudioFile(uri);
+        console.log("UPLOADED COMPLETE")
+        setSavedToFirebaseStorage(true); // <-- Update state to indicate saved to Firebase Storage
       }
-    } catch (err) {
-      console.log(err);
     }
-  };
 
-
-
-//   // Update useEffect to fetch and set download URL
-// useEffect(() => {
-//   if (!uploadDone) {
-//     saveToFirebaseStorage();
-//   } else {
-//     // Fetch download URL from Firebase if uploadDone is true
-//     const fetchDownloadURL = async () => {
-//       try {
-//         const filename = route.params.uri.split('/').pop();
-//         const storageRef = storage.ref(`audio/${filename}`);
-//         const url = await storageRef.getDownloadURL();
-//         setDownloadURL(url);
-//       } catch (error) {
-//         console.error('Error fetching download URL:', error);
-//       }
-//     };
-//     fetchDownloadURL();
-//   }
-// }, [uploadDone]);
-
- // useEffect hook to set playbackURI only once when the component mounts
- useEffect(() => {
-  if (!playbackURI) {
-    setPlaybackURI(route.params.uri);
-  }
-}, []); // Empty dependency array ensures it runs only once when the component mounts
-
-
+  //Save the Voice Note Recording to the FB Storage
+  // const saveToFirebaseStorage = async () => {
+  //   const uri = route.params.uri;
+  //   uploadAudioFile(uri);
+  //   console.log("UPLOADED COMPLETEE")
+  // }
   
   //Save the Voice Note Object to Firebase Real Time Database
-const saveToFirebaseDatabase = async (voiceNote) => {
+  const saveToFirebaseDatabase = async (voiceNote) => {
   try {
-
 
     // CREATE THE DATABASE URI BY EXTRACTING THE FILENAME FROM URI 
     const databaseURI = voiceNote.uri.split('/').pop();
-    // Set the cleaned-up URI for Firebase
-    setDatabaseURI(databaseURI);
 
+    console.log("VOICE URI BITCH", voiceNote.uri);
     //************************************************************************************* */
     //THIS BASTARD IS THE FUCKING DIFFERENCE BETWEEN A LOADED AUDIO FROM LOCAL OR A TRANSCRIPT
     // Set the filename as the URI in the voiceNote object
@@ -120,8 +68,6 @@ const saveToFirebaseDatabase = async (voiceNote) => {
     if (existingNoteData && existingNoteData.transcription) {
       voiceNote.transcription = existingNoteData.transcription;
     }
-
-    console.log("CURRENT URI", playbackURI)
     // Save the updated voice note data to Firebase
     await set(ref(db, `voiceNotes/${uriKey}`), voiceNote);
     console.log('Data saved to Firebase Realtime Database:', voiceNote);
@@ -130,69 +76,56 @@ const saveToFirebaseDatabase = async (voiceNote) => {
   }
 };
 
+ //Save Voice Note to AsyncStorage
+ const saveAsyncData = async (voiceNote) => {
+  try {
+    // Extract the filename from the URI
+    // const databaseURI = voiceNote.uri.split('/').pop();
+
+    // // Set the filename as the URI in the voiceNote object
+    // voiceNote.uri = databaseURI;
+
+    // Retrieve existing voice notes from AsyncStorage
+    let existingVoiceNotes = await AsyncStorage.getItem('voiceNotesList');
+
+    // If 'voiceNotesList' is not defined, initialize it to an empty array
+    if (!existingVoiceNotes) {
+      existingVoiceNotes = '[]';
+    }
+
+    const parsedExistingNotes = JSON.parse(existingVoiceNotes);
+
+    // Check if a voice note with the same URI already exists
+    const existingNoteIndex = parsedExistingNotes.findIndex((note) => note.uri === voiceNote.uri);
+
+    if (existingNoteIndex !== -1) {
+      // Update the existing voice note
+      parsedExistingNotes[existingNoteIndex].noteTitle = voiceNote.noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
+      // Preserve the existing transcription value
+      if (!parsedExistingNotes[existingNoteIndex].transcription) {
+        parsedExistingNotes[existingNoteIndex].transcription = voiceNote.transcription;
+      }
+    } else {
+      // Add the new voice note to the end of the array with a unique default title
+      voiceNote.noteTitle = voiceNote.noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
+      parsedExistingNotes.push(voiceNote);
+    }
+
+    // Save the updated list back to AsyncStorage
+    await AsyncStorage.setItem('voiceNotesList', JSON.stringify(parsedExistingNotes));
+
+    console.log('Data saved to AsyncStorage:', parsedExistingNotes);
+    saveToFirebaseDatabase(voiceNote);
+    saveToFirebaseStorageOnce(); // Save to Firebase Storage only once
+  } catch (error) {
+    console.error('Error saving data to AsyncStorage:', error);
+  }
+};
   
   // Use the noteTitle from route.params when the component mounts
   useEffect(() => {
     setNoteTitle(route.params.noteTitle || `Recording ${parsedExistingNotes.length + 1}`);
   }, [route.params.noteTitle, parsedExistingNotes]);
-  
-
-  // Debounce the saveAsyncData function to avoid saving for every character typed
-  const debounceSave = useRef(null);
-
-  // Clear the timeout if the component unmounts or noteTitle changes before the timeout completes
-  useEffect(() => {
-    clearTimeout(debounceSave.current);
-    debounceSave.current = setTimeout(() => {
-      saveToFirebaseDatabase({
-        date: route.params.date,
-        month: route.params.month,
-        year: route.params.year,
-        uri: route.params.uri,
-        messages: messages,
-        transcription: transcription,
-        noteTitle: noteTitle || `Recording ${parsedExistingNotes.length + 1}`,
-      });
-    }, 500); // Adjust the delay as needed (e.g., 500 milliseconds)
-  }, [noteTitle, parsedExistingNotes]); // Include noteTitle as a dependency
-
-
-  // Function to update the note title
-  const updateNoteTitle = async (originalUniqueKey, newNoteTitle) => {
-    try {
-      // Retrieve the existing data using the original unique key
-      const snapshot = await get(ref(db, `voiceNotes/${originalUniqueKey}`));
-      const existingData = snapshot.val();
-  
-      // Update the note title
-      existingData.noteTitle = newNoteTitle;
-  
-      // Save the updated data back to Firebase using the original unique key
-      await set(ref(db, `voiceNotes/${originalUniqueKey}`), existingData);
-      console.log('Note title updated to:', newNoteTitle);
-    } catch (error) {
-      console.error('Error updating note title:', error);
-    }
-  };
-
-  useEffect(() => {
-    const fetchVoiceNoteData = async () => {
-      try {
-        const databaseURI = uri.split('/').pop();
-        const uriKey = databaseURI.replace(/[.#$/[\]]/g, '');
-        const existingNoteSnapshot = await ref(db, `voiceNotes/${uriKey}`);
-        const existingNoteData = (await get(existingNoteSnapshot)).val();
-        
-        if (existingNoteData && existingNoteData.transcription) {
-          setTranscription(existingNoteData.transcription); // Update transcription state
-        }
-      } catch (error) {
-        console.error('Error fetching voice note data:', error);
-      }
-    };
-  
-    fetchVoiceNoteData();
-  }, [uri]); // Fetch data when uri changes
   
     useEffect(() => {
     const loadAsyncData = async () => {
@@ -201,12 +134,9 @@ const saveToFirebaseDatabase = async (voiceNote) => {
         if (savedData) {
           const { metadata, transcript, audioUri } = JSON.parse(savedData);
           console.log('Loaded metadata:', metadata);
-          console.log('Loaded transcript:', transcript);
+          // console.log('Loaded transcript:', transcript);
           console.log('Loaded audio URI:', audioUri);
-  
-          // Handle undefined or invalid dates
-          // const loadedDate = metadata.date || new Date().toISOString(); // Use a default date if undefined
-  
+
           if (audioUri) {
             // Load the sound asynchronously
             await sound.loadAsync({ uri: audioUri });
@@ -225,10 +155,10 @@ const saveToFirebaseDatabase = async (voiceNote) => {
             console.error('Audio URI is undefined or invalid.');
           }
   
-          // Only set the transcription if it's not already set
-          if (!transcription) {
-            setTranscription(transcript);
-          }
+          // // Only set the transcription if it's not already set
+          // if (!transcription) {
+          //   setTranscription(transcript);
+          // }
         }
       } catch (error) {
         console.error('Error loading data from AsyncStorage:', error);
@@ -238,69 +168,42 @@ const saveToFirebaseDatabase = async (voiceNote) => {
     // Call the function when the component mounts
     loadAsyncData();
   }, []);
-  
 
-  const saveAsyncData = async (voiceNote) => {
-    try {
-      // Extract the filename from the URI
-      const databaseURI = voiceNote.uri.split('/').pop();
-  
-      // // Set the filename as the URI in the voiceNote object
-      // voiceNote.uri = filename;
-  
-      // Retrieve existing voice notes from AsyncStorage
-      let existingVoiceNotes = await AsyncStorage.getItem('voiceNotesList');
-  
-      // If 'voiceNotesList' is not defined, initialize it to an empty array
-      if (!existingVoiceNotes) {
-        existingVoiceNotes = '[]';
-      }
-  
-      const parsedExistingNotes = JSON.parse(existingVoiceNotes);
-  
-      // Check if a voice note with the same URI already exists
-      const existingNoteIndex = parsedExistingNotes.findIndex((note) => note.uri === voiceNote.uri);
-  
-      if (existingNoteIndex !== -1) {
-        // Update the existing voice note
-        parsedExistingNotes[existingNoteIndex].noteTitle = voiceNote.noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
-        // Preserve the existing transcription value
-        if (!parsedExistingNotes[existingNoteIndex].transcription) {
-          parsedExistingNotes[existingNoteIndex].transcription = voiceNote.transcription;
-        }
-      } else {
-        // Add the new voice note to the end of the array with a unique default title
-        voiceNote.noteTitle = voiceNote.noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
-        parsedExistingNotes.push(voiceNote);
-      }
-  
-      // Save the updated list back to AsyncStorage
-      await AsyncStorage.setItem('voiceNotesList', JSON.stringify(parsedExistingNotes));
-  
-      console.log('Data saved to AsyncStorage:', parsedExistingNotes);
-      // saveToFirebaseDatabase(voiceNote);
-    } catch (error) {
-      console.error('Error saving data to AsyncStorage:', error);
-    }
-  };
   
       useEffect(() => {
-        // Call saveAsyncData with the data for the new voice note
-        saveAsyncData({
-          uri: route.params.uri,
-          date: route.params.date,
-          month: route.params.month,
-          // d: route.params.d,
-          noteTitle: noteTitle,
-          year: route.params.year,
-          transcription: transcription,
-        });  console.log('VoiceNoteDetails component rerendered with new noteTitle:', noteTitle);
-
-      }, [noteTitle]);;
-  
-      console.log('CURRENT NOTE TITLE', noteTitle);
-
-
+        const databaseURI = route.params.uri.split('/').pop();
+        const uriKey = databaseURI.replace(/[.#$/[\]]/g, '');
+      
+        const transcriptionRef = ref(db, `voiceNotes/${uriKey}/transcription`);
+      
+        // Check if the voice note exists before setting up the listener
+        const checkVoiceNoteExists = async () => {
+          try {
+            const snapshot = await get(ref(db, `voiceNotes/${uriKey}`));
+            if (snapshot.exists()) {
+              const unsubscribe = onValue(transcriptionRef, (snapshot) => {
+                const updatedTranscription = snapshot.val();
+                setTranscription(updatedTranscription || '');
+              });
+              return () => unsubscribe();
+            } else {
+              console.log('Voice note does not exist in the database.');
+            }
+          } catch (error) {
+            console.error('Error checking voice note existence:', error);
+          }
+        };
+      
+        const unsubscribe = checkVoiceNoteExists();
+        return () => {
+          if (unsubscribe && typeof unsubscribe === 'function') {
+            unsubscribe(); // Ensure unsubscribe is a function before invoking it
+          }
+        };
+      }, [route.params.uri]);
+      
+    
+      
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
         <SafeAreaView className="flex-1 flex mx-5">
@@ -349,7 +252,7 @@ const saveToFirebaseDatabase = async (voiceNote) => {
                     {month} {date}, {year} - Lapa, Lisboa
                     </Text>
                 </View>
-                <Playback uri={playbackURI} />
+                <Playback uri={uri} />
             </View>
 
             {/* TRANSCRIPT SECTION */}
@@ -365,6 +268,10 @@ const saveToFirebaseDatabase = async (voiceNote) => {
               >
                 <View className="flex-row justify-left">
                   <View style={{ width: wp(80) }} className="rounded-xl p-4 rounded-tr-none">
+                  {/* <Button
+                    title="Save to Firebase"
+                    onPress={saveToFirebaseStorage}
+                  /> */}
                     <Text className="text-white font-bold" style={{ fontSize: wp(3.8) }}>
                       {transcription}
                     </Text>
@@ -381,3 +288,103 @@ const saveToFirebaseDatabase = async (voiceNote) => {
 
 
 
+
+
+
+
+  // Function to update the note title
+  // const updateNoteTitle = async (originalUniqueKey, newNoteTitle) => {
+  //   try {
+  //     // Retrieve the existing data using the original unique key
+  //     const snapshot = await get(ref(db, `voiceNotes/${originalUniqueKey}`));
+  //     const existingData = snapshot.val();
+  
+  //     // Update the note title
+  //     existingData.noteTitle = newNoteTitle;
+  
+  //     // Save the updated data back to Firebase using the original unique key
+  //     await set(ref(db, `voiceNotes/${originalUniqueKey}`), existingData);
+  //     console.log('Note title updated to:', newNoteTitle);
+  //   } catch (error) {
+  //     console.error('Error updating note title:', error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   const fetchVoiceNoteData = async () => {
+  //     try {
+  //       //define variables
+  //       const databaseURI = uri.split('/').pop();
+  //       const uriKey = databaseURI.replace(/[.#$/[\]]/g, '');
+  //       const existingNoteSnapshot = await ref(db, `voiceNotes/${uriKey}`);
+  //       console.log("URI KEEEEEEEEY:", uriKey)
+  //       const existingNoteData = (await get(existingNoteSnapshot)).val();
+        
+  //       //if voice note exists within fb rtb, set the transcription state to the existing value
+  //       if (existingNoteData && existingNoteData.transcription) {
+  //         setTranscription(existingNoteData.transcription); // Update transcription state
+  //       }
+  //     } catch (error) {
+  //       console.error('Error fetching voice note data:', error);
+  //     }
+  //   };
+  
+  //   fetchVoiceNoteData();
+  //   console.log("BIN LADEN DID A TERORIST ATTACK")
+  // }
+  // // , [uri]
+  // ); // Fetch data when uri changes
+
+
+    // const saveToFirebaseStorage = async () => {
+  //   try {
+  //     const uri = route.params.uri;
+  //     console.log("URI EQUALS THS:", uri)
+  //     if (uri && !uploadDone) {
+  //       setUploadDone(true);
+  //       const downloadURL = await uploadAudioFile(uri);
+  //       setDownloadURL(downloadURL);
+  //       console.log('Download URL from Firebase:', downloadURL);
+  //       return downloadURL;
+  //     } else {
+  //       console.log('No URI found for the currently loaded voice note or upload already done.');
+  //     }
+  //   } catch (err) {
+  //     console.log(err);
+  //   }
+  // };
+
+
+    // Debounce the saveAsyncData function to avoid saving for every character typed
+  // const debounceSave = useRef(null);
+
+  // Clear the timeout if the component unmounts or noteTitle changes before the timeout completes
+  // useEffect(() => {
+  //   clearTimeout(debounceSave.current);
+  //   debounceSave.current = setTimeout(() => {
+  //     saveToFirebaseDatabase({
+  //       date: route.params.date,
+  //       month: route.params.month,
+  //       year: route.params.year,
+  //       uri: route.params.uri,
+  //       messages: messages,
+  //       transcription: transcription,
+  //       noteTitle: noteTitle || `Recording ${parsedExistingNotes.length + 1}`,
+  //     });
+  //   }, 500); // Adjust the delay as needed (e.g., 500 milliseconds)
+  // }, [noteTitle, parsedExistingNotes]); // Include noteTitle as a dependency
+
+
+        // useEffect(() => {
+      //   // Call saveAsyncData with the data for the new voice note
+      //   saveAsyncData({
+      //     uri: route.params.uri,
+      //     date: route.params.date,
+      //     month: route.params.month,
+      //     // d: route.params.d,
+      //     noteTitle: noteTitle,
+      //     year: route.params.year,
+      //     transcription: transcription,
+      //   });  console.log('VoiceNoteDetails component rerendered with new noteTitle:', noteTitle);
+
+      // }, [noteTitle]);;
