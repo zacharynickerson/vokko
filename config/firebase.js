@@ -56,10 +56,7 @@ const uploadAudioFile = async (uri) => {
   }
 };
 
-
 export default uploadAudioFile;
-
-// ... (rest of your Firebase initialization code)
 
 // Initialize Firebase
 // export const FIREBASE_APP = initializeApp(firebaseConfig);
