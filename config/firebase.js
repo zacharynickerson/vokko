@@ -42,7 +42,7 @@ const uploadAudioFile = async (uri) => {
     const snapshot = await uploadBytes(storageRef, blob);
 
     // Log the upload success and get the download URL
-    console.log('Upload successful!', snapshot);
+    console.log('Officially done uploading to Firebase Storage!');
 
     const downloadURL = await getDownloadURL(storageRef);
     
