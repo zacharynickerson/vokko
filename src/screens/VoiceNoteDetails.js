@@ -1,12 +1,13 @@
 // Import necessary modules and components from React Native and other libraries
 import { Image, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { db, storage } from '/Users/zacharynickerson/VokkoApp/config/firebase.js'; // Import Firebase configuration
 import { get, onValue, ref, set } from 'firebase/database'; // Import Firebase Realtime Database functions
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen'; // Import functions for responsive screen design
 
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage for storing data locally
 import { Audio } from 'expo-av'; // Import Audio module from Expo for handling audio playback
+import { FileSystem } from 'expo-file-system'; // Import FileSystem for file system access
 import Playback from "../components/playback.js"; // Import custom Playback component
 import uploadAudioFile from '/Users/zacharynickerson/VokkoApp/config/firebase.js'; // Import function for uploading audio files to Firebase Storage
 
@@ -20,20 +21,21 @@ export default function VoiceNoteDetails({ route }) {
   // Define state variables for note title, transcription, and other attributes
   const [noteTitle, setNoteTitle] = useState('');
   const [transcription, setTranscription] = useState('');
-  const ScrollViewRef = useRef(); // Reference for ScrollView component
-  const [parsedExistingNotes] = useState([]); // State variable for existing notes (unused)
-  const sound = new Audio.Sound(); // Initialize Audio.Sound object for audio playback
+  const [sound, setSound] = useState(null); // Use useState to manage Audio.Sound object
   const [alreadySavedToFBS, setAlreadySavedToFBS] = useState(false); // State variable to track if audio is already saved to Firebase Storage
 
+  const ScrollViewRef = useRef(); // Reference for ScrollView component
+  const [parsedExistingNotes] = useState([]); // State variable for existing notes (unused)
+
   // Function to save the voice note recording to Firebase Storage
-  const saveToFirebaseStorage = async () => {
-    if (!alreadySavedToFBS) {
-      const uri = route.params.uri; // Get the URI of the audio file
-      uploadAudioFile(uri); // Upload the audio file to Firebase Storage
-      console.log("Successfully uploaded to Firebase Storage");
-      setAlreadySavedToFBS(true); // Update state to indicate audio saved to Firebase Storage
-    }
-  };
+  // const saveToFirebaseStorage = async () => {
+  //   if (!alreadySavedToFBS) {
+  //     const uri = route.params.uri; // Get the URI of the audio file
+  //     uploadAudioFile(uri); // Upload the audio file to Firebase Storage
+  //     console.log("Successfully uploaded to Firebase Storage");
+  //     setAlreadySavedToFBS(true); // Update state to indicate audio saved to Firebase Storage
+  //   }
+  // };
 
 // Function to save the voice note object to Firebase Realtime Database
 const saveToFirebaseDatabase = async (voiceNote) => {
@@ -53,7 +55,9 @@ const saveToFirebaseDatabase = async (voiceNote) => {
     
     // Save updated voice note data to Firebase
     await set(ref(db, `voiceNotes/${uriKey}`), voiceNote);
-    console.log('Data saved to Firebase Realtime Database:', voiceNote);
+    console.log('Data saved to Firebase Realtime Database');
+    console.log(route.params.uri)
+    saveAudioToFileSystem();
   } catch (error) {
     console.error('Error saving data to Firebase:', error);
   }
@@ -76,7 +80,7 @@ useEffect(() => {
         transcription: transcription,
         noteTitle: noteTitle || `Recording ${parsedExistingNotes.length + 1}`,
       });
-      saveToFirebaseStorage(); // Save to Firebase Storage only once
+      // saveToFirebaseStorage(); // Save to Firebase Storage only once
     }, 500); // Adjust the delay as needed (e.g., 500 milliseconds)
   }, [noteTitle, parsedExistingNotes]);
   
@@ -85,37 +89,133 @@ useEffect(() => {
     setNoteTitle(route.params.noteTitle || `Recording ${parsedExistingNotes.length + 1}`);
   }, [route.params.noteTitle, parsedExistingNotes]);
 
-  // Set up listener for transcription changes in Firebase Realtime Database
   useEffect(() => {
     const databaseURI = route.params.uri.split('/').pop();
     const uriKey = databaseURI.replace(/[.#$/[\]]/g, '');
     const transcriptionRef = ref(db, `voiceNotes/${uriKey}/transcription`);
 
-    // Check if the voice note exists before setting up the listener
-    const checkVoiceNoteExists = async () => {
-      try {
-        const snapshot = await get(ref(db, `voiceNotes/${uriKey}`));
-        if (snapshot.exists()) {
-          const unsubscribe = onValue(transcriptionRef, (snapshot) => {
-            const updatedTranscription = snapshot.val();
-            setTranscription(updatedTranscription || '');
-          });
-          return () => unsubscribe();
-        } else {
-          console.log('Voice note does not exist in the database.');
-        }
-      } catch (error) {
-        console.error('Error checking voice note existence:', error);
-      }
-    };
+    const unsubscribe = onValue(transcriptionRef, (snapshot) => {
+      const updatedTranscription = snapshot.val();
+      setTranscription(updatedTranscription || '');
+    });
 
-    const unsubscribe = checkVoiceNoteExists();
     return () => {
       if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe();
       }
+      if (sound) {
+        console.log('Unloading Sound');
+        sound.unloadAsync(); // Unload audio when component unmounts
+      }
     };
-  }, [route.params.uri]);
+  }, [route.params.uri, sound]);
+
+  useEffect(() => {
+    const loadSound = async () => {
+      try {
+        console.log('Loading Sound');
+        const { sound } = await Audio.Sound.createAsync(
+          { uri },
+          { progressUpdateIntervalMillis: 1000 / 60 },
+          onPlaybackStatusUpdate
+        );
+        setSound(sound);
+        console.log("loaded uri", uri);
+      } catch (error) {
+        console.error('Error loading sound:', error);
+      }
+    };
+  
+    loadSound();
+  
+    // Clean up function to unload audio when component unmounts
+    return () => {
+      if (sound) { // Check if sound is not null before accessing it
+        console.log('Unloading Sound');
+        sound.unloadAsync();
+      }
+    };
+  }, [uri]); // Dependency on uri to reload sound when it changes
+  
+
+  // // Callback function for playback status update
+  // const onPlaybackStatusUpdate = useCallback(async (newStatus) => {
+  //   // Handle playback status update here if needed
+  // }, []);
+
+    // Callback function for playback status update
+    const onPlaybackStatusUpdate = async (newStatus) => {
+      // Handle playback status update here if needed
+    };
+  
+
+    const saveAudioToFileSystem = async () => {
+      try {
+        const { uri } = route.params; // Get the URI of the audio file
+    
+        // Ensure FileSystem is available
+        if (!FileSystem) {
+          console.log('FileSystem nope');
+          return;
+        }
+    
+        const filename = uri.split('/').pop(); // Extract filename from URI
+    
+        // Get document directory path asynchronously
+        const { directory } = await FileSystem.documentDirectoryAsync();
+        const fileUri = `${directory}/${filename}`;
+    
+        // ... rest of your existing logic to copy the file and update state
+      } catch (error) {
+        console.error('Error saving audio to file system:', error);
+      }
+    };
+
+
+  // Function to save the voice note recording to AsyncStorage
+  // const saveToAsyncStorage = async () => {
+  //   try {
+  //     const uri = route.params.uri; // Get the URI of the audio file
+  //     // Check if the URI is already saved to AsyncStorage
+  //     const savedUri = await AsyncStorage.getItem('audioUri');
+  //     if (!savedUri) {
+  //       // Save the URI to AsyncStorage
+  //       await AsyncStorage.setItem('audioUri', uri);
+  //       console.log('Audio URI saved to AsyncStorage:', uri);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error saving audio URI to AsyncStorage:', error);
+  //   }
+  // };
+  
+// Load audio URI from AsyncStorage when the component mounts
+// useEffect(() => {
+//   const loadFromAsyncStorage = async () => {
+//     try {
+//       const savedUri = await AsyncStorage.getItem('audioUri');
+//       if (savedUri) {
+//         // Load the audio file asynchronously
+//         const { sound } = await Audio.Sound.createAsync({ uri: savedUri });
+//         setSound(sound);
+//       } else {
+//         console.log('No audio URI found in AsyncStorage.');
+//       }
+//     } catch (error) {
+//       console.error('Error loading audio URI from AsyncStorage:', error);
+//     }
+//   };
+
+//   loadFromAsyncStorage();
+
+//   // Cleanup function
+//   return () => {
+//     if (sound) {
+//       console.log('Unloading Sound');
+//       sound.unloadAsync();
+//     }
+//   };
+// }, []);
+
 
 
   return (
@@ -167,7 +267,7 @@ useEffect(() => {
             </View>
 
             {/* TRANSCRIPT SECTION */}
-            <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
+            {/* <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
               Live Transcript
             </Text>
             <View style={{ height: hp(45), backgroundColor: '#242830' }} className="bg-neutral-200 rounded-3xl p-4">
@@ -185,79 +285,8 @@ useEffect(() => {
                   </View>
                 </View>
               </ScrollView>
-            </View>
+            </View> */}
             </View>
         </SafeAreaView>
     </View>
 )}
-
-
-
-
-
-  // // Load saved data from AsyncStorage when the component mounts
-  // useEffect(() => {
-  //   const loadAsyncData = async () => {
-  //     try {
-  //       const savedData = await AsyncStorage.getItem('voiceNoteData');
-  //       if (savedData) {
-  //         const { audioUri } = JSON.parse(savedData);
-  //         // console.log('Loaded metadata:', metadata);
-  //         console.log('Loaded audio URI:', audioUri);
-  //         if (audioUri) {
-  //           // Load and play the audio file asynchronously
-  //           await sound.loadAsync({ uri: audioUri });
-  //           await sound.playAsync();
-  //         } else {
-  //           console.error('Audio URI is undefined or invalid.');
-  //         }
-  //       }
-  //     } catch (error) {
-  //       console.error('Error loading data from AsyncStorage:', error);
-  //     }
-  //   };
-
-  //   // Call the function when the component mounts
-  //   loadAsyncData();
-  // }, []);
-
-
-  // Function to save the voice note to AsyncStorage
-// const saveAsyncData = async (voiceNote) => {
-//   try {
-//     // Retrieve existing voice notes from AsyncStorage
-//     let existingVoiceNotes = await AsyncStorage.getItem('voiceNotesList');
-
-//     // If 'voiceNotesList' is not defined, initialize it to an empty array
-//     if (!existingVoiceNotes) {
-//       existingVoiceNotes = '[]';
-//     }
-
-//     const parsedExistingNotes = JSON.parse(existingVoiceNotes); // Parse existing voice notes
-
-//     // Check if a voice note with the same URI already exists
-//     const existingNoteIndex = parsedExistingNotes.findIndex((note) => note.uri === voiceNote.uri);
-
-//     if (existingNoteIndex !== -1) {
-//       // Update the existing voice note
-//       parsedExistingNotes[existingNoteIndex].noteTitle = voiceNote.noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
-//       // Preserve the existing transcription value if it doesn't exist
-//       if (!parsedExistingNotes[existingNoteIndex].transcription) {
-//         parsedExistingNotes[existingNoteIndex].transcription = voiceNote.transcription;
-//       }
-//     } else {
-//       // Add the new voice note to the end of the array with a unique default title
-//       voiceNote.noteTitle = voiceNote.noteTitle || `Recording ${parsedExistingNotes.length + 1}`;
-//       parsedExistingNotes.push(voiceNote);
-//     }
-
-//     // Save the updated list back to AsyncStorage
-//     await AsyncStorage.setItem('voiceNotesList', JSON.stringify(parsedExistingNotes));
-
-//     console.log('Data saved to AsyncStorage:', parsedExistingNotes);
-//   } catch (error) {
-//     console.error('Error saving data to AsyncStorage:', error);
-//   }
-// };
-
-  

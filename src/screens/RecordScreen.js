@@ -10,7 +10,7 @@ import Voice from '@react-native-voice/voice';
 import { apiCall } from '../api/openAI.js';
 import { useNavigation } from '@react-navigation/native';
 
-export default function HomeScreen() {
+export default function RecordScreen() {
 
     //Recording variables
     const [recording, setRecording] = React.useState();

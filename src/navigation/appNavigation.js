@@ -4,10 +4,11 @@ import {Text, View} from 'react-native';
 
 import { Entypo } from "@expo/vector-icons"
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import HomeScreen from '../screens/RecordScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import {NavigationContainer} from '@react-navigation/native';
+import { Platform } from 'react-native';
+import RecordScreen from '../screens/RecordScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import VoiceNoteDetails from '/Users/zacharynickerson/VokkoApp/src/screens/VoiceNoteDetails.js'
@@ -55,7 +56,7 @@ React.useEffect(() => {}, []);
   if(user){
     return (
       <NavigationContainer >
-        <Tab.Navigator screenOptions={screenOptions} initialRouteName='HomeScreen' >
+        <Tab.Navigator screenOptions={screenOptions} initialRouteName='RecordScreen' >
         <Tab.Screen
             name="Library"
             component={LibraryStack}  // Use LibraryStack as the component
@@ -72,7 +73,7 @@ React.useEffect(() => {}, []);
           />
             <Tab.Screen 
             name="Record" 
-            component={HomeScreen} 
+            component={RecordScreen} 
             options={{
               tabBarIcon: ({focused})=>{
                 return (
