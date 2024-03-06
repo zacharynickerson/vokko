@@ -7,7 +7,7 @@ import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-nat
 
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage for storing data locally
 import { Audio } from 'expo-av'; // Import Audio module from Expo for handling audio playback
-import { FileSystem } from 'expo-file-system'; // Import FileSystem for file system access
+// import { FileSystem } from 'expo-file-system'; // Import FileSystem for file system access
 import Playback from "../components/playback.js"; // Import custom Playback component
 import uploadAudioFile from '/Users/zacharynickerson/VokkoApp/config/firebase.js'; // Import function for uploading audio files to Firebase Storage
 
@@ -28,14 +28,14 @@ export default function VoiceNoteDetails({ route }) {
   const [parsedExistingNotes] = useState([]); // State variable for existing notes (unused)
 
   // Function to save the voice note recording to Firebase Storage
-  // const saveToFirebaseStorage = async () => {
-  //   if (!alreadySavedToFBS) {
-  //     const uri = route.params.uri; // Get the URI of the audio file
-  //     uploadAudioFile(uri); // Upload the audio file to Firebase Storage
-  //     console.log("Successfully uploaded to Firebase Storage");
-  //     setAlreadySavedToFBS(true); // Update state to indicate audio saved to Firebase Storage
-  //   }
-  // };
+  const saveToFirebaseStorage = async () => {
+    if (!alreadySavedToFBS) {
+      const uri = route.params.uri; // Get the URI of the audio file
+      uploadAudioFile(uri); // Upload the audio file to Firebase Storage
+      console.log("Successfully uploaded to Firebase Storage");
+      setAlreadySavedToFBS(true); // Update state to indicate audio saved to Firebase Storage
+    }
+  };
 
 // Function to save the voice note object to Firebase Realtime Database
 const saveToFirebaseDatabase = async (voiceNote) => {
@@ -57,7 +57,7 @@ const saveToFirebaseDatabase = async (voiceNote) => {
     await set(ref(db, `voiceNotes/${uriKey}`), voiceNote);
     console.log('Data saved to Firebase Realtime Database');
     console.log(route.params.uri)
-    saveAudioToFileSystem();
+    // saveAudioToFileSystem();
   } catch (error) {
     console.error('Error saving data to Firebase:', error);
   }
@@ -138,10 +138,6 @@ useEffect(() => {
   }, [uri]); // Dependency on uri to reload sound when it changes
   
 
-  // // Callback function for playback status update
-  // const onPlaybackStatusUpdate = useCallback(async (newStatus) => {
-  //   // Handle playback status update here if needed
-  // }, []);
 
     // Callback function for playback status update
     const onPlaybackStatusUpdate = async (newStatus) => {
@@ -149,73 +145,7 @@ useEffect(() => {
     };
   
 
-    const saveAudioToFileSystem = async () => {
-      try {
-        const { uri } = route.params; // Get the URI of the audio file
-    
-        // Ensure FileSystem is available
-        if (!FileSystem) {
-          console.log('FileSystem nope');
-          return;
-        }
-    
-        const filename = uri.split('/').pop(); // Extract filename from URI
-    
-        // Get document directory path asynchronously
-        const { directory } = await FileSystem.documentDirectoryAsync();
-        const fileUri = `${directory}/${filename}`;
-    
-        // ... rest of your existing logic to copy the file and update state
-      } catch (error) {
-        console.error('Error saving audio to file system:', error);
-      }
-    };
-
-
-  // Function to save the voice note recording to AsyncStorage
-  // const saveToAsyncStorage = async () => {
-  //   try {
-  //     const uri = route.params.uri; // Get the URI of the audio file
-  //     // Check if the URI is already saved to AsyncStorage
-  //     const savedUri = await AsyncStorage.getItem('audioUri');
-  //     if (!savedUri) {
-  //       // Save the URI to AsyncStorage
-  //       await AsyncStorage.setItem('audioUri', uri);
-  //       console.log('Audio URI saved to AsyncStorage:', uri);
-  //     }
-  //   } catch (error) {
-  //     console.error('Error saving audio URI to AsyncStorage:', error);
-  //   }
-  // };
-  
-// Load audio URI from AsyncStorage when the component mounts
-// useEffect(() => {
-//   const loadFromAsyncStorage = async () => {
-//     try {
-//       const savedUri = await AsyncStorage.getItem('audioUri');
-//       if (savedUri) {
-//         // Load the audio file asynchronously
-//         const { sound } = await Audio.Sound.createAsync({ uri: savedUri });
-//         setSound(sound);
-//       } else {
-//         console.log('No audio URI found in AsyncStorage.');
-//       }
-//     } catch (error) {
-//       console.error('Error loading audio URI from AsyncStorage:', error);
-//     }
-//   };
-
-//   loadFromAsyncStorage();
-
-//   // Cleanup function
-//   return () => {
-//     if (sound) {
-//       console.log('Unloading Sound');
-//       sound.unloadAsync();
-//     }
-//   };
-// }, []);
-
+    // 
 
 
   return (
@@ -267,7 +197,7 @@ useEffect(() => {
             </View>
 
             {/* TRANSCRIPT SECTION */}
-            {/* <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
+            <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
               Live Transcript
             </Text>
             <View style={{ height: hp(45), backgroundColor: '#242830' }} className="bg-neutral-200 rounded-3xl p-4">
@@ -285,8 +215,81 @@ useEffect(() => {
                   </View>
                 </View>
               </ScrollView>
-            </View> */}
+            </View>
             </View>
         </SafeAreaView>
     </View>
 )}
+
+
+
+  // Function to save the voice note recording to AsyncStorage
+  // const saveToAsyncStorage = async () => {
+  //   try {
+  //     const uri = route.params.uri; // Get the URI of the audio file
+  //     // Check if the URI is already saved to AsyncStorage
+  //     const savedUri = await AsyncStorage.getItem('audioUri');
+  //     if (!savedUri) {
+  //       // Save the URI to AsyncStorage
+  //       await AsyncStorage.setItem('audioUri', uri);
+  //       console.log('Audio URI saved to AsyncStorage:', uri);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error saving audio URI to AsyncStorage:', error);
+  //   }
+  // };
+  
+// Load audio URI from AsyncStorage when the component mounts
+// useEffect(() => {
+//   const loadFromAsyncStorage = async () => {
+//     try {
+//       const savedUri = await AsyncStorage.getItem('audioUri');
+//       if (savedUri) {
+//         // Load the audio file asynchronously
+//         const { sound } = await Audio.Sound.createAsync({ uri: savedUri });
+//         setSound(sound);
+//       } else {
+//         console.log('No audio URI found in AsyncStorage.');
+//       }
+//     } catch (error) {
+//       console.error('Error loading audio URI from AsyncStorage:', error);
+//     }
+//   };
+
+//   loadFromAsyncStorage();
+
+//   // Cleanup function
+//   return () => {
+//     if (sound) {
+//       console.log('Unloading Sound');
+//       sound.unloadAsync();
+//     }
+//   };
+// }, []);
+
+  // // Callback function for playback status update
+  // const onPlaybackStatusUpdate = useCallback(async (newStatus) => {
+  //   // Handle playback status update here if needed
+  // }, []);
+
+  // const saveAudioToFileSystem = async () => {
+    //   try {
+    //     const { uri } = route.params; // Get the URI of the audio file
+    
+    //     // Ensure FileSystem is available
+    //     if (!FileSystem) {
+    //       console.log('FileSystem nope');
+    //       return;
+    //     }
+    
+    //     const filename = uri.split('/').pop(); // Extract filename from URI
+    
+    //     // Get document directory path asynchronously
+    //     const { directory } = await FileSystem.documentDirectoryAsync();
+    //     const fileUri = `${directory}/${filename}`;
+    
+    //     // ... rest of your existing logic to copy the file and update state
+    //   } catch (error) {
+    //     console.error('Error saving audio to file system:', error);
+    //   }
+    // };

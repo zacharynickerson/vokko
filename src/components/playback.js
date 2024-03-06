@@ -11,10 +11,38 @@ const Playback = ({ uri }) => {
   const [duration, setDuration] = useState(1); // Initialize duration to avoid division by zero
   const [position, setPosition] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
+  // const [hasPermission, setHasPermission] = useState(false);
+
+
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
   useEffect(() => {
-    console.log('Received URI:', uri); // Log the URI when it's received
-  }, [uri]);
+    // Request permissions on mount
+    async function requestAudioPermissions() {
+      const granted = await Audio.requestPermissionsAsync();
+      if (granted) {
+        // Set audio mode to playsInSilentModeIOS if permissions are granted
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        setIsAudioEnabled(true);
+        console.log("Audio On");
+      } else {
+        console.error("Audio permissions denied");
+      }
+    }
+
+    requestAudioPermissions();
+
+    // Cleanup function to restore audio mode on unmount
+    return () => {
+      if (isAudioEnabled) {
+        Audio.setAudioModeAsync({ playsInSilentModeIOS: false });
+        console.log("Audio Off");
+      }
+    };
+  }, []);
+
+
+
 
   useEffect(() => {
     const loadSound = async () => {
@@ -24,19 +52,22 @@ const Playback = ({ uri }) => {
           { progressUpdateIntervalMillis: 1000 / 60 },
           onPlaybackStatusUpdate
         );
-        // console.log('Sound loaded:', sound); // Log when the sound is loaded
+  
         setSound(sound);
       } catch (error) {
         console.error('Error loading sound:', error);
       }
     };
-
+  
     loadSound();
-
+  
     return () => {
       if (sound) {
-        console.log('Unloading Sound');
-        sound.unloadAsync();
+        // Stop playback before unloading
+        sound.stopAsync().then(() => {
+          console.log('Audio playback stopped');
+          sound.unloadAsync();
+        });
       }
     };
   }, [uri]);
@@ -51,7 +82,7 @@ const Playback = ({ uri }) => {
   }, []);
 
   const handleSeek = (value) => {
-    console.log('Seeking:', value); // Log when seeking
+    // console.log('Seeking:', value); // Log when seeking
     if (sound && duration) {
       const newPosition = Math.min(Math.max(value, 0), duration);
       setPosition(newPosition);
@@ -168,3 +199,44 @@ const styles = StyleSheet.create({
 });
 
 export default Playback;
+
+
+
+  // const [permissionResponse, requestPermission] = Audio.usePermissions();
+
+// useEffect(() => {
+//   try {
+//     console.log("Audio On");
+//        Audio.setAudioModeAsync({
+//         playsInSilentModeIOS: true,
+//       });
+//     } catch (err) {
+//       console.error(err);
+//     }
+//   }, []);
+
+  // useEffect(() => {
+  //   const requestPermissions = async () => {
+  //     const granted = await requestAudioPermissions();
+  //     setHasPermission(granted);
+  //   };
+
+  //   requestPermissions();
+
+  //   // return () => {
+  //   //   // Optional: Cleanup function to potentially revoke permissions on unmount
+  //   //   // (This is not strictly necessary for playsInSilentModeIOS on iOS)
+  //   // };
+  // }, []);
+
+  // useEffect(() => {
+  //   if (hasPermission) {
+  //     Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+  //     // Your audio playback logic here
+  //   }
+  // }, [hasPermission]);
+
+  // useEffect(() => {
+  //   console.log('Received URI:', uri); // Log the URI when it's received
+    
+  // }, [uri]);

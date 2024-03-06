@@ -43,6 +43,7 @@ export default function RecordScreen() {
         
         const [result, setResult] = useState('');
         const [loading, setLoading] = useState(false);
+        
         const ScrollViewRef = useRef(); 
         const navigation = useNavigation(); 
     
