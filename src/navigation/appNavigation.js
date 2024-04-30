@@ -11,11 +11,12 @@ import { Platform } from 'react-native';
 import RecordScreen from '../screens/RecordScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignUpScreen from '../screens/SignUpScreen';
-import VoiceNoteDetails from '/Users/zacharynickerson/VokkoApp/src/screens/VoiceNoteDetails.js'
+import VoiceNoteDetails from '../screens/VoiceNoteDetails.js'
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import useAuth from '/Users/zacharynickerson/VokkoApp/hooks/useAuth.js'
+import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js'
+
 
 const Tab =createBottomTabNavigator();
 const screenOptions ={

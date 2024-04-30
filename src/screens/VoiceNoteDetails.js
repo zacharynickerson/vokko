@@ -1,7 +1,7 @@
 // Import necessary modules and components from React Native and other libraries
 import { Image, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { db, storage } from '/Users/zacharynickerson/VokkoApp/config/firebase.js'; // Import Firebase configuration
+import { db, storage } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'; // Import Firebase configuration
 import { get, onValue, ref, set } from 'firebase/database'; // Import Firebase Realtime Database functions
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen'; // Import functions for responsive screen design
 
@@ -9,7 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage'; // Import 
 import { Audio } from 'expo-av'; // Import Audio module from Expo for handling audio playback
 import { FileSystem } from 'expo-file-system'; // Import FileSystem for file system access
 import Playback from "../components/playback.js"; // Import custom Playback component
-import uploadAudioFile from '/Users/zacharynickerson/VokkoApp/config/firebase.js'; // Import function for uploading audio files to Firebase Storage
 
 // import { useNavigation } from '@react-navigation/native';
 
@@ -237,7 +236,7 @@ useEffect(() => {
               
                 <View className="flex-row items-center space-x-1">
                     <Image
-                    source={require("/Users/zacharynickerson/VokkoApp/assets/images/noteicon.png")}
+                    source={require("/Users/zacharynickerson/Desktop/vokko/assets/images/noteicon.png")}
                     style={{ height: hp(3), width: hp(3) }}
                     className="mr-2"
                     />                    

@@ -35,7 +35,7 @@ export default function LoginScreen() {
             
                 </View>
                 <View className="flex-row justify-center">
-                    <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/glasshead.png')}
+                    <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/glasshead.png')}
                         style={{width: 149, height: 224, margin: 1}}
                     />
                 </View>
@@ -79,15 +79,15 @@ export default function LoginScreen() {
                 </Text>
                 <View className="flex-row justify-center space-x-12">
                     <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/google.png')}
+                        <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/google.png')}
                         className="w-10 h-10" />
                     </TouchableOpacity>
                     <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/apple-logo-transparent.png')}
+                        <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/apple-logo-transparent.png')}
                         className="w-10 h-10" />
                     </TouchableOpacity>
                     <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/facebook.png')}
+                        <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/facebook.png')}
                         className="w-10 h-10" />
                     </TouchableOpacity>
                 </View>
