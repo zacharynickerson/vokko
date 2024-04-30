@@ -1,5 +1,5 @@
 import axios from 'axios';
-const { apiKey } = require("/Users/zacharynickerson/VokkoApp/src/constants");
+const { apiKey } = require("/Users/zacharynickerson/Desktop/vokko/src/constants");
 
 const client = axios.create({
     headers: {

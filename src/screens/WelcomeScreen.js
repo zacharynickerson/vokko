@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
                 </Text>
             </View>
             <View className="flex-row justify-center">
-                <Image source={require("/Users/zacharynickerson/VokkoApp/assets/images/crystal.png")} style={{width: wp(75), height: wp(75)}}/>
+                <Image source={require("/Users/zacharynickerson/Desktop/vokko/assets/images/crystal.png")} style={{width: wp(75), height: wp(75)}}/>
             </View>
             <View className="space-y-4">
                 <View>

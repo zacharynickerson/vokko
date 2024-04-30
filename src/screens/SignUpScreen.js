@@ -7,7 +7,7 @@ import { ArrowLeftIcon } from 'react-native-heroicons/solid';
 import { FirebaseAuthTypes } from '@react-native-firebase/app';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { createUserWithEmailAndPassword } from 'firebase/app';
-import { db } from '/Users/zacharynickerson/VokkoApp/config/firebase.js'
+import { db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'
 import { firebase } from '@react-native-firebase/app';
 import { useNavigation } from '@react-navigation/native';
 
@@ -71,7 +71,7 @@ export default function SignUpScreen() {
                     </TouchableOpacity>   
                 </View>
                 <View className="flex-row justify-center">
-                    <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/glasscog.png')}
+                    <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/glasscog.png')}
                         style={{width: 140, height: 140}}
                     />
                 </View>
@@ -119,15 +119,15 @@ export default function SignUpScreen() {
                 </Text>
                 <View className="flex-row justify-center space-x-12">
                     <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/google.png')}
+                        <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/google.png')}
                         className="w-10 h-10" />
                     </TouchableOpacity>
                     <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/apple-logo-transparent.png')}
+                        <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/apple-logo-transparent.png')}
                         className="w-10 h-10" />
                     </TouchableOpacity>
                     <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('/Users/zacharynickerson/VokkoApp/assets/images/facebook.png')}
+                        <Image source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/facebook.png')}
                         className="w-10 h-10" />
                     </TouchableOpacity>
                 </View>
