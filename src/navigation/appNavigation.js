@@ -15,7 +15,7 @@ import VoiceNoteDetails from '../screens/VoiceNoteDetails.js'
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js'
+import useAuth from '../../hooks/useAuth'
 
 
 const Tab =createBottomTabNavigator();

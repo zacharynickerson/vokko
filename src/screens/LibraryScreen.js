@@ -122,7 +122,7 @@ export default function LibraryScreen() {
                     <View style={{ marginBottom: 10 }}>
                     <View className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                     <View className="flex-row items-center space-x-1">
-                      <Image source={require("/Users/zacharynickerson/Desktop/vokko/assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
+                      <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                       <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">{item.noteTitle}</Text>
                       <View className="flex-row items-center space-x-1"></View>
                   </View>

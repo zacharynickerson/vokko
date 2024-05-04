@@ -1,7 +1,7 @@
 // Import necessary modules and components from React Native and other libraries
 import { Image, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { db, storage } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'; // Import Firebase configuration
+import { db, storage } from '../../config/firebase.js'; // Import Firebase configuration
 import { get, onValue, ref, set } from 'firebase/database'; // Import Firebase Realtime Database functions
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen'; // Import functions for responsive screen design
 
@@ -236,7 +236,7 @@ useEffect(() => {
               
                 <View className="flex-row items-center space-x-1">
                     <Image
-                    source={require("/Users/zacharynickerson/Desktop/vokko/assets/images/noteicon.png")}
+                    source={require("../../assets/images/noteicon.png")}
                     style={{ height: hp(3), width: hp(3) }}
                     className="mr-2"
                     />                    
