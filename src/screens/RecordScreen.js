@@ -274,14 +274,14 @@ export default function RecordScreen() {
                 transcription? (
                     <Image 
                         className="rounded-full"
-                        source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/wave-active.png')}
+                        source={require('../../assets/images/wave-active.png')}
                         resizeMode="contain" // Use 'contain' to fit the image within the container
                         style={{ width: '180%', height: '180%' }} // Set width and height to 100% to fill the container
                     />
                 ): (
                     <Image 
                         className="rounded-full"
-                        source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/wave-inactive.png')}
+                        source={require('../../assets/images/wave-inactive.png')}
                         resizeMode="contain" // Use 'contain' to fit the image within the container
                         style={{ width: '180%', height: '180%' }} // Set width and height to 100% to fill the container
                     />                     
@@ -338,7 +338,7 @@ export default function RecordScreen() {
                 {
                 loading? (
                     <Image
-                      source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Record-Button-Loading.png')}
+                      source={require('../../assets/images/Record-Button-Loading.png')}
                       style={{width: hp(16), height: hp(16)}}
                     />
                 ): 
@@ -349,7 +349,7 @@ export default function RecordScreen() {
                     }}> 
                     <Image 
                         className="rounded-full"
-                        source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/voiceLoading.gif')}
+                        source={require('../../assets/images/voiceLoading.gif')}
                         style={{width: hp(16), height: hp(16)}}
                     />
                     </TouchableOpacity>
@@ -360,7 +360,7 @@ export default function RecordScreen() {
                         }}>
                         <Image 
                             className="rounded-full"
-                            source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Record-Button.png')}
+                            source={require('../../assets/images/Record-Button.png')}
                             style={{width: hp(16), height: hp(16)}}
                         />
                     </TouchableOpacity>                                    

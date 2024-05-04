@@ -14,7 +14,7 @@ export default function features() {
             
             <View className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                 <View className="flex-row items-center space-x-1">
-                    <Image source={require("/Users/zacharynickerson/VokkoApp/assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
+                    <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                     <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">15 Tasks For Cleaning Up My Life</Text>
                     <View className="flex-row items-center space-x-1"></View>
                 </View>
@@ -22,21 +22,21 @@ export default function features() {
             </View>
             <View className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                 <View className="flex-row items-center space-x-1">
-                    <Image source={require("/Users/zacharynickerson/VokkoApp/assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
+                    <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                     <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Wardrobe Review</Text>
                 </View>
                 <Text style={{fontSize: wp(4)}} className="text-gray-400 font-regular">Sep 11, 2023 - Lapa, Lisboa</Text>
             </View>
             <View className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                 <View className="flex-row items-center space-x-1">
-                    <Image source={require("/Users/zacharynickerson/VokkoApp/assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
+                    <Image source={require("../../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                     <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Review for Portuguese Test</Text>
                 </View>
                 <Text style={{fontSize: wp(4)}} className="text-gray-400 font-regular">Sep 10, 2023 - Lapa, Lisboa</Text>
             </View>
             <View className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                 <View className="flex-row items-center space-x-1">
-                    <Image source={require("/Users/zacharynickerson/VokkoApp/assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
+                    <Image source={require("../../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                     <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Along the banks of the Tejo</Text>
                 </View>
                 <Text style={{fontSize: wp(4)}} className="text-gray-400 font-regular">Sep 9, 2023 - Lapa, Lisboa</Text>

@@ -21,6 +21,7 @@
       
     },
     "android": {
+      "googleServicesFile":  "GoogleService-Info.plist",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
