@@ -96,7 +96,10 @@ const Playback = ({ uri }) => {
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
 
   return (
+    
     <View style={styles.container}>
+
+      {/* Play Button */}
       <FontAwesome5
         onPress={async () => {
           try {
@@ -115,20 +118,26 @@ const Playback = ({ uri }) => {
             console.error('Error:', error);
           }
         }}
-
-
         name={isPlaying ? 'pause' : 'play'}
         size={20}
         color={'gray'}
       />
+
+      
       <View style={styles.playbackContainer} {...panResponder.panHandlers}>
-        <View style={styles.playbackBackground} />
-        <Animated.View style={[styles.playbackIndicator, animatedIndicatorStyle]} />
-        <Text style={{ position: 'absolute', right: 0, bottom: 0, color: 'gray', fontFamily: 'InterSemi' }}>
-          {formatMillis(position || 0)} / {formatMillis(duration || 0)}
-        </Text>
+        
+          {/* Playback Indicator Line */}
+          <View style={styles.playbackBackground} />
+        
+          {/* Playback Indicator Circle */}
+          <Animated.View style={[styles.playbackIndicator, animatedIndicatorStyle]} />
+
+          {/* Duration */}
+          <Text style={{ position: 'absolute', right: 0, bottom: 0, color: 'gray', fontFamily: 'InterSemi' }}>
+            {formatMillis(position || 0)} / {formatMillis(duration || 0)}
+          </Text>
+          
       </View>
-      <View style={styles.noteInfo} />
     </View>
   );
 };
@@ -160,10 +169,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: 'royalblue',
     position: 'absolute',
-  },
-  noteInfo: {
-    width: 10,
-    aspectRatio: 1,
   },
 });
 

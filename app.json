@@ -15,13 +15,12 @@
       "**/*"
     ],
     "ios": {
-      "googleServicesFile":  "GoogleService-Info.plist",
+      "googleServicesFile": "GoogleService-Info.plist",
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.VokkoApp"
-      
     },
     "android": {
-      "googleServicesFile":  "GoogleService-Info.plist",
+      "googleServicesFile": "GoogleService-Info.plist",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -50,7 +49,8 @@
           "microphonePermission": "Allow Vokko to access the microphone",
           "speechRecognitionPermission": "Allow Vokko to securely recognize user speech"
         }
-      ]
+      ],
+      "expo-router"
     ],
     "extra": {
       "eas": {
