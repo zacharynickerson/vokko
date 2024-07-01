@@ -73,6 +73,15 @@ export default function RecordScreen() {
       return;
     }
 
+    await Audio.setAudioModeAsync(
+      {
+        allowsRecordingIOS: false,
+      }
+    );
+
+    setRecording(undefined);
+    setIsPaused(false);
+
     try {
       await recording.stopAndUnloadAsync();
       const voiceNoteId = generateUUID();
@@ -81,6 +90,9 @@ export default function RecordScreen() {
       const createdDate = getCurrentDate();
       const size = await getFileSize(uri);
       const location = await getLocation();
+      const transcript = '';
+      const summary = '';
+      const taskArray = [];
 
       const voiceNote = {
         voiceNoteId,
@@ -89,19 +101,18 @@ export default function RecordScreen() {
         createdDate,
         size,
         location,
-        transcript: '',
-        summary: '',
-        taskArray: []
+        transcript,
+        summary,
+        taskArray
       };
 
 
       const updatedVoiceNotes = [voiceNote, ...voiceNotes];
       setVoiceNotes(updatedVoiceNotes);
 
-      await saveVoiceNotesToLocal(updatedVoiceNotes);
+
 
       try {
-        // Assuming you have logic to get the current user's ID
         const userId = auth.currentUser.uid; // Replace with your actual logic to get userId
         const downloadUrl = await saveToFirebaseStorage(voiceNote.uri);
         await saveToFirebaseDatabase(userId, voiceNote, downloadUrl);
@@ -109,6 +120,9 @@ export default function RecordScreen() {
       } catch (err) {
         console.error('Error saving data to Firebase', err);
       }
+
+      await saveVoiceNotesToLocal(updatedVoiceNotes);
+
     } catch (err) {
       console.error('Failed to stop recording', err);
     }
