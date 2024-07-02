@@ -11,10 +11,9 @@ exports.updateTranscription = functions.storage.object().onFinalize(async (objec
     return null;
   }
 
-  // Extract userId and voiceNoteId from the object name
+  // Extract userId from the object name
   const pathParts = object.name.split("/");
   const userId = pathParts[2];
-  const voiceNoteId = pathParts[4]; // Assuming voiceNoteId is part of the path
 
   try {
     // Download the transcription text file
@@ -26,11 +25,22 @@ exports.updateTranscription = functions.storage.object().onFinalize(async (objec
     const transcriptionJson = JSON.parse(transcriptionText);
     const transcript = transcriptionJson.results[0].alternatives[0].transcript;
 
-    // Update the transcript in the specified voice note
+    // Extract the voiceNoteId from the filename
+    const filename = pathParts[4];
+    const voiceNoteId = filename.split(".m4a.wav_transcription.txt")[0];
+
+    // Get a reference to the specific voice note for the user
     const voiceNoteRef = admin.database().ref(`users/${userId}/voiceNotes/${voiceNoteId}`);
-    await voiceNoteRef.child('transcript').set(transcript);
-    
-    console.log("Transcript updated for voiceNote with ID:", voiceNoteId);
+
+    // Check if the voice note exists
+    const snapshot = await voiceNoteRef.once("value");
+    if (snapshot.exists()) {
+      // Update the transcript for the specified voice note
+      await voiceNoteRef.child('transcript').set(transcript);
+      console.log("Transcript updated for voiceNote with ID:", voiceNoteId);
+    } else {
+      console.error("Voice note not found for ID:", voiceNoteId);
+    }
   } catch (error) {
     console.error("Error updating transcript:", error);
   }

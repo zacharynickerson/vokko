@@ -114,7 +114,7 @@ export default function RecordScreen() {
 
       try {
         const userId = auth.currentUser.uid; // Replace with your actual logic to get userId
-        const downloadUrl = await saveToFirebaseStorage(voiceNote.uri);
+        const downloadUrl = await saveToFirebaseStorage(voiceNote.uri, voiceNoteId);
         await saveToFirebaseDatabase(userId, voiceNote, downloadUrl);
         navigation.navigate('VoiceNoteDetails', { voiceNote });
       } catch (err) {

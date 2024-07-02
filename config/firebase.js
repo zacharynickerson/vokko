@@ -25,7 +25,7 @@ const db = getDatabase(app);
 const storage = getStorage(app);
 
 // Function to upload audio file to Firebase Storage
-const saveToFirebaseStorage = async (uri) => {
+const saveToFirebaseStorage = async (uri, voiceNoteId) => {
   try {
     // Ensure user is authenticated
     const user = auth.currentUser;
@@ -35,9 +35,10 @@ const saveToFirebaseStorage = async (uri) => {
     // Fetch the audio file as a blob
     const response = await fetch(uri);
     const blob = await response.blob();
+    
 
-    // Generate a unique filename for the uploaded audio
-    const filename = uri.split('/').pop();
+    // Use voiceNoteId as the filename
+    const filename = `${voiceNoteId}.m4a`; // or any other extension
 
     // Get user's UID
     const userId = user.uid;
