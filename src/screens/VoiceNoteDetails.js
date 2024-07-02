@@ -4,6 +4,9 @@ import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-nat
 import { Audio } from 'expo-av';
 import Playback from "../components/playback.js";
 import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage';
+import { db, storage, auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'; // Import db from Firebase configuration
+import { get, onValue, ref, set } from 'firebase/database';
+
 
 export default function VoiceNoteDetails({ route }) {
   const { voiceNote } = route.params;
@@ -12,10 +15,35 @@ export default function VoiceNoteDetails({ route }) {
   // console.log('Voice Note Details:', voiceNote);
 
   // Destructure route.params to get voice note attributes
-  const { voiceNoteId, title, uri, createdDate, location, transcript, summary, taskArray } = voiceNote;
+  const { voiceNoteId, uri, createdDate, location, summary, taskArray } = voiceNote;
 
   // Initialize noteTitle with the title from voiceNote
   const [noteTitle, setNoteTitle] = useState(voiceNote.title);
+  const [transcript, setTranscript] = useState('');
+
+  // Load transcript from Firebase Realtime Database
+  useEffect(() => {
+    const voiceNoteRef = ref(db, `users/${auth.currentUser.uid}/voiceNotes/${voiceNoteId}`);
+    
+    // Function to handle data changes
+    const handleData = (snapshot) => {
+      const voiceNoteData = snapshot.val();
+      if (voiceNoteData) {
+        setTranscript(voiceNoteData.transcript || ''); // Update transcript state with latest value
+      }
+    };
+
+    // Attach listener
+    onValue(voiceNoteRef, handleData);
+
+    // Detach listener when component unmounts
+    return () => {
+      onValue(voiceNoteRef, handleData); // Detach listener
+    };
+  }, [voiceNoteId]); // Only re-run effect if voiceNoteId changes
+
+
+
   const [sound, setSound] = useState(null); // Use useState to manage Audio.Sound object
   const ScrollViewRef = useRef(); // Reference for ScrollView component
 
