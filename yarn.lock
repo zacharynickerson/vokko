@@ -9559,7 +9559,7 @@ open@^8.3.0:
     is-docker "^2.1.1"
     is-wsl "^2.2.0"
 
-openai@^4.26.1:
+openai@^4.52.3:
   version "4.52.3"
   resolved "https://registry.npmjs.org/openai/-/openai-4.52.3.tgz"
   integrity sha512-IyQLYKGYoEEkUCEm2frPzwHDJ3Ym663KtivnY6pWCzuoi6/HgSIMMxpcuTRS81GH6tiULPYGmTxIvzXdmPIWOw==
