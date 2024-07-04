@@ -15,11 +15,14 @@ export default function VoiceNoteDetails({ route }) {
   // console.log('Voice Note Details:', voiceNote);
 
   // Destructure route.params to get voice note attributes
-  const { voiceNoteId, uri, createdDate, location, summary, taskArray } = voiceNote;
+  const { voiceNoteId, uri, createdDate, location } = voiceNote;
 
   // Initialize noteTitle with the title from voiceNote
   const [noteTitle, setNoteTitle] = useState(voiceNote.title);
   const [transcript, setTranscript] = useState('');
+  const [summary, setSummary] = useState('')
+  const [taskArray, setTaskArray] = useState('')
+
 
   // Load transcript from Firebase Realtime Database
   useEffect(() => {
@@ -30,6 +33,8 @@ export default function VoiceNoteDetails({ route }) {
       const voiceNoteData = snapshot.val();
       if (voiceNoteData) {
         setTranscript(voiceNoteData.transcript || ''); // Update transcript state with latest value
+        setSummary(voiceNoteData.summary || ''); // Update summary state with latest value
+        setTaskArray(voiceNoteData.taskArray || []); // Update taskArray state with latest value
       }
     };
 
@@ -156,9 +161,9 @@ export default function VoiceNoteDetails({ route }) {
             <Playback uri={uri} />
           </View>
 
-          {/* TRANSCRIPT SECTION */}
+          {/* OUTPUT */}
           <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
-            Live Transcript
+            Note Output
           </Text>
           <View style={{ height: hp(45), backgroundColor: '#242830' }} className="bg-neutral-200 rounded-3xl p-4">
             <ScrollView
@@ -170,7 +175,22 @@ export default function VoiceNoteDetails({ route }) {
               <View className="flex-row justify-left">
                 <View style={{ width: wp(80) }} className="rounded-xl p-4 rounded-tr-none">
                   <Text className="text-white font-bold" style={{ fontSize: wp(3.8) }}>
+                    <Text style={{ fontSize: 30 }}>Transcript</Text>
+                    {'\n'}
+                    {'\n'}
                     {transcript}
+                    {'\n'}
+                    {'\n'}
+                    <Text style={{ fontSize: 30 }}>Summary</Text>
+                    {'\n'}
+                    {'\n'}
+                    {summary}
+                    {'\n'}
+                    {'\n'}
+                    <Text style={{ fontSize: 30 }}>Action Items</Text>
+                    {'\n'}
+                    {'\n'}
+                    {taskArray}
                   </Text>
                 </View>
               </View>
