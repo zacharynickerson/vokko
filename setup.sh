@@ -23,6 +23,10 @@ yarn install
 echo "Clearing cache..."
 npx expo start -c
 
-# Step 4: Start the Expo development server
+# Step 5: Run Expo prebuild
+echo "Running Expo prebuild..."
+npx expo prebuild
+
+# Step 6: Start the Expo development server
 echo "Starting Expo development server..."
 npx expo start
