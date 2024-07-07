@@ -10,7 +10,7 @@ import { get, onValue, ref, set } from 'firebase/database';
 
 export default function VoiceNoteDetails({ route }) {
   const { voiceNote } = route.params;
-
+//
   // Log the voiceNote to debug
   // console.log('Voice Note Details:', voiceNote);
 

@@ -71,7 +71,7 @@ const saveToFirebaseDatabase = async (userId, voiceNote, downloadUrl) => {
           if (!user) {
             throw new Error('User is not authenticated');
           }
-      
+    
           const userId = user.uid;
           const voiceNoteData = {
             ...voiceNote,
