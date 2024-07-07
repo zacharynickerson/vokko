@@ -1,7 +1,8 @@
-import { Image, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, SafeAreaView, Text, TextInput, View, ScrollView } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { Audio } from 'expo-av';
+import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import Playback from "../components/playback.js";
 import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage';
 import { db, storage, auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'; // Import db from Firebase configuration
@@ -10,18 +11,21 @@ import { get, onValue, ref, set } from 'firebase/database';
 
 export default function VoiceNoteDetails({ route }) {
   const { voiceNote } = route.params;
-//
-  // Log the voiceNote to debug
-  // console.log('Voice Note Details:', voiceNote);
-
   // Destructure route.params to get voice note attributes
   const { voiceNoteId, uri, createdDate, location } = voiceNote;
 
   // Initialize noteTitle with the title from voiceNote
   const [noteTitle, setNoteTitle] = useState(voiceNote.title);
   const [transcript, setTranscript] = useState('');
-  const [summary, setSummary] = useState('')
-  const [taskArray, setTaskArray] = useState('')
+  const [summary, setSummary] = useState('');
+  const [taskArray, setTaskArray] = useState('');
+
+  const [index, setIndex] = useState(0);
+  const [routes] = useState([
+    { key: 'summary', title: 'Summary' },
+    { key: 'tasks', title: 'Tasks' },
+    { key: 'transcript', title: 'Script' }
+  ]);
 
 
   // Load transcript from Firebase Realtime Database
@@ -47,12 +51,8 @@ export default function VoiceNoteDetails({ route }) {
     };
   }, [voiceNoteId]); // Only re-run effect if voiceNoteId changes
 
-
-
   const [sound, setSound] = useState(null); // Use useState to manage Audio.Sound object
-  const ScrollViewRef = useRef(); // Reference for ScrollView component
-
-
+  // const ScrollViewRef = useRef(); // Reference for ScrollView component
 
   // Callback function for playback status update
   const onPlaybackStatusUpdate = async (newStatus) => {
@@ -119,6 +119,39 @@ export default function VoiceNoteDetails({ route }) {
     return () => clearTimeout(debounceSave.current);
   }, [noteTitle, voiceNote.title, voiceNoteId]);
 
+
+  const renderScene = SceneMap({
+    summary: () => (
+      <ScrollView style={{ padding: 20 }}>
+        <Text style={{ color: 'white', fontSize: wp(4) }}>{summary}</Text>
+      </ScrollView>
+    ),
+    tasks: () => (
+      <ScrollView style={{ padding: 20 }}>
+        <Text style={{ color: 'white', fontSize: wp(4) }}>{taskArray}</Text>
+      </ScrollView>
+    ),
+    transcript: () => (
+      <ScrollView style={{ padding: 20 }}>
+        <Text style={{ color: 'white', fontSize: wp(4) }}>{transcript}</Text>
+      </ScrollView>
+    ),
+  });
+
+  const renderTabBar = props => (
+    <TabBar
+      {...props}
+      indicatorStyle={{ backgroundColor: 'white' }}
+      style={{ backgroundColor: '#191A23' }}
+      labelStyle={{ fontWeight: 'bold' }}
+      renderLabel={({ route, focused }) => (
+        <Text style={{ color: focused ? 'white' : 'gray' }}>
+          {route.title}
+        </Text>
+      )}
+    />
+  );
+
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
       <SafeAreaView className="flex-1 flex mx-5">
@@ -162,53 +195,19 @@ export default function VoiceNoteDetails({ route }) {
           </View>
 
           {/* OUTPUT */}
-          <Text style={{ fontSize: wp(5) }} className="text-white font-semibold ml-1 mb-1">
-            Note Output
-          </Text>
-          <View style={{ height: hp(45), backgroundColor: '#242830' }} className="bg-neutral-200 rounded-3xl p-4">
-            <ScrollView
-              ref={ScrollViewRef}
-              bounces={false}
-              className="space-y-4"
-              showsVerticalScrollIndicator={false}
-            >
-              <View className="flex-row justify-left">
-                <View style={{ width: wp(80) }} className="rounded-xl p-4 rounded-tr-none">
-                  <Text className="text-white font-bold" style={{ fontSize: wp(3.8) }}>
-                    <Text style={{ fontSize: 30 }}>Transcript</Text>
-                    {'\n'}
-                    {'\n'}
-                    {transcript}
-                    {'\n'}
-                    {'\n'}
-                    <Text style={{ fontSize: 30 }}>Summary</Text>
-                    {'\n'}
-                    {'\n'}
-                    {summary}
-                    {'\n'}
-                    {'\n'}
-                    <Text style={{ fontSize: 30 }}>Action Items</Text>
-                    {'\n'}
-                    {'\n'}
-                    {taskArray}
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
+
+          <View style={{ flex: 1, backgroundColor: '#191A23' }} className="bg-neutral-200 rounded-3xl p-4">
+            <TabView
+              navigationState={{ index, routes }}
+              renderScene={renderScene}
+              renderTabBar={renderTabBar}
+              onIndexChange={setIndex}
+              initialLayout={{ width: wp(100) }}
+              style={{ backgroundColor: '#191A23' }}
+            />
           </View>
         </View>
       </SafeAreaView>
     </View>
   );
 }
-
-
-
-  // // Callback function for playback status update
-  // const onPlaybackStatusUpdate = useCallback(async (newStatus) => {
-  //   // Handle playback status update here if needed
-  // }, []);
-  
-
-
-  

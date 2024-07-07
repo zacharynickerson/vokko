@@ -14,6 +14,7 @@
   },
   "main": "index.js",
   "dependencies": {
+    "@google-cloud/secret-manager": "^5.6.0",
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
     "firebase-admin": "^12.2.0",
@@ -27,4 +28,3 @@
   },
   "private": true
 }
-
