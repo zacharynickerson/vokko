@@ -74,3 +74,10 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+
+# Google Cloud Service Account Credentials
+config/vokko-f8f6a-19484f73e795.json
+config/logical-vim-411900-5d39334c6c74.json
+
+# OpenAI API Key
+.env
