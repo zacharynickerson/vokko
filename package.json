@@ -32,7 +32,7 @@
     "@react-navigation/native": "^6.1.17",
     "@robinbobin/react-native-google-drive-api-wrapper": "^1.2.4",
     "axios": "^1.7.2",
-    "eas-cli": "^10.1.0",
+    "eas-cli": "^10.1.1",
     "eslint": "8",
     "expo": "~50.0.19",
     "expo-auth-session": "~5.4.0",

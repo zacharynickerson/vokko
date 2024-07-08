@@ -5438,10 +5438,10 @@ duplexify@^4.0.0, duplexify@^4.1.3:
     readable-stream "^3.1.1"
     stream-shift "^1.0.2"
 
-eas-cli@^10.1.0:
-  version "10.1.0"
-  resolved "https://registry.npmjs.org/eas-cli/-/eas-cli-10.1.0.tgz"
-  integrity sha512-CJbYRUE2MRaEkNVKRloNtdzkvAaJXNE4FZ7nBddkvJcwFA2QELBOWIgB6247UhmoYYvewQQemQoxsLGCfja57g==
+eas-cli@^10.1.1:
+  version "10.1.1"
+  resolved "https://registry.npmjs.org/eas-cli/-/eas-cli-10.1.1.tgz"
+  integrity sha512-xb0FtF+lT0zfaCjZ5q3KYV7Ap+u7i6xET2Ju7b2XYgMpVP6WF2pMvekd5tNp+xtPUOZoAJazUdytdd43F1b4ww==
   dependencies:
     "@expo/apple-utils" "1.7.0"
     "@expo/code-signing-certificates" "0.0.5"
