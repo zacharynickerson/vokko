@@ -8,9 +8,8 @@ import { saveVoiceNotesToLocal, getVoiceNotesFromLocal } from '../utilities/voic
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons'; // Import Ionicons
 // import { firebase } from '@react-native-firebase/app';
-import { db, storage, auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'; // Import Firebase configuration
-import { get, onValue, ref, set } from 'firebase/database';
-import { saveToFirebaseStorage, saveToFirebaseDatabase } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+// import { get, onValue, ref, set } from 'firebase/database';
+import { db, storage, auth, get, onValue, ref, set, saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
 
 
 export default function RecordScreen() {
