@@ -24,7 +24,7 @@ export const getLocation = async () => {
       const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyCIamHe2AVao_SfZPn6qZpn2YuOuk97bHU`);
       const data = await response.json();
 
-      console.log('Geocoding API response:', data); // Log the full response
+      // console.log('Geocoding API response:', data); // Log the full response
 
       if (data.results && data.results.length > 0) {
         const addressComponents = data.results[0].address_components;
@@ -52,35 +52,3 @@ export const getLocation = async () => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date().toLocaleDateString(undefined, options);
   };
-  
-
-// export const getLocation = async () => {
-//     let { status } = await Location.requestForegroundPermissionsAsync();
-//     if (status !== 'granted') {
-//       throw new Error('Location permission not granted');
-//     }
-  
-//     let location = await Location.getCurrentPositionAsync({});
-//     return {
-//       latitude: location.coords.latitude,
-//       longitude: location.coords.longitude,
-//     };
-//   };
-
-// export const formatMillis = (millis) => {
-//     const minutes = Math.floor(millis / (1000 * 60));
-//     const seconds = Math.floor((millis % (1000 * 60)) / 1000);
-//     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-// };
-
-
-// export const getDurationMillis = async (uri) => {
-//     try {
-//       const status = await uri.getStatusAsync();
-//       return status.durationMillis;
-//     } catch (error) {
-//       console.error('Failed to get recording duration', error);
-//       throw error;
-//     }
-// };
-
