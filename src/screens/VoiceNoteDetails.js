@@ -5,7 +5,7 @@ import { Audio } from 'expo-av';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import Playback from "../components/playback.js";
 import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage';
-import { db, storage, auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'; // Import db from Firebase configuration
+import { db, storage, auth } from '../../config/firebase';
 import { get, onValue, ref, set } from 'firebase/database';
 
 

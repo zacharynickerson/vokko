@@ -8,9 +8,10 @@ import { saveVoiceNotesToLocal, getVoiceNotesFromLocal } from '../utilities/voic
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons'; // Import Ionicons
 // import { firebase } from '@react-native-firebase/app';
-import { db, storage, auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js'; // Import Firebase configuration
-import { get, onValue, ref, set } from 'firebase/database';
-import { saveToFirebaseStorage, saveToFirebaseDatabase } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+// import { get, onValue, ref, set } from 'firebase/database';
+import { db, storage, auth, get, onValue, ref, set, saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
+import Voice from '@react-native-community/voice';
+import { dummyMessages } from '../constants';
 
 
 export default function RecordScreen() {
@@ -21,6 +22,100 @@ export default function RecordScreen() {
   const navigation = useNavigation();
   const metering = useSharedValue(-100);
   const [alreadySavedToFBS, setAlreadySavedToFBS] = useState(false); // State variable to track if audio is already saved to Firebase Storage
+  
+  //TRANSCRIBER
+  const [messages, setMessages] = useState(dummyMessages);
+  const [transcribing, setTranscribing] = useState(false);
+  const [speaking, setSpeaking] = useState(true);
+  const [result, setResult] = useState('');
+
+  const speechStartHandler = e =>{
+    console.log('speech start handler');
+  }
+
+  const speechEndHandler = e =>{
+    setTranscribing(false);
+    setMessages([]);
+    console.log('speech end handler');
+    console.log(messages)
+  }
+
+  const speechResultsHandler = e =>{
+    console.log('voice event: ',e);
+    const text = e.value[0];
+    setMessages([{ role: 'user', content: text.trim() }]);
+    setResult(text)
+
+    // const { value } = e;
+    // console.log('Received transcription:', value); // Debugging: Check if transcription is received correctly
+    // const newMessage = { content: value };
+  }
+
+  const speechErrorHandler =e=>{
+    console.log('speech error handler: ',e);
+  }
+
+  const startTranscribing = async ()=>{
+    setTranscribing(true);
+    try {
+      await Voice.start('en-GB');
+    }catch(error){
+      console.log('error: ',error);
+    }
+  }
+
+  const clear = ()=>{
+    setMessages([])
+  }
+
+  const stopTranscribing = async ()=>{
+    try {
+      await Voice.stop();
+      setTranscribing(false);
+    }catch(error){
+      console.log('error: ',error);
+    }
+  }
+
+  const pauseTranscribing = async () => {
+    try {
+      await Voice.stop();
+      setTranscribing(false);
+    } catch (error) {
+      console.log('error: ', error);
+    }
+  };
+
+  const resumeTranscribing = async () => {
+    try {
+      setTranscribing(true);
+      await Voice.start('en-GB');
+    } catch (error) {
+      console.log('error: ', error);
+    }
+  };
+
+  const stopSpeaking = ()=>{
+    setSpeaking(false)
+  }
+
+
+  useEffect(()=>{
+    Voice.onSpeechStart = speechStartHandler;
+    Voice.onSpeechEnd = speechEndHandler;
+    Voice.onSpeechResults = speechResultsHandler;
+    Voice.onSpeechError = speechErrorHandler;  
+    setMessages([])
+
+    return ()=>{
+      //destroy voice instance
+      Voice.destroy().then(Voice.removeAllListeners);
+    }
+  }, [])
+
+
+  //END TRANSCRIBER
+
 
   useEffect(() => {
     const loadVoiceNotes = async () => {
@@ -29,6 +124,9 @@ export default function RecordScreen() {
     };
     loadVoiceNotes();
   }, []);
+
+  
+  
 
   async function startRecording() {
     try {
@@ -45,6 +143,7 @@ export default function RecordScreen() {
       );
 
       setRecording(recording);
+      startTranscribing();
       recording.setOnRecordingStatusUpdate((status) => {
         // console.log(status.metering);
         metering.value = status.metering || -100;
@@ -58,6 +157,7 @@ export default function RecordScreen() {
     if (recording) {
       await recording.pauseAsync();
       setIsPaused(true);
+      pauseTranscribing();
     }
   }
 
@@ -65,6 +165,7 @@ export default function RecordScreen() {
     if (recording) {
       await recording.startAsync();
       setIsPaused(false);
+      resumeTranscribing();
     }
   }
 
@@ -81,7 +182,8 @@ export default function RecordScreen() {
 
     setRecording(undefined);
     setIsPaused(false);
-
+    setMessages([]);
+    stopTranscribing();
     try {
       await recording.stopAndUnloadAsync();
       const voiceNoteId = generateUUID();
@@ -133,10 +235,19 @@ export default function RecordScreen() {
   async function cancelRecording() {
     if (recording) {
       await recording.stopAndUnloadAsync();
+      stopTranscribing();
       setRecording(null);
       setIsPaused(false);
     }
   }
+
+  // useEffect(() => {
+  //   const unsubscribe = navigation.addListener('blur', () => {
+  //     clearMessages();
+  //   });
+
+  //   return unsubscribe;
+  // }, [navigation]);
 
   const animatedRecordButton = useAnimatedStyle(() => ({
     width: withTiming(recording ? '60%' : '100%'),
@@ -183,20 +294,45 @@ export default function RecordScreen() {
 
         {/* LIVE TRANSCRIPTION */}
         <View className="mt-2" style={{ maxHeight: 86, overflow: 'hidden' }}>
-          <ScrollView
+        <ScrollView
             style={{
-              height: hp(18),
-              paddingHorizontal: 16,
-              flexDirection: 'column-reverse',
+            height: hp(18),
+            // backgroundColor: 'red',
+            paddingHorizontal: 16,
+            flexDirection: 'column-reverse', // Reverse the order of children
             }}
             contentContainerStyle={{
-              justifyContent: 'flex-end',
-              flexGrow: 1,
+            justifyContent: 'flex-end',
+            flexGrow: 1,
             }}
             showsVerticalScrollIndicator={false}
-          >
-            {/* {<Transcriber />} */}
-          </ScrollView>
+        >
+            {/* Display live transcription here */}
+            {messages.map((message, index) => (
+            <Text
+                key={index}
+                style={{
+                fontSize: 24,
+                fontFamily: 'Inter',
+                color: 'white',
+                textAlign: 'left', // Align text to the left
+                fontWeight: '500', // Set font weight to medium
+                }}
+            >
+                {/* Apply different styles to the newest 10 characters */}
+                {message.content.length > 10 ? (
+                <>
+                    {message.content.substring(0, message.content.length - 10)}
+                    <Text style={{ color: '#63646A' }}>
+                    {message.content.substring(message.content.length - 10)}
+                    </Text>
+                </>
+                ) : (
+                <Text style={{ color: '#63646A' }}>{message.content}</Text>
+                )}
+            </Text>
+            ))}
+        </ScrollView>
         </View>
         {/* RECORD, PAUSE, STOP, CANCEL BUTTONS */}
         <View className="flex justify-center items-center mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
@@ -302,3 +438,5 @@ const styles = StyleSheet.create({
 //             {<Transcriber />}
 //           </ScrollView>
 //         </View>
+
+
