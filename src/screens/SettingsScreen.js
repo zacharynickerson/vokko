@@ -1,40 +1,42 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, Button, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Linking } from 'react-native'
+import { Alert, Button, ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Linking } from 'react-native'
 import {heightPercentageToDP as hp, widthPercentageToDP as wp} from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth';
+import { auth } from '../../config/firebase';
+import useAuth from '../../hooks/useAuth';
 
 export default function SettingsScreen() {
     const navigation = useNavigation();
-    const [currentUser, setCurrentUser] = useState(null);
+    const { user, ready } = useAuth();
 
-    useEffect(() => {
-        const unsubscribe = auth().onAuthStateChanged(user => {
-            console.log('Auth state changed:', user);
-            setCurrentUser(user);
-        });
+   const onLogout = async () => {
+        try {
+            await auth.signOut();
+            console.log("User signed out successfully");
+            // navigation.navigate('Auth');
+        } catch (e) {
+            console.log(e);
+            Alert.alert("Logout Error", "An error occurred while trying to log out. Please try again.");
 
-        return unsubscribe; // Cleanup subscription on unmount
-    }, []);
-
-    useEffect(() => {
-        console.log('Current user state updated:', currentUser);
-    }, [currentUser]);
-
-    const handleLogout = async () => {
-        console.log('Logout triggered');
-        if (currentUser) {
-            try {
-                await auth().signOut();
-                console.log('User logged out successfully');
-                navigation.replace('WelcomeScreen');
-            } catch (error) {
-                console.error("Failed to log out:", error);
-                Alert.alert("Failed to log out. Please try again later.");
-            }
-        } else {
-            Alert.alert("No user currently signed in.");
         }
+    }
+
+    const confirmLogout = () => {
+        Alert.alert(
+            "Logout",
+            "Are you sure you'd like to logout?",
+            [
+                {
+                    text: "Cancel",
+                    onPress: () => console.log("Logout canceled"),
+                    style: "cancel"
+                },
+                {
+                    text: "Confirm",
+                    onPress: onLogout
+                }
+            ]
+        );
     };
 
     const openURL = (url) => {
@@ -43,6 +45,15 @@ export default function SettingsScreen() {
             Alert.alert("Failed to open URL. Please try again later.");
         });
     };
+
+    if (!ready) {
+        return (
+            <View className="flex-1 justify-center items-center" style={{ backgroundColor: '#191A23' }}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={{ fontSize: wp(4.3), color: '#fff', marginTop: 10 }}>Loading...</Text>
+            </View>
+        );
+    }
 
     return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
@@ -104,10 +115,12 @@ export default function SettingsScreen() {
                             <View className="flex-row items-center space-x-1"></View>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={handleLogout} className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
+                    <TouchableOpacity onPress={confirmLogout} className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                         <View className="flex-row items-center space-x-1">
                             <Image source={require("../../assets/images/noteicon.png")} style={{ height: hp(3), width: hp(3) }} className="mr-2" />
-                            <Text style={{ fontSize: wp(4.3) }} className="font-bold text-white">Logout</Text>
+                            <Text style={{ fontSize: wp(4.3) }} className="font-bold text-white">
+                                {ready ? (user ? "Logout" : "Not Logged In") : "Loading..."}
+                            </Text>
                         </View>
                     </TouchableOpacity>
             </View>
