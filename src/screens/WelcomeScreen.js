@@ -1,11 +1,13 @@
+import React, { useCallback } from 'react'
 import { Image, SafeAreaView, Text, TouchableOpacity, View } from 'react-native'
-import {heightPercentageToDP as hp, widthPercentageToDP as wp} from 'react-native-responsive-screen';
-
-import React from 'react'
+import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 
 export default function WelcomeScreen() {
     const navigation = useNavigation();
+    const navigateToSignUp = useCallback(() => navigation.navigate('SignUpScreen'), [navigation]);
+    const navigateToLogin = useCallback(() => navigation.navigate('LoginScreen'), [navigation]);
+
 
     return (
         
@@ -18,9 +20,16 @@ export default function WelcomeScreen() {
                     Your voice notes, powered by AI.
                 </Text>
             </View>
-            <View className="flex-row justify-center">
-                <Image source={require("../../assets/images/crystal.png")} style={{width: wp(75), height: wp(75)}}/>
-            </View>
+
+            <View className="flex-row justify-center my-10">
+                    <Image 
+                        source={require("../../assets/images/crystal.png")} 
+                        style={{width: wp(80), height: wp(80)}}
+                        resizeMode="contain"
+                        accessibilityLabel="Vokko logo"
+                    />
+                </View>
+
             <View className="space-y-4">
                 <View>
                 <TouchableOpacity onPress={()=> navigation.navigate('SignUpScreen')} className="bg-white mx-5 p-4 rounded-2xl">

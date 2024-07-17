@@ -1,23 +1,24 @@
-import React, { useEffect, useState } from 'react'
-import { Text, View } from 'react-native';
-
+import { useState, useEffect } from 'react';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 export default function useAuth() {
-    const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
 
-    useEffect(()=>{
-        const unsub = onAuthStateChanged(auth, user=>{
-            console.log('got user: ', user.email);
-            if(user){
-                setUser(user);
-            }else{
-                setUser(null);
-            }
-        });
-        return unsub;
-    },[])
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? "User exists" : "No user");
+      setUser(user);
+      setReady(true); // Set ready to true once the auth state is determined
+    });
 
-    return { user }
+    return unsubscribe;
+  }, []);
+
+  const updateUser = (user) => {
+    setUser(user);
+  };
+
+  return { user, ready, updateUser };
 }
