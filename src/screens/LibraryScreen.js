@@ -5,11 +5,15 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getVoiceNotesFromLocal } from '../utilities/voiceNoteLocalStorage';
 import { FlatList } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth, db } from '../../config/firebase';
+import { ref, get } from 'firebase/database';
 
 export default function LibraryScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
+  const [userName, setUserName] = useState('');
+
 
   // Function to clear AsyncStorage
   const clearAsyncStorage = async () => {
@@ -21,6 +25,23 @@ export default function LibraryScreen() {
     }
   };
 
+  // Function to fetch user data
+  const fetchUserData = async () => {
+    try {
+      const userId = auth.currentUser.uid;
+      const userRef = ref(db, `/users/${userId}`);
+      const snapshot = await get(userRef);
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        const firstName = userData.name.split(' ')[0];  // Extract the first name
+        setUserName(firstName);
+      } else {
+        console.log("No user data available");
+      }
+    } catch (error) {
+      console.error("Error fetching user data: ", error);
+    }
+  };
 
   
   useFocusEffect(
@@ -38,6 +59,7 @@ export default function LibraryScreen() {
         }
       };
 
+      fetchUserData();  // Fetch user data when the screen is focused
       fetchVoiceNotes();
     }, [])
   );
@@ -57,7 +79,7 @@ export default function LibraryScreen() {
         {/* TOP TEXT */}
         <TouchableOpacity onPress={clearAsyncStorage}>
           <Text style={{ fontSize: wp(3.7) }} className="text-gray-400 font-regular mt-2">
-            Hello Zachary
+          {userName ? `Hello ${userName}` : 'Hello'}
           </Text>
         </TouchableOpacity>
 

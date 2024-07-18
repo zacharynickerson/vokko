@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { ArrowLeftIcon } from 'react-native-heroicons/solid';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth } from '../../config/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { google } from '@google-cloud/firestore/types/protos/firestore_v1beta1_proto_api';
 
 export default function LoginScreen() {
     const navigation = useNavigation();
@@ -67,6 +69,27 @@ export default function LoginScreen() {
             setEmail(value);
         } else if (field === 'password') {
             setPassword(value);
+        }
+    };
+
+
+    const signInWithGoogle = async () => {
+        try {
+            await GoogleSignin.hasPlayServices();
+            const {idToken} = await GoogleSignin.signIn();
+            const googleCredentials = GoogleAuthProvider.credentials(idToken);
+            await signInWithCredential(googleCredentials);
+        } catch (error) {
+            console.error("Google Sign-In error", error.message);
+            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+                // user cancelled the login flow
+            } else if (error.code === statusCodes.IN_PROGRESS) {
+                // operation is in progress already
+            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                // play services not available
+            } else {
+                // some other error
+            }
         }
     };
 
@@ -143,7 +166,7 @@ export default function LoginScreen() {
                     Or
                 </Text>
                 <View className="flex-row justify-center space-x-12">
-                    <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
+                <TouchableOpacity onPress={signInWithGoogle} className="p-2 bg-gray-100 rounded-2xl">
                         <Image source={require('../../assets/images/google.png')}
                             className="w-10 h-10" />
                     </TouchableOpacity>
