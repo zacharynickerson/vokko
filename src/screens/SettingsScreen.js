@@ -63,15 +63,15 @@ export default function SettingsScreen() {
             </View>
             <View style={{height: hp(60)}} className="space-y-4">
                 <Text style={{fontSize: wp(4.5)}} className="font-semibold text-white">Settings</Text>
-
-                <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Voice Notes</Text>
+               
+               {/* <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Voice Notes</Text>
                 <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                     <View className="flex-row items-center space-x-1">
                         <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                         <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Customize Output</Text>
                         <View className="flex-row items-center space-x-1"></View>
                     </View>
-                </View>
+                </View> */}
 
                 <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Account</Text>
                 <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
@@ -81,22 +81,22 @@ export default function SettingsScreen() {
                         <View className="flex-row items-center space-x-1"></View>
                     </View>
                 </View>
-                <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
+                {/* <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                     <View className="flex-row items-center space-x-1">
                         <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                         <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Subscription</Text>
                         <View className="flex-row items-center space-x-1"></View>
                     </View>
-                </View>
+                </View> */}
 
-                <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Integrations</Text>
+                {/* <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Integrations</Text>
                 <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
                     <View className="flex-row items-center space-x-1">
                         <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
                         <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Connected Integrations</Text>
                         <View className="flex-row items-center space-x-1"></View>
                     </View>
-                </View>
+                </View> */}
 
                 <Text style={{ fontSize: wp(3.5) }} className="font-regular text-gray-400">Support</Text>
                     <TouchableOpacity onPress={() => openURL("https://vokko.io/contact/")} className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
