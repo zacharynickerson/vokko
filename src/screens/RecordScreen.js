@@ -182,8 +182,8 @@ export default function RecordScreen() {
 
     setRecording(undefined);
     setIsPaused(false);
-    setMessages([]);
     stopTranscribing();
+
     try {
       await recording.stopAndUnloadAsync();
       const voiceNoteId = generateUUID();
@@ -192,7 +192,7 @@ export default function RecordScreen() {
       const createdDate = getCurrentDate();
       const size = await getFileSize(uri);
       const location = await getLocation();
-      const transcript = '';
+      const transcript = result;
       const summary = '';
       const taskArray = [];
 
@@ -414,29 +414,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-/////////////////
-
-// import Transcriber from '../components/transcriber';
-
-//   const [isTranscribing, setIsTranscribing] = useState(false);
-
-//         {/* LIVE TRANSCRIPTION */}
-//         <View className="mt-2" style={{ maxHeight: 86, overflow: 'hidden' }}>
-//           <ScrollView
-//             style={{
-//               height: hp(18),
-//               paddingHorizontal: 16,
-//               flexDirection: 'column-reverse',
-//             }}
-//             contentContainerStyle={{
-//               justifyContent: 'flex-end',
-//               flexGrow: 1,
-//             }}
-//             showsVerticalScrollIndicator={false}
-//           >
-//             {<Transcriber />}
-//           </ScrollView>
-//         </View>
-
-
