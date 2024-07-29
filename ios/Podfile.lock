@@ -1237,7 +1237,7 @@ PODS:
     - RNFBApp
   - RNFS (2.20.0):
     - React-Core
-  - RNGestureHandler (2.14.1):
+  - RNGestureHandler (2.17.1):
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
@@ -1679,7 +1679,7 @@ SPEC CHECKSUMS:
   RNFBDatabase: f1b545368a6f73bb149715761333701644a479a5
   RNFBStorage: 0dc295ad7ff28ba30816e42e08028df19eea4468
   RNFS: 4ac0f0ea233904cb798630b3c077808c06931688
-  RNGestureHandler: 12833709769dde5fdb36ec9d4cdf4d3a1a024122
+  RNGestureHandler: 8ff45d9b814f3ceceb1e9f92e5c73c92ab98e4a2
   RNGoogleSignin: 08dc4ba7eac2096c7fecfe109f0950fa4683c803
   RNReanimated: 41963a348e738c496a9b129bba9a9217017cd530
   RNScreens: a4d9ce8f68f833f4e42410140eafd88e38bba163

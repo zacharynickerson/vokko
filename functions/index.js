@@ -10,46 +10,46 @@ dotenv.config();
 
 admin.initializeApp();
 
-exports.updateTranscription = functions.storage.object().onFinalize(async (object) => {
-  // Exit if this is not a transcription file
-  if (!object.name.startsWith("transcriptions/users/")) {
-    return null;
-  }
+// exports.updateTranscription = functions.storage.object().onFinalize(async (object) => {
+//   // Exit if this is not a transcription file
+//   if (!object.name.startsWith("transcriptions/users/")) {
+//     return null;
+//   }
 
-  // Extract userId from the object name
-  const pathParts = object.name.split("/");
-  const userId = pathParts[2];
+//   // Extract userId from the object name
+//   const pathParts = object.name.split("/");
+//   const userId = pathParts[2];
 
-  try {
-    // Download the transcription text file
-    const file = storage.bucket(object.bucket).file(object.name);
-    const transcriptionBuffer = await file.download();
-    const transcriptionText = transcriptionBuffer.toString("utf8").trim();
+//   try {
+//     // Download the transcription text file
+//     const file = storage.bucket(object.bucket).file(object.name);
+//     const transcriptionBuffer = await file.download();
+//     const transcriptionText = transcriptionBuffer.toString("utf8").trim();
 
-    // Parse the transcription text as JSON
-    const transcriptionJson = JSON.parse(transcriptionText);
-    const transcript = transcriptionJson.results[0].alternatives[0].transcript;
+//     // Parse the transcription text as JSON
+//     const transcriptionJson = JSON.parse(transcriptionText);
+//     const transcript = transcriptionJson.results[0].alternatives[0].transcript;
 
-    // Extract the voiceNoteId from the filename
-    const filename = pathParts[4];
-    const voiceNoteId = filename.split(".m4a.wav_transcription.txt")[0];
+//     // Extract the voiceNoteId from the filename
+//     const filename = pathParts[4];
+//     const voiceNoteId = filename.split(".m4a.wav_transcription.txt")[0];
 
-    // Get a reference to the specific voice note for the user
-    const voiceNoteRef = admin.database().ref(`users/${userId}/voiceNotes/${voiceNoteId}`);
+//     // Get a reference to the specific voice note for the user
+//     const voiceNoteRef = admin.database().ref(`users/${userId}/voiceNotes/${voiceNoteId}`);
 
-    // Check if the voice note exists
-    const snapshot = await voiceNoteRef.once("value");
-    if (snapshot.exists()) {
-      // Update the transcript for the specified voice note
-      await voiceNoteRef.child('transcript').set(transcript);
-      console.log("Transcript updated for voiceNote with ID:", voiceNoteId);
-    } else {
-      console.error("Voice note not found for ID:", voiceNoteId);
-    }
-  } catch (error) {
-    console.error("Error updating transcript:", error);
-  }
-});
+//     // Check if the voice note exists
+//     const snapshot = await voiceNoteRef.once("value");
+//     if (snapshot.exists()) {
+//       // Update the transcript for the specified voice note
+//       await voiceNoteRef.child('transcript').set(transcript);
+//       console.log("Transcript updated for voiceNote with ID:", voiceNoteId);
+//     } else {
+//       console.error("Voice note not found for ID:", voiceNoteId);
+//     }
+//   } catch (error) {
+//     console.error("Error updating transcript:", error);
+//   }
+// });
 
 const openai = new OpenAI({
   apiKey: functions.config().openai.key,
@@ -80,19 +80,6 @@ exports.processTranscript = functions.database
       temperature: 0.7,
     };    
 
-    // const prompt = {
-    //   model: "gpt-3.5-turbo-0125",
-    //   messages: [
-    //     { role: "system", content: `Given a transcript of a voice note: ${transcript}, summarize its content into a well-structured text. Identify any actionable items mentioned in the transcript and list them separately. Output the summary and tasks in the following JSON format:
-    // {
-    //   "summary": "Your summary here",
-    //   "action_items": ["Task 1", "Task 2", "Task 3"]
-    // }` },
-    //     { role: "user", content: "After you record a voice note, we will generate a summary of its content for you. This summary will be a clearer and more organized version of what you said, maintaining your original style. We'll also identify any tasks or action items mentioned in your note, listing them separately for easy reference." }
-    //   ],
-    //   max_tokens: 3000,
-    //   temperature: 0.7,
-    // };
     
     
     const apiKey = functions.config().openai.key;

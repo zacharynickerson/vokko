@@ -64,7 +64,7 @@
     "react": "18.2.0",
     "react-native": "0.73.6",
     "react-native-fs": "^2.20.0",
-    "react-native-gesture-handler": "~2.14.0",
+    "react-native-gesture-handler": "^2.17.1",
     "react-native-google-drive-api-wrapper": "^1.4.0",
     "react-native-google-signin": "^2.1.1",
     "react-native-heroicons": "^3.2.0",

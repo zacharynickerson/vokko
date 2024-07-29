@@ -45,7 +45,12 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.793156853153-eqkirerhagidvuc0ca5odags17v443os</string>
+				<string>com.googleusercontent.apps.793156853153-4b0ji8gmd0hdkpb6tv1nto1mmfl945e4</string>
+			</array>
+			<key>LSApplicationQueriesSchemes</key>
+			<array>
+				<string>google</string>
+				<string>com.googleusercontent.apps.793156853153-4b0ji8gmd0hdkpb6tv1nto1mmfl945e4</string>
 			</array>
 		</dict>
 	</array>
