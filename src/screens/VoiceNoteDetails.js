@@ -1,4 +1,4 @@
-import { Image, SafeAreaView, Text, TextInput, View, ScrollView } from 'react-native';
+import { Image, SafeAreaView, Text, TextInput, View, ScrollView, FlatList } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { Audio } from 'expo-av';
@@ -14,7 +14,7 @@ export default function VoiceNoteDetails({ route }) {
   // Destructure route.params to get voice note attributes
   const { voiceNoteId, uri, createdDate, location } = voiceNote;
 
-  // Initialize noteTitle with the title from voiceNote
+  // Initialize noteTitle with the titlqe from voiceNote
   const [noteTitle, setNoteTitle] = useState(voiceNote.title);
   const [transcript, setTranscript] = useState('');
   const [summary, setSummary] = useState('');
@@ -123,17 +123,39 @@ export default function VoiceNoteDetails({ route }) {
   const renderScene = SceneMap({
     summary: () => (
       <ScrollView style={{ padding: 20 }}>
-        <Text style={{ color: 'white', fontSize: wp(4) }}>{summary}</Text>
+        {summary.split('.').filter(sentence => sentence.trim().length > 0).map((sentence, index) => (
+          <View key={index} style={{ marginBottom: 20 }}>
+            <Text style={{ color: 'white', fontSize: wp(4) }}>
+              {sentence.trim() + '.'}
+            </Text>
+          </View>
+        ))}
       </ScrollView>
     ),
     tasks: () => (
-      <ScrollView style={{ padding: 20 }}>
-        <Text style={{ color: 'white', fontSize: wp(4) }}>{taskArray}</Text>
-      </ScrollView>
+      <FlatList
+        data={taskArray}
+        renderItem={({ item }) => (
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
+            <Text style={{ color: 'white', fontSize: wp(4), marginRight: 10 }}>•</Text>
+            <Text style={{ color: 'white', fontSize: wp(4), flex: 1 }}>
+              {item.replace(/^[-•]\s*/, '')}
+            </Text>
+          </View>
+        )}
+        keyExtractor={(item, index) => index.toString()}
+        style={{ padding: 20 }}
+      />
     ),
     transcript: () => (
       <ScrollView style={{ padding: 20 }}>
-        <Text style={{ color: 'white', fontSize: wp(4) }}>{transcript}</Text>
+        {transcript.split('.').filter(sentence => sentence.trim().length > 0).map((sentence, index) => (
+          <View key={index} style={{ marginBottom: 20 }}>
+            <Text style={{ color: 'white', fontSize: wp(4) }}>
+              {sentence.trim() + '.'}
+            </Text>
+          </View>
+        ))}
       </ScrollView>
     ),
   });

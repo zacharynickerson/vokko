@@ -80,6 +80,19 @@ exports.processTranscript = functions.database
       temperature: 0.7,
     };    
 
+    // const prompt = {
+    //   model: "gpt-3.5-turbo-0125",
+    //   messages: [
+    //     { role: "system", content: `Given a transcript of a voice note: ${transcript}, summarize its content into a well-structured text. Identify any actionable items mentioned in the transcript and list them separately. Output the summary and tasks in the following JSON format:
+    // {
+    //   "summary": "Your summary here",
+    //   "action_items": ["Task 1", "Task 2", "Task 3"]
+    // }` },
+    //     { role: "user", content: "After you record a voice note, we will generate a summary of its content for you. This summary will be a clearer and more organized version of what you said, maintaining your original style. We'll also identify any tasks or action items mentioned in your note, listing them separately for easy reference." }
+    //   ],
+    //   max_tokens: 3000,
+    //   temperature: 0.7,
+    // };
     
     
     const apiKey = functions.config().openai.key;
@@ -137,4 +150,3 @@ exports.processTranscript = functions.database
 
     return null;
   });
-
