@@ -10,6 +10,100 @@ dotenv.config();
 
 admin.initializeApp();
 
+const openai = new OpenAI({
+  apiKey: functions.config().openai.key,
+});
+
+
+exports.processTranscript = functions.database
+  .ref('/users/{userId}/voiceNotes/{voiceNoteId}/transcript')
+  .onWrite(async (change, context) => {
+    const userId = context.params.userId;
+    const voiceNoteId = context.params.voiceNoteId;
+    const transcript = change.after.val();
+
+    if (!transcript) {
+      console.error('Transcript is empty or missing');
+      return null;
+    }
+
+    console.log(`Processing voice note: userId=${userId}, voiceNoteId=${voiceNoteId}, transcript=${transcript}`);
+
+    const prompt = {
+      model: "gpt-3.5-turbo-0125", // Update with your model version
+      messages: [
+        { "role": "system", "content": `Given a transcript of a voice note: ${transcript}, summarize its content into a well-structured text. Each section should succinctly capture the main points discussed in the voice note. Identify any actionable items mentioned in the transcript and populate them into a bulleted list. Output the summary with section header 'Summary:' and the tasks with section header 'Action Items:'. Also, provide a concise and descriptive title for the voice note based on its content.`},
+        { "role": "user", "content": "After you record a voice note, we will generate a summary of its content for you. This summary will be a clearer and more organized version of what you said, maintaining your original style. We'll also identify any tasks or action items mentioned in your note, listing them separately for easy reference. Additionally, we'll provide a concise title for your voice note." }
+      ],
+      max_tokens: 3000,
+      temperature: 0.7,
+    };
+
+    const apiKey = functions.config().openai.key;
+
+    if (!apiKey) {
+      console.error('API key is missing. Make sure to set OPENAI_API_KEY in your environment variables.');
+      return null;
+    }
+
+    try {
+      const response = await openai.chat.completions.create(prompt);
+
+      console.log('API response:', response);
+
+      if (response.choices && response.choices.length > 0) {
+        const resultText = response.choices[0].message.content.trim();
+
+        // Regular expressions to find and split summary, tasks, and title
+        const summaryRegex = /^Summary:\s*/;
+        const tasksRegex = /^Action Items:\s*/;
+        const titleRegex = /^Title:\s*/;
+
+        // Split based on section headers
+        let summary = '';
+        let tasks = [];
+        let title = '';
+
+        const summaryMatch = resultText.match(/Summary:\s*(.*?)(?=\nAction Items:|\nTitle:|\n$)/is);
+        const tasksMatch = resultText.match(/Action Items:\s*(.*?)(?=\nTitle:|\n$)/is);
+        const titleMatch = resultText.match(/Title:\s*(.*)/is);
+
+        if (summaryMatch) {
+          summary = summaryMatch[1].trim();
+        }
+
+        if (tasksMatch) {
+          tasks = tasksMatch[1].split('\n').map(task => task.trim()).filter(task => task.length > 0);
+        }
+
+        if (titleMatch) {
+          title = titleMatch[1].trim();
+        }
+
+        console.log('Title:', title);
+        console.log('Summary:', summary);
+        console.log('Tasks:', tasks);
+
+        // Update Firebase with title, summary, and tasks
+        await admin.database().ref(`/users/${userId}/voiceNotes/${voiceNoteId}`).update({
+          title: title,
+          summary: summary,
+          taskArray: tasks,
+        });
+
+        console.log(`Voice note processed successfully: ${voiceNoteId}`);
+      } else {
+        console.error('API returned no choices in the response');
+      }
+    } catch (error) {
+      console.error('Error processing voice note:', error.response ? error.response.data : error.message);
+    }
+
+    return null;
+  });
+
+
+
 // exports.updateTranscription = functions.storage.object().onFinalize(async (object) => {
 //   // Exit if this is not a transcription file
 //   if (!object.name.startsWith("transcriptions/users/")) {
@@ -50,103 +144,3 @@ admin.initializeApp();
 //     console.error("Error updating transcript:", error);
 //   }
 // });
-
-const openai = new OpenAI({
-  apiKey: functions.config().openai.key,
-});
-
-
-exports.processTranscript = functions.database
-  .ref('/users/{userId}/voiceNotes/{voiceNoteId}/transcript')
-  .onWrite(async (change, context) => {
-    const userId = context.params.userId;
-    const voiceNoteId = context.params.voiceNoteId;
-    const transcript = change.after.val();
-
-    if (!transcript) {
-      console.error('Transcript is empty or missing');
-      return null;
-    }
-
-    console.log(`Processing voice note: userId=${userId}, voiceNoteId=${voiceNoteId}, transcript=${transcript}`);
-
-    const prompt = {
-      model: "gpt-3.5-turbo-0125", // Update with your model version
-      messages: [
-        { "role": "system", "content": `Given a transcript of a voice note: ${transcript}, summarize its content into a well-structured text. Each section should succinctly capture the main points discussed in the voice note. Identify any actionable items mentioned in the transcript and populate them into a bulleted list. Output the summary with section header 'Summary:' and the tasks with section header 'Action Items:'.`},
-        { "role": "user", "content": "After you record a voice note, we will generate a summary of its content for you. This summary will be a clearer and more organized version of what you said, maintaining your original style. We'll also identify any tasks or action items mentioned in your note, listing them separately for easy reference." }
-      ],
-      max_tokens: 3000,
-      temperature: 0.7,
-    };    
-
-    // const prompt = {
-    //   model: "gpt-3.5-turbo-0125",
-    //   messages: [
-    //     { role: "system", content: `Given a transcript of a voice note: ${transcript}, summarize its content into a well-structured text. Identify any actionable items mentioned in the transcript and list them separately. Output the summary and tasks in the following JSON format:
-    // {
-    //   "summary": "Your summary here",
-    //   "action_items": ["Task 1", "Task 2", "Task 3"]
-    // }` },
-    //     { role: "user", content: "After you record a voice note, we will generate a summary of its content for you. This summary will be a clearer and more organized version of what you said, maintaining your original style. We'll also identify any tasks or action items mentioned in your note, listing them separately for easy reference." }
-    //   ],
-    //   max_tokens: 3000,
-    //   temperature: 0.7,
-    // };
-    
-    
-    const apiKey = functions.config().openai.key;
-
-    if (!apiKey) {
-      console.error('API key is missing. Make sure to set OPENAI_API_KEY in your environment variables.');
-      return null;
-    }
-
-    try {
-      const response = await openai.chat.completions.create(prompt);
-
-      console.log('API response:', response);
-
-      if (response.choices && response.choices.length > 0) {
-        const resultText = response.choices[0].message.content.trim();
-
-        // Regular expressions to find and split summary and tasks
-        const summaryRegex = /^Summary:\s*/;
-        const tasksRegex = /^Action Items:\s*/;
-
-        // Split based on section headers
-        let summary = '';
-        let tasks = [];
-
-        const summaryMatch = resultText.match(/Summary:\s*(.*?)(?=\nAction Items:|\n$)/is);
-        const tasksMatch = resultText.match(/Action Items:\s*(.*)/is);
-
-        const sections = resultText.split(/\n(?=Summary:|Action Items:)/);
-
-        if (summaryMatch) {
-          summary = summaryMatch[1].trim();
-        }
-
-        if (tasksMatch) {
-          tasks = tasksMatch[1].split('\n').map(task => task.trim()).filter(task => task.length > 0);
-        }
-
-        console.log('Summary:', summary);
-        console.log('Tasks:', tasks);
-
-        // Update Firebase with summary and tasks
-        await admin.database().ref(`/users/${userId}/voiceNotes/${voiceNoteId}`).update({
-          summary: summary,
-          taskArray: tasks,
-        });
-
-        console.log(`Voice note processed successfully: ${voiceNoteId}`);
-      } else {
-        console.error('API returned no choices in the response');
-      }
-    } catch (error) {
-      console.error('Error processing voice note:', error.response ? error.response.data : error.message);
-    }
-
-    return null;
-  });

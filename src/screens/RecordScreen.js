@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
-import { Image, ScrollView, Text, View, SafeAreaView, StyleSheet, Pressable } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, View, SafeAreaView, StyleSheet, Pressable } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import { generateUUID, getFileSize, getLocation, getCurrentDate } from '../utilities/helpers';
@@ -12,17 +12,20 @@ import Icon from 'react-native-vector-icons/Ionicons'; // Import Ionicons
 import { db, storage, auth, get, onValue, ref, set, saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
 import Voice from '@react-native-community/voice';
 import { dummyMessages } from '../constants';
+import AudioWaveform from '../components/AudioWaveform'; // Adjust the import path as needed
 
 
 export default function RecordScreen() {
   const [recording, setRecording] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   const [voiceNotes, setVoiceNotes] = useState([]);
   const navigation = useNavigation();
   const metering = useSharedValue(-100);
   const [alreadySavedToFBS, setAlreadySavedToFBS] = useState(false); // State variable to track if audio is already saved to Firebase Storage
   
+
   //TRANSCRIBER
   const [messages, setMessages] = useState(dummyMessages);
   const [transcribing, setTranscribing] = useState(false);
@@ -145,13 +148,12 @@ export default function RecordScreen() {
       setRecording(recording);
       startTranscribing();
       recording.setOnRecordingStatusUpdate((status) => {
-        // console.log(status.metering);
         metering.value = status.metering || -100;
       });
     } catch (err) {
-      console.error('Failed to start recording', err);
-    }
+    console.error('Failed to start recording', err);
   }
+}
 
   async function pauseRecording() {
     if (recording) {
@@ -173,17 +175,17 @@ export default function RecordScreen() {
     if (!recording) {
       return;
     }
-
-    await Audio.setAudioModeAsync(
-      {
-        allowsRecordingIOS: false,
-      }
-    );
-
+  
+    setIsLoading(true); // Start loading
+  
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+    });
+  
     setRecording(undefined);
     setIsPaused(false);
     stopTranscribing();
-
+  
     try {
       await recording.stopAndUnloadAsync();
       const voiceNoteId = generateUUID();
@@ -195,7 +197,7 @@ export default function RecordScreen() {
       const transcript = result;
       const summary = '';
       const taskArray = [];
-
+  
       const voiceNote = {
         voiceNoteId,
         title,
@@ -207,29 +209,26 @@ export default function RecordScreen() {
         summary,
         taskArray
       };
-
-
+  
       const updatedVoiceNotes = [voiceNote, ...voiceNotes];
       setVoiceNotes(updatedVoiceNotes);
-
-
-
+  
       try {
-        const userId = auth.currentUser.uid; // Replace with your actual logic to get userId
+        const userId = auth.currentUser.uid;
         const downloadUrl = await saveToFirebaseStorage(voiceNote.uri, voiceNoteId);
         await saveToFirebaseDatabase(userId, voiceNote, downloadUrl);
+        await saveVoiceNotesToLocal(updatedVoiceNotes);
+        setIsLoading(false); // Stop loading
         navigation.navigate('VoiceNoteDetails', { voiceNote });
       } catch (err) {
         console.error('Error saving data to Firebase', err);
+        setIsLoading(false); // Stop loading even if there's an error
       }
-
-      await saveVoiceNotesToLocal(updatedVoiceNotes);
-
     } catch (err) {
       console.error('Failed to stop recording', err);
+      setIsLoading(false); // Stop loading if there's an error
     }
   }
-  //
 
 
   async function cancelRecording() {
@@ -282,14 +281,9 @@ export default function RecordScreen() {
             </Text>
           </View>
         </View>
-        {/* VISUALIZER */}
+       {/* VISUALIZER */}
         <View className="flex justify-center items-center mt-10" style={{ height: hp(39) }}>
-          <Image
-            className="rounded-full"
-            source={recording ? require('../../assets/images/wave-active.png') : require('../../assets/images/wave-inactive.png')}
-            resizeMode="contain" // Use 'contain' to fit the image within the container
-            style={{ width: '180%', height: '180%' }} // Set width and height to 100% to fill the container
-          />
+          <AudioWaveform isRecording={!!recording} metering={metering.value} />
         </View>
 
         {/* LIVE TRANSCRIPTION */}
@@ -370,6 +364,12 @@ export default function RecordScreen() {
             </Pressable>
           )}
         </View>
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingText}>Processing your recording...</Text>
+          </View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -412,5 +412,20 @@ const styles = StyleSheet.create({
   controlButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  loadingText: {
+    color: '#ffffff',
+    marginTop: 10,
+    fontSize: 16,
   },
 });
