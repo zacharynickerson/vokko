@@ -2,8 +2,8 @@ import { AVPlaybackStatus, Audio } from 'expo-av';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
-
 import { FontAwesome5 } from '@expo/vector-icons';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
 const Playback = ({ uri }) => {
   const [sound, setSound] = useState();
@@ -96,47 +96,38 @@ const Playback = ({ uri }) => {
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
 
   return (
-    
     <View style={styles.container}>
-
-      {/* Play Button */}
-      <FontAwesome5
-        onPress={async () => {
-          try {
-            if (sound) {
-              if (isPlaying) {
-                await sound.pauseAsync();
-              } else {
-                if (status.positionMillis === status.durationMillis) {
-                  await sound.replayAsync();
+      <View style={styles.playbackContainer}>
+        <FontAwesome5
+          onPress={async () => {
+            try {
+              if (sound) {
+                if (isPlaying) {
+                  await sound.pauseAsync();
                 } else {
-                  await sound.playAsync();
+                  if (status?.positionMillis === status?.durationMillis) {
+                    await sound.replayAsync();
+                  } else {
+                    await sound.playAsync();
+                  }
                 }
               }
+            } catch (error) {
+              console.error('Error:', error);
             }
-          } catch (error) {
-            console.error('Error:', error);
-          }
-        }}
-        name={isPlaying ? 'pause' : 'play'}
-        size={20}
-        color={'gray'}
-      />
-
-      
-      <View style={styles.playbackContainer} {...panResponder.panHandlers}>
-        
-          {/* Playback Indicator Line */}
-          <View style={styles.playbackBackground} />
-        
-          {/* Playback Indicator Circle */}
-          <Animated.View style={[styles.playbackIndicator, animatedIndicatorStyle]} />
-
-          {/* Duration */}
-          <Text style={{ position: 'absolute', right: 0, bottom: 0, color: 'gray', fontFamily: 'InterSemi' }}>
-            {formatMillis(position || 0)} / {formatMillis(duration || 0)}
-          </Text>
-          
+          }}
+          name={isPlaying ? 'pause' : 'play'}
+          size={24}
+          color={'#888'}
+          style={styles.playButton}
+        />
+        <View style={styles.progressContainer} {...panResponder.panHandlers}>
+          <View style={styles.progressBackground} />
+          <Animated.View style={[styles.progressIndicator, animatedIndicatorStyle]} />
+        </View>
+        <Text style={styles.duration}>
+          {formatMillis(position || 0)} / {formatMillis(duration || 0)}
+        </Text>
       </View>
     </View>
   );
@@ -144,32 +135,60 @@ const Playback = ({ uri }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#242830',
-    margin: 5,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 0,
-    borderRadius: 10,
-    gap: 15,
+    alignItems: 'flex-start',
+    padding: 16,
+  },
+  iconContainer: {
+    marginRight: 12,
+    paddingTop: 2,
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: wp(4),
+    color: '#fff',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  dateLocation: {
+    fontSize: wp(3.5),
+    color: '#888',
+    marginBottom: 12,
   },
   playbackContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  playButton: {
+    marginRight: 12,
+  },
+  progressContainer: {
     flex: 1,
-    height: 50,
+    height: 20,
     justifyContent: 'center',
   },
-  playbackBackground: {
+  progressBackground: {
     height: 3,
-    backgroundColor: 'gainsboro',
-    borderRadius: 5,
+    backgroundColor: '#888',
+
+    borderRadius: 1.5,
   },
-  playbackIndicator: {
+  progressIndicator: {
     width: 10,
-    aspectRatio: 1,
-    borderRadius: 10,
-    backgroundColor: 'royalblue',
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#888',
     position: 'absolute',
+    top: 5,
+  },
+  duration: {
+    fontSize: wp(3),
+    color: '#888',
+    marginLeft: 12,
   },
 });
+
 
 export default Playback;

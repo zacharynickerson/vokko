@@ -1,3 +1,5 @@
+import { StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { ActivityIndicator, Image, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
@@ -7,6 +9,7 @@ import { FlatList } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../../config/firebase';
 import { ref, get } from 'firebase/database';
+
 
 export default function LibraryScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
@@ -74,64 +77,109 @@ export default function LibraryScreen() {
   }
 
   return (
-    <View className="flex-1 space-y-4" style={{ backgroundColor: '#191A23' }}>
-      <SafeAreaView className="flex-1 flex mx-5">
-        {/* TOP TEXT */}
-        <TouchableOpacity onPress={clearAsyncStorage}>
-          <Text style={{ fontSize: wp(3.7) }} className="text-gray-400 font-regular mt-2">
-          {userName ? `Hello ${userName}` : 'Hello'}
-          </Text>
-        </TouchableOpacity>
+    // <View className="flex-1 space-y-4" style={{ backgroundColor: '#191A23' }}>
+    //   <SafeAreaView className="flex-1 flex mx-5">
+    //     {/* TOP TEXT */}
+    //     <TouchableOpacity onPress={clearAsyncStorage}>
+    //       <Text style={{ fontSize: wp(3.7) }} className="text-gray-400 font-regular mt-2">
+    //       {userName ? `Hello ${userName}` : 'Hello'}
+    //       </Text>
+    //     </TouchableOpacity>
 
-        <View style={{ marginBottom: 10 }}>
-          <Text className="text-white font-regular mt-2" style={{ fontSize: 18 }}>
-            Voice Notes
+    //     <View style={{ marginBottom: 10 }}>
+    //       <Text className="text-white font-regular mt-2" style={{ fontSize: 18 }}>
+    //         Voice Notes
+    //       </Text>
+    //     </View>
+
+    //     {/* LIBRARY */}
+    //     <FlatList
+    //       data={voiceNotes.filter(note => note && note.uri)} // Filter out null or invalid items
+    //       keyExtractor={(item) => item?.voiceNoteId || ''}
+
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.greeting}>
+            {userName ? `Hello ${userName}` : 'Hello'}
           </Text>
+          <Text style={styles.title}>Voice Notes</Text>
         </View>
-
-        {/* LIBRARY */}
         <FlatList
-          data={voiceNotes.filter(note => note && note.uri)} // Filter out null or invalid items
+          data={voiceNotes.filter(note => note && note.uri)}
           keyExtractor={(item) => item?.voiceNoteId || ''}
+
           renderItem={({ item }) => (
             item ? (
               <TouchableOpacity onPress={() => navigation.navigate('VoiceNoteDetails', { voiceNote: item })}>
-                <View style={{ marginBottom: 10 }}>
-                  <View className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                    <View className="flex-row items-center space-x-1">
-                      <Image source={require("../../assets/images/noteicon.png")} style={{ height: hp(3), width: hp(3) }} className="mr-2" />
-                      <Text style={{ fontSize: wp(4.3) }} className="font-bold text-white">{item.title}</Text>
-                      <View className="flex-row items-center space-x-1"></View>
-                    </View>
-                    <Text style={{ fontSize: wp(4) }} className="text-gray-400 font-regular">
-                      {item.createdDate} - {item.location}
+                <View style={styles.itemContainer}>
+                  <View style={styles.iconContainer}>
+                    <Text style={{ fontSize: 24 }}>{item.emoji || '🎙️'}</Text>
+                  </View>
+                  <View style={styles.textContainer}>
+                    <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                      {item.title}
+                    </Text>
+                    <Text style={styles.dateLocation} numberOfLines={1}>
+                      {item.createdDate} • {item.location}
                     </Text>
                   </View>
                 </View>
               </TouchableOpacity>
             ) : null
           )}
-        />
-      </SafeAreaView>
-    </View>
+          contentContainerStyle={styles.listContent}
+          />
+        </SafeAreaView>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#191A23',
+  },
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  greeting: {
+    fontSize: wp(3.7),
+    color: '#888',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: wp(5),
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+  },
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  iconContainer: {
+    marginRight: 12,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: wp(4),
+    color: '#fff',
+    fontWeight: '500',
+  },
+  dateLocation: {
+    fontSize: wp(3.5),
+    color: '#888',
+    marginTop: 4,
+  },
+});
 
 
-  //Load voice notes from Firebase Realtime Database
-    // useEffect(() => {
-    //   const loadVoiceNotes = () => {
-    //     const voiceNotesRef = ref(db, 'voiceNotes');
-    //     onValue(voiceNotesRef, (snapshot) => {
-    //       const data = snapshot.val();
-    //       if (data) {
-    //         const voiceNotesArray = Object.values(data);
-    //         setVoiceNotes(voiceNotesArray);
-    //       }
-    //       setLoading(false);
-    //     });
-    //   };
-    //   loadVoiceNotes();
-    // }, []);
 
