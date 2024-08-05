@@ -5,7 +5,7 @@ import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import { generateUUID, getFileSize, getLocation, getCurrentDate } from '../utilities/helpers';
 import { saveVoiceNotesToLocal, getVoiceNotesFromLocal } from '../utilities/voiceNoteLocalStorage';
-import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons'; // Import Ionicons
 // import { firebase } from '@react-native-firebase/app';
 // import { get, onValue, ref, set } from 'firebase/database';
@@ -31,6 +31,47 @@ export default function RecordScreen() {
   const [transcribing, setTranscribing] = useState(false);
   const [speaking, setSpeaking] = useState(true);
   const [result, setResult] = useState('');
+
+  // Animation values
+  const recordingTextOpacity = useSharedValue(0);
+  const readyTextOpacity = useSharedValue(1);
+  const buttonOpacity = useSharedValue(0);
+  const buttonScale = useSharedValue(0.5);
+
+  useEffect(() => {
+    if (recording) {
+      recordingTextOpacity.value = withTiming(1, { duration: 300 });
+      readyTextOpacity.value = withTiming(0, { duration: 300 });
+      buttonOpacity.value = withTiming(1, { duration: 300 });
+      buttonScale.value = withTiming(1, { duration: 300 });
+    } else {
+      recordingTextOpacity.value = withTiming(0, { duration: 300 });
+      readyTextOpacity.value = withTiming(1, { duration: 300 });
+      buttonOpacity.value = withTiming(0, { duration: 300 });
+      buttonScale.value = withTiming(0.5, { duration: 300 });
+    }
+  }, [recording]);
+
+  const animatedRecordingTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: recordingTextOpacity.value,
+      zIndex: 1, // Ensure recording text is above the subtext
+    };
+  });
+
+  const animatedReadyTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: readyTextOpacity.value,
+      
+    };
+  });
+
+  const animatedButtonStyle = useAnimatedStyle(() => {
+    return {
+      opacity: buttonOpacity.value,
+      transform: [{ scale: buttonScale.value }],
+    };
+  });
 
   const speechStartHandler = e =>{
     console.log('speech start handler');
@@ -240,50 +281,35 @@ export default function RecordScreen() {
     }
   }
 
-  // useEffect(() => {
-  //   const unsubscribe = navigation.addListener('blur', () => {
-  //     clearMessages();
-  //   });
-
-  //   return unsubscribe;
-  // }, [navigation]);
-
-  // const animatedRecordButton = useAnimatedStyle(() => ({
-  //   width: withTiming(recording ? '60%' : '100%'),
-  //   borderRadius: withTiming(recording ? 5 : 35),
-  // }));
-
-  // const animatedRecordWave = useAnimatedStyle(() => {
-  //   const size = withTiming(
-  //     interpolate(metering.value, [-160, -60, 0], [0, 0, -30]),
-  //     { duration: 100 }
-  //   );
-
-  //   return {
-  //     top: size,
-  //     bottom: size,
-  //     left: size,
-  //     right: size,
-  //   };
-  // });
 
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
       <SafeAreaView className="flex-1 flex mx-5">
-        {/* TOP MESSAGING */}
-        <View className="mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: hp(6) }}>
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <Text style={{ fontSize: wp(4.5), fontWeight: 'bold', color: 'white', textAlign: 'center', height: hp(4) }}>
-              {recording ? 'Recording' : 'Ready to record'}
-            </Text>
+       {/* TOP MESSAGING */}
+       <View className="mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: hp(6) }}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            {/* Container for positioning */}
+            <View style={{ position: 'relative', height: hp(6), width: wp(100), justifyContent: 'center', alignItems: 'center' }}>
+              <Animated.View style={[styles.textContainer, animatedRecordingTextStyle]}>
+                <Text style={{ fontSize: wp(4.5), fontWeight: 'bold', color: 'white', textAlign: 'center' }}>
+                  Recording
+                </Text>
+              </Animated.View>
+              <Animated.View style={[styles.textContainer, animatedReadyTextStyle]}>
+                <Text style={{ fontSize: wp(4.5), fontWeight: 'bold', color: 'white', textAlign: 'center' }}>
+                  Ready to record
+                </Text>
+              </Animated.View>
+             
+            </View>
             <Text style={{ fontSize: wp(3.5), color: '#A0AEC0', textAlign: 'center' }}>
-              {recording ? "Go ahead, I'm listening" : 'Ready to record'}
-            </Text>
+                {recording ? "Go ahead, I'm listening" : "What's on your mind?"}
+              </Text>
           </View>
         </View>
        {/* VISUALIZER */}
         <View className="flex justify-center items-center mt-10" style={{ height: hp(39) }}>
-          <AudioWaveform isRecording={!!recording} />
+          <AudioWaveform isRecording={!!recording} isPaused={isPaused} metering={metering.value} />
         </View>
 
         {/* LIVE TRANSCRIPTION */}
@@ -331,15 +357,13 @@ export default function RecordScreen() {
         {/* RECORD, PAUSE, STOP, CANCEL BUTTONS */}
         <View className="flex justify-center items-center mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
           {recording && (
-            <Pressable
-              style={[styles.controlButton, { position: 'absolute', left: -80 }]}
-              onPress={cancelRecording}
-            >
-              <Icon name="close" size={30} color="white" />
-            </Pressable>
+            <Animated.View style={[styles.controlButton, { position: 'absolute', left: -80 }, animatedButtonStyle]}>
+              <Pressable onPress={cancelRecording}>
+                <Icon name="close" size={30} color="white" />
+              </Pressable>
+            </Animated.View>
           )}
           <View>
-            {/* <Animated.View style={[styles.recordWaves, animatedRecordWave]} /> */}
             <Pressable
               style={styles.recordButton}
               onPress={recording ? (isPaused ? resumeRecording : pauseRecording) : startRecording}
@@ -356,12 +380,11 @@ export default function RecordScreen() {
             </Pressable>
           </View>
           {recording && (
-            <Pressable
-              style={[styles.controlButton, { position: 'absolute', right: -80 }]}
-              onPress={stopRecording}
-            >
-              <Icon name="checkmark" size={30} color="white" />
-            </Pressable>
+            <Animated.View style={[styles.controlButton, { position: 'absolute', right: -80 }, animatedButtonStyle]}>
+              <Pressable onPress={stopRecording}>
+                <Icon name="checkmark" size={30} color="white" />
+              </Pressable>
+            </Animated.View>
           )}
         </View>
         {isLoading && (
@@ -386,20 +409,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recordWaves: {
-    backgroundColor: '#FF000055',
-    position: 'absolute',
-    top: -20,
-    left: -20,
-    right: -20,
-    bottom: -20,
-    borderRadius: 1000,
-    opacity: 0.5,
-  },
-  redCircle: {
-    backgroundColor: 'orangered',
-    aspectRatio: 1,
-  },
   controlButton: {
     width: 60,
     height: 60,
@@ -408,10 +417,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 100,
-  },
-  controlButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   loadingOverlay: {
     position: 'absolute',
@@ -427,5 +432,28 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginTop: 10,
     fontSize: 16,
+  },
+  textContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recordingText: {
+    fontSize: wp(4.5),
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    lineHeight: wp(6), // Adjust this line height to match the container height
+  },
+  readyText: {
+    fontSize: wp(4.5),
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    lineHeight: wp(6), // Adjust this line height to match the container height
   },
 });
