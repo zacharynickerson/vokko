@@ -1,9 +1,9 @@
 {
   "cli": {
-    "version": ">= 5.4.0"
+    "version": ">= 10.2.2"
   },
   "build": {
-    "development-simulator": {
+    "development": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -13,9 +13,6 @@
     "preview": {
       "distribution": "internal"
     },
-    "production": {}
-  },
-  "submit": {
     "production": {}
   }
 }
