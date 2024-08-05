@@ -248,24 +248,24 @@ export default function RecordScreen() {
   //   return unsubscribe;
   // }, [navigation]);
 
-  const animatedRecordButton = useAnimatedStyle(() => ({
-    width: withTiming(recording ? '60%' : '100%'),
-    borderRadius: withTiming(recording ? 5 : 35),
-  }));
+  // const animatedRecordButton = useAnimatedStyle(() => ({
+  //   width: withTiming(recording ? '60%' : '100%'),
+  //   borderRadius: withTiming(recording ? 5 : 35),
+  // }));
 
-  const animatedRecordWave = useAnimatedStyle(() => {
-    const size = withTiming(
-      interpolate(metering.value, [-160, -60, 0], [0, 0, -30]),
-      { duration: 100 }
-    );
+  // const animatedRecordWave = useAnimatedStyle(() => {
+  //   const size = withTiming(
+  //     interpolate(metering.value, [-160, -60, 0], [0, 0, -30]),
+  //     { duration: 100 }
+  //   );
 
-    return {
-      top: size,
-      bottom: size,
-      left: size,
-      right: size,
-    };
-  });
+  //   return {
+  //     top: size,
+  //     bottom: size,
+  //     left: size,
+  //     right: size,
+  //   };
+  // });
 
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
@@ -283,7 +283,7 @@ export default function RecordScreen() {
         </View>
        {/* VISUALIZER */}
         <View className="flex justify-center items-center mt-10" style={{ height: hp(39) }}>
-          <AudioWaveform isRecording={!!recording} metering={metering.value} />
+          <AudioWaveform isRecording={!!recording} />
         </View>
 
         {/* LIVE TRANSCRIPTION */}
@@ -339,7 +339,7 @@ export default function RecordScreen() {
             </Pressable>
           )}
           <View>
-            <Animated.View style={[styles.recordWaves, animatedRecordWave]} />
+            {/* <Animated.View style={[styles.recordWaves, animatedRecordWave]} /> */}
             <Pressable
               style={styles.recordButton}
               onPress={recording ? (isPaused ? resumeRecording : pauseRecording) : startRecording}

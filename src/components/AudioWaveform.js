@@ -1,29 +1,29 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, cancelAnimation, runOnJS } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  withRepeat,
+  cancelAnimation,
+} from 'react-native-reanimated';
 
 const BAR_COUNT = 30;
 const CIRCLE_RADIUS = Dimensions.get('window').width * 0.3;
 const BAR_WIDTH = 3;
 const BAR_MAX_HEIGHT = 50;
 
-const AudioWaveform = ({ isRecording, metering }) => {
+const AudioWaveform = ({ isRecording }) => {
   const bars = [...Array(BAR_COUNT)].map(() => useSharedValue(0));
-
-  const animateBar = (index) => {
-    'worklet';
-    const randomValue = Math.random() * 0.5 + 0.2; // Random value between 0.2 and 0.7
-    bars[index].value = withTiming(randomValue, { duration: 500 }, (finished) => {
-      if (finished && isRecording) {
-        runOnJS(animateBar)(index);
-      }
-    });
-  };
 
   useEffect(() => {
     if (isRecording) {
-      bars.forEach((_, index) => {
-        animateBar(index);
+      bars.forEach((bar, index) => {
+        bar.value = withRepeat(
+          withTiming(Math.random() * 0.5 + 0.2, { duration: 500 + index * 10 }),
+          -1,
+          true
+        );
       });
     } else {
       bars.forEach(bar => {
