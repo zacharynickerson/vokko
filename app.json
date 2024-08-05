@@ -50,7 +50,8 @@
           "speechRecognitionPermission": "Allow Vokko to securely recognize user speech"
         }
       ],
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ],
     "extra": {
       "eas": {
