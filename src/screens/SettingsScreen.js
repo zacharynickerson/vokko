@@ -1,23 +1,22 @@
-import React, { useEffect, useState } from 'react'
-import { Alert, Button, ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Linking } from 'react-native'
-import {heightPercentageToDP as hp, widthPercentageToDP as wp} from 'react-native-responsive-screen';
+import React from 'react';
+import { Alert, ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Linking } from 'react-native';
+import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 import { auth } from '../../config/firebase';
 import useAuth from '../../hooks/useAuth';
+import { Ionicons } from '@expo/vector-icons'; // Assuming you're using Expo
 
 export default function SettingsScreen() {
     const navigation = useNavigation();
     const { user, ready } = useAuth();
 
-   const onLogout = async () => {
+    const onLogout = async () => {
         try {
             await auth.signOut();
             console.log("User signed out successfully");
-            // navigation.navigate('Auth');
         } catch (e) {
             console.log(e);
             Alert.alert("Logout Error", "An error occurred while trying to log out. Please try again.");
-
         }
     }
 
@@ -31,10 +30,7 @@ export default function SettingsScreen() {
                     onPress: () => console.log("Logout canceled"),
                     style: "cancel"
                 },
-                {
-                    text: "Confirm",
-                    onPress: onLogout
-                }
+                { text: "Confirm", onPress: onLogout }
             ]
         );
     };
@@ -48,83 +44,110 @@ export default function SettingsScreen() {
 
     if (!ready) {
         return (
-            <View className="flex-1 justify-center items-center" style={{ backgroundColor: '#191A23' }}>
+            <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={{ fontSize: wp(4.3), color: '#fff', marginTop: 10 }}>Loading...</Text>
+                <Text style={styles.loadingText}>Loading...</Text>
             </View>
         );
     }
 
+    const SettingsItem = ({ icon, title, onPress }) => (
+        <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
+            <Ionicons name={icon} size={24} color="#fff" style={styles.settingsIcon} />
+            <Text style={styles.settingsText}>{title}</Text>
+            <Ionicons name="chevron-forward" size={24} color="#777" />
+        </TouchableOpacity>
+    );
+
     return (
-    <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
-        <SafeAreaView className="flex-1 flex mx-5">
-            {/* {bot icon} */}
-            <View className="flex-row justify-center" style={{height: hp(6)}}>
-            </View>
-            <View style={{height: hp(60)}} className="space-y-4">
-                <Text style={{fontSize: wp(4.5)}} className="font-semibold text-white">Settings</Text>
-               
-               {/* <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Voice Notes</Text>
-                <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                    <View className="flex-row items-center space-x-1">
-                        <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
-                        <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Customize Output</Text>
-                        <View className="flex-row items-center space-x-1"></View>
-                    </View>
-                </View> */}
+        <SafeAreaView style={styles.container}>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                <Text style={styles.headerText}>Settings</Text>
 
-                <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Account</Text>
-                <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                    <View className="flex-row items-center space-x-1">
-                        <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
-                        <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Account Details</Text>
-                        <View className="flex-row items-center space-x-1"></View>
-                    </View>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Account</Text>
+                    <SettingsItem 
+                        icon="person-outline" 
+                        title="Account Details" 
+                        onPress={() => {/* Navigate to Account Details */}}
+                    />
                 </View>
-                {/* <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                    <View className="flex-row items-center space-x-1">
-                        <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
-                        <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Subscription</Text>
-                        <View className="flex-row items-center space-x-1"></View>
-                    </View>
-                </View> */}
 
-                {/* <Text style={{fontSize: wp(3.5)}} className="font-regular text-gray-400">Integrations</Text>
-                <View className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                    <View className="flex-row items-center space-x-1">
-                        <Image source={require("../../assets/images/noteicon.png")} style={{height: hp(3), width: hp(3)}} className="mr-2"/>
-                        <Text style={{fontSize: wp(4.3)}} className="font-bold text-white">Connected Integrations</Text>
-                        <View className="flex-row items-center space-x-1"></View>
-                    </View>
-                </View> */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Support</Text>
+                    <SettingsItem 
+                        icon="mail-outline" 
+                        title="Contact Support" 
+                        onPress={() => openURL("https://vokko.io/contact/")}
+                    />
+                </View>
 
-                <Text style={{ fontSize: wp(3.5) }} className="font-regular text-gray-400">Support</Text>
-                    <TouchableOpacity onPress={() => openURL("https://vokko.io/contact/")} className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                        <View className="flex-row items-center space-x-1">
-                            <Image source={require("../../assets/images/noteicon.png")} style={{ height: hp(3), width: hp(3) }} className="mr-2" />
-                            <Text style={{ fontSize: wp(4.3) }} className="font-bold text-white">Contact Support</Text>
-                            <View className="flex-row items-center space-x-1"></View>
-                        </View>
-                    </TouchableOpacity>
-
-                    <Text style={{ fontSize: wp(3.5) }} className="font-regular text-gray-400">Security and Privacy</Text>
-                    <TouchableOpacity onPress={() => openURL("https://vokko.io/")} className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                        <View className="flex-row items-center space-x-1">
-                            <Image source={require("../../assets/images/noteicon.png")} style={{ height: hp(3), width: hp(3) }} className="mr-2" />
-                            <Text style={{ fontSize: wp(4.3) }} className="font-bold text-white">Terms of Service</Text>
-                            <View className="flex-row items-center space-x-1"></View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={confirmLogout} className="p-2.5 rounded-xl space-y-2" style={{ backgroundColor: '#242830' }}>
-                        <View className="flex-row items-center space-x-1">
-                            <Image source={require("../../assets/images/noteicon.png")} style={{ height: hp(3), width: hp(3) }} className="mr-2" />
-                            <Text style={{ fontSize: wp(4.3) }} className="font-bold text-white">
-                                {ready ? (user ? "Logout" : "Not Logged In") : "Loading..."}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-            </View>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Security and Privacy</Text>
+                    <SettingsItem 
+                        icon="document-text-outline" 
+                        title="Terms of Service" 
+                        onPress={() => openURL("https://vokko.io/")}
+                    />
+                    <SettingsItem 
+                        icon="log-out-outline" 
+                        title={ready ? (user ? "Logout" : "Not Logged In") : "Loading..."}
+                        onPress={confirmLogout}
+                    />
+                </View>
+            </ScrollView>
         </SafeAreaView>
-    </View>
-    )
+    );
 }
+
+const styles = {
+    container: {
+        flex: 1,
+        backgroundColor: '#191A23',
+    },
+    scrollContent: {
+        padding: 20,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#191A23',
+    },
+    loadingText: {
+        fontSize: wp(4),
+        color: '#fff',
+        marginTop: 10,
+    },
+    headerText: {
+        fontSize: wp(6),
+        fontWeight: 'bold',
+        color: '#fff',
+        marginBottom: 20,
+    },
+    section: {
+        marginBottom: 30,
+    },
+    sectionTitle: {
+        fontSize: wp(3.5),
+        color: '#777',
+        marginBottom: 10,
+    },
+    settingsItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#242830',
+        padding: 15,
+        borderRadius: 10,
+        marginBottom: 10,
+    },
+    settingsIcon: {
+        marginRight: 15,
+    },
+    settingsText: {
+        flex: 1,
+        fontSize: wp(4.3),
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+};

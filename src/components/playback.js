@@ -1,165 +1,147 @@
-import { AVPlaybackStatus, Audio } from 'expo-av';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import { PanResponder, StyleSheet, Text, View } from 'react-native';
-import { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { Audio } from 'expo-av';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
-const Playback = ({ uri }) => {
-  const [sound, setSound] = useState();
-  const [status, setStatus] = useState();
-  const [duration, setDuration] = useState(1); // Initialize duration to avoid division by zero
+const Playback = forwardRef(({ uri }, ref) => {
+  const [sound, setSound] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
-  const [isSeeking, setIsSeeking] = useState(false);
+  const progressWidth = useSharedValue(0);
+  const scrubberPosition = useSharedValue(0);
+  const isSeeking = useRef(false);
 
   useEffect(() => {
-    console.log('Received URI:', uri); // Log the URI when it's received
-  }, [uri]);
-
-  useEffect(() => {
-    const loadSound = async () => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri },
-          { progressUpdateIntervalMillis: 1000 / 60 },
-          onPlaybackStatusUpdate
-        );
-        // console.log('Sound loaded:', sound); // Log when the sound is loaded
-        setSound(sound);
-      } catch (error) {
-        console.error('Error loading sound:', error);
-      }
-    };
-
     loadSound();
-
-    return () => {
-      if (sound) {
-        console.log('Unloading Sound');
-        sound.unloadAsync();
-      }
-    };
+    return () => unloadSound();
   }, [uri]);
 
-  const onPlaybackStatusUpdate = useCallback((newStatus) => {
-    // console.log('Playback status updated:', newStatus); // Log the updated playback status
-    setStatus(newStatus);
-    if (newStatus.isLoaded) {
-      setDuration(newStatus.durationMillis);
-      setPosition(newStatus.positionMillis);
+  useImperativeHandle(ref, () => ({
+    stopAudio: stopAudio
+  }));
+
+  const loadSound = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        { uri },
+        { progressUpdateIntervalMillis: 1000 / 60 },
+        onPlaybackStatusUpdate
+      );
+      setSound(sound);
+    } catch (error) {
+      console.error('Error loading sound:', error);
+    }
+  };
+
+  const unloadSound = async () => {
+    if (sound) {
+      await sound.stopAsync();
+      await sound.unloadAsync();
+    }
+  };
+
+  const onPlaybackStatusUpdate = useCallback((status) => {
+    if (status.isLoaded) {
+      setDuration(status.durationMillis);
+      setPosition(status.positionMillis);
+      if (!isSeeking.current) {
+        const progress = status.positionMillis / status.durationMillis;
+        progressWidth.value = withTiming(progress);
+        scrubberPosition.value = withTiming(progress * 300); // Assuming 300 is the width of the progress bar
+      }
+      setIsPlaying(status.isPlaying);
     }
   }, []);
 
-  const handleSeek = (value) => {
-    console.log('Seeking:', value); // Log when seeking
-    if (sound && duration) {
-      const newPosition = Math.min(Math.max(value, 0), duration);
-      setPosition(newPosition);
-      sound.setPositionAsync(newPosition);
+  const togglePlayPause = async () => {
+    if (sound) {
+      if (isPlaying) {
+        await sound.pauseAsync();
+      } else {
+        await sound.playAsync();
+      }
     }
   };
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => {
-      setIsSeeking(true);
-      if (isPlaying) {
-        sound.pauseAsync(); // Pause the audio playback when seeking
-      }
-    },
-    onPanResponderMove: (_, gestureState) => {
-      if (isSeeking) {
-        const newValue = (gestureState.moveX / 300) * duration;
-        handleSeek(newValue);
-      }
-    },
-    onPanResponderRelease: () => {
-      setIsSeeking(false);
-      if (isPlaying) {
-        sound.playAsync(); // Resume the audio playback when seeking ends
-      }
-    },
-  });
-  
-  const progress = duration ? position / duration : 0;
+  const stopAudio = async () => {
+    if (sound) {
+      await sound.stopAsync();
+      await sound.setPositionAsync(0);
+      progressWidth.value = 0;
+      scrubberPosition.value = 0;
+    }
+  };
 
-  const animatedIndicatorStyle = useAnimatedStyle(() => ({
-    left: `${progress * 100}%`,
+  const seek = async (newPosition) => {
+    if (sound) {
+      await sound.setPositionAsync(newPosition * duration);
+    }
+  };
+
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      isSeeking.current = true;
+    })
+    .onUpdate((e) => {
+      const newProgress = Math.max(0, Math.min(1, e.x / 300));
+      progressWidth.value = newProgress;
+      scrubberPosition.value = e.x;
+    })
+    .onEnd((e) => {
+      const newProgress = Math.max(0, Math.min(1, e.x / 300));
+      runOnJS(seek)(newProgress);
+      isSeeking.current = false;
+    });
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progressWidth.value * 100}%`,
   }));
 
-  const formatMillis = (millis) => {
-    const minutes = Math.floor(millis / (1000 * 60));
-    const seconds = Math.floor((millis % (1000 * 60)) / 1000);
+  const scrubberStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: scrubberPosition.value }],
+  }));
+
+  const formatTime = (millis) => {
+    const minutes = Math.floor(millis / 60000);
+    const seconds = ((millis % 60000) / 1000).toFixed(0);
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
-  const isPlaying = status?.isLoaded ? status.isPlaying : false;
-
   return (
     <View style={styles.container}>
-      <View style={styles.playbackContainer}>
+      <TouchableOpacity onPress={togglePlayPause}>
         <FontAwesome5
-          onPress={async () => {
-            try {
-              if (sound) {
-                if (isPlaying) {
-                  await sound.pauseAsync();
-                } else {
-                  if (status?.positionMillis === status?.durationMillis) {
-                    await sound.replayAsync();
-                  } else {
-                    await sound.playAsync();
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('Error:', error);
-            }
-          }}
           name={isPlaying ? 'pause' : 'play'}
           size={24}
           color={'#888'}
           style={styles.playButton}
         />
-        <View style={styles.progressContainer} {...panResponder.panHandlers}>
-          <View style={styles.progressBackground} />
-          <Animated.View style={[styles.progressIndicator, animatedIndicatorStyle]} />
-        </View>
-        <Text style={styles.duration}>
-          {formatMillis(position || 0)} / {formatMillis(duration || 0)}
-        </Text>
+      </TouchableOpacity>
+      <View style={styles.progressContainer}>
+        <GestureDetector gesture={panGesture}>
+          <View style={styles.progressBackground}>
+            <Animated.View style={[styles.progressForeground, progressStyle]} />
+            <Animated.View style={[styles.scrubber, scrubberStyle]} />
+          </View>
+        </GestureDetector>
       </View>
+      <Text style={styles.duration}>
+        {formatTime(position)} / {formatTime(duration)}
+      </Text>
     </View>
   );
-};
+});
+
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 16,
-  },
-  iconContainer: {
-    marginRight: 12,
-    paddingTop: 2,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: wp(4),
-    color: '#fff',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  dateLocation: {
-    fontSize: wp(3.5),
-    color: '#888',
-    marginBottom: 12,
-  },
-  playbackContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
+    padding: 16,
   },
   playButton: {
     marginRight: 12,
@@ -172,16 +154,21 @@ const styles = StyleSheet.create({
   progressBackground: {
     height: 3,
     backgroundColor: '#888',
-
     borderRadius: 1.5,
+    overflow: 'visible',
   },
-  progressIndicator: {
+  progressForeground: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+  },
+  scrubber: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#888',
+    backgroundColor: '#007AFF',
     position: 'absolute',
-    top: 5,
+    top: -3.5,
+    left: -5,
   },
   duration: {
     fontSize: wp(3),
@@ -189,6 +176,5 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 });
-
 
 export default Playback;

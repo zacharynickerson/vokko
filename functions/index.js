@@ -14,7 +14,6 @@ const openai = new OpenAI({
   apiKey: functions.config().openai.key,
 });
 
-
 exports.processTranscript = functions.database
   .ref('/users/{userId}/voiceNotes/{voiceNoteId}/transcript')
   .onWrite(async (change, context) => {
@@ -30,10 +29,10 @@ exports.processTranscript = functions.database
     console.log(`Processing voice note: userId=${userId}, voiceNoteId=${voiceNoteId}, transcript=${transcript}`);
 
     const prompt = {
-      model: "gpt-3.5-turbo-0125", // Update with your model version
+      model: "gpt-3.5-turbo-0125",
       messages: [
-        { "role": "system", "content": `Given a transcript of a voice note: ${transcript}, summarize its content into a well-structured text. Each section should succinctly capture the main points discussed in the voice note. Identify any actionable items mentioned in the transcript and populate them into a bulleted list. Output the summary with section header 'Summary:' and the tasks with section header 'Action Items:'. Also, provide a concise and descriptive title for the voice note based on its content.`},
-        { "role": "user", "content": "After you record a voice note, we will generate a summary of its content for you. This summary will be a clearer and more organized version of what you said, maintaining your original style. We'll also identify any tasks or action items mentioned in your note, listing them separately for easy reference. Additionally, we'll provide a concise title for your voice note." }
+        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title, summary, and list of action items based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A well-structured summary of the voice note's content]\n\nACTION ITEMS:\n- [Action item 1]\n- [Action item 2]\n- [Action item 3]\n...\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:, ACTION ITEMS:) and that the action items are presented as a bulleted list." },
+        { "role": "user", "content": `Please process the following voice note transcript:\n\n${transcript}` }
       ],
       max_tokens: 3000,
       temperature: 0.7,
@@ -54,31 +53,25 @@ exports.processTranscript = functions.database
       if (response.choices && response.choices.length > 0) {
         const resultText = response.choices[0].message.content.trim();
 
-        // Regular expressions to find and split summary, tasks, and title
-        const summaryRegex = /^Summary:\s*/;
-        const tasksRegex = /^Action Items:\s*/;
-        const titleRegex = /^Title:\s*/;
+        // Split the response into sections
+        const sections = resultText.split(/\n(?=TITLE:|SUMMARY:|ACTION ITEMS:)/);
 
-        // Split based on section headers
+        let title = '';
         let summary = '';
         let tasks = [];
-        let title = '';
 
-        const summaryMatch = resultText.match(/Summary:\s*(.*?)(?=\nAction Items:|\nTitle:|\n$)/is);
-        const tasksMatch = resultText.match(/Action Items:\s*(.*?)(?=\nTitle:|\n$)/is);
-        const titleMatch = resultText.match(/Title:\s*(.*)/is);
-
-        if (summaryMatch) {
-          summary = summaryMatch[1].trim();
-        }
-
-        if (tasksMatch) {
-          tasks = tasksMatch[1].split('\n').map(task => task.trim()).filter(task => task.length > 0);
-        }
-
-        if (titleMatch) {
-          title = titleMatch[1].trim();
-        }
+        sections.forEach(section => {
+          if (section.startsWith('TITLE:')) {
+            title = section.replace('TITLE:', '').trim();
+          } else if (section.startsWith('SUMMARY:')) {
+            summary = section.replace('SUMMARY:', '').trim();
+          } else if (section.startsWith('ACTION ITEMS:')) {
+            tasks = section.replace('ACTION ITEMS:', '')
+              .split('\n')
+              .map(task => task.trim().replace(/^-\s*/, ''))
+              .filter(task => task.length > 0);
+          }
+        });
 
         console.log('Title:', title);
         console.log('Summary:', summary);
@@ -86,9 +79,9 @@ exports.processTranscript = functions.database
 
         // Update Firebase with title, summary, and tasks
         await admin.database().ref(`/users/${userId}/voiceNotes/${voiceNoteId}`).update({
-          title: title,
-          summary: summary,
-          taskArray: tasks,
+          title: title || 'Untitled Note',
+          summary: summary || 'No summary available',
+          taskArray: tasks.length > 0 ? tasks : ['No tasks identified'],
         });
 
         console.log(`Voice note processed successfully: ${voiceNoteId}`);
