@@ -82,6 +82,5 @@ config/logical-vim-411900-5d39334c6c74.json
 # OpenAI API Key
 .env
 
-# ios and android folder
-ios/
+# android folder
 android/
