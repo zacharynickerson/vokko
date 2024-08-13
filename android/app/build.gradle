@@ -85,7 +85,7 @@ android {
 
     namespace 'com.anonymous.VokkoApp'
     defaultConfig {
-        manifestPlaceholders = [appAuthRedirectScheme: 'dev.expo.app']
+        manifestPlaceholders = [appAuthRedirectScheme: 'Vokko']
         applicationId 'com.anonymous.VokkoApp'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion

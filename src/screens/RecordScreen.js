@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
-import { ActivityIndicator, Image, ScrollView, Text, View, SafeAreaView, StyleSheet, Pressable } from 'react-native';
+import { ActivityIndicator, Text, View, SafeAreaView, StyleSheet, Pressable } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import { generateUUID, getFileSize, getLocation, getCurrentDate } from '../utilities/helpers';
 import { saveVoiceNotesToLocal, getVoiceNotesFromLocal } from '../utilities/voiceNoteLocalStorage';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import Icon from 'react-native-vector-icons/Ionicons'; // Import Ionicons
-// import { firebase } from '@react-native-firebase/app';
-// import { get, onValue, ref, set } from 'firebase/database';
-import { db, storage, auth, get, onValue, ref, set, saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
-import Voice from '@react-native-community/voice';
-import { dummyMessages } from '../constants';
+import Icon from 'react-native-vector-icons/Ionicons'; 
+import { auth, saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
 import AudioWaveform from '../components/AudioWaveform'; // Adjust the import path as needed
+import * as FileSystem from 'expo-file-system';
+import axios from 'axios';
 
 
 export default function RecordScreen() {
@@ -22,21 +20,15 @@ export default function RecordScreen() {
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   const [voiceNotes, setVoiceNotes] = useState([]);
   const navigation = useNavigation();
-  const metering = useSharedValue(-100);
-  const [alreadySavedToFBS, setAlreadySavedToFBS] = useState(false); // State variable to track if audio is already saved to Firebase Storage
-  
+  const metering = useSharedValue(-100);  
 
-  //TRANSCRIBER
-  const [messages, setMessages] = useState(dummyMessages);
-  const [transcribing, setTranscribing] = useState(false);
-  const [speaking, setSpeaking] = useState(true);
-  const [result, setResult] = useState('');
-
-  // Animation values
-  const recordingTextOpacity = useSharedValue(0);
-  const readyTextOpacity = useSharedValue(1);
-  const buttonOpacity = useSharedValue(0);
-  const buttonScale = useSharedValue(0.5);
+  useEffect(() => {
+    const loadVoiceNotes = async () => {
+      const storedVoiceNotes = await getVoiceNotesFromLocal();
+      setVoiceNotes(storedVoiceNotes);
+    };
+    loadVoiceNotes();
+  }, []);
 
   useEffect(() => {
     if (recording) {
@@ -51,6 +43,12 @@ export default function RecordScreen() {
       buttonScale.value = withTiming(0.5, { duration: 300 });
     }
   }, [recording]);
+
+    // Animation values
+    const recordingTextOpacity = useSharedValue(0);
+    const readyTextOpacity = useSharedValue(1);
+    const buttonOpacity = useSharedValue(0);
+    const buttonScale = useSharedValue(0.5);
 
   const animatedRecordingTextStyle = useAnimatedStyle(() => {
     return {
@@ -73,105 +71,6 @@ export default function RecordScreen() {
     };
   });
 
-  const speechStartHandler = e =>{
-    console.log('speech start handler');
-  }
-
-  const speechEndHandler = e =>{
-    setTranscribing(false);
-    setMessages([]);
-    console.log('speech end handler');
-    console.log(messages)
-  }
-
-  const speechResultsHandler = e =>{
-    console.log('voice event: ',e);
-    const text = e.value[0];
-    setMessages([{ role: 'user', content: text.trim() }]);
-    setResult(text)
-
-    // const { value } = e;
-    // console.log('Received transcription:', value); // Debugging: Check if transcription is received correctly
-    // const newMessage = { content: value };
-  }
-
-  const speechErrorHandler =e=>{
-    console.log('speech error handler: ',e);
-  }
-
-  const startTranscribing = async ()=>{
-    setTranscribing(true);
-    try {
-      await Voice.start('en-GB');
-    }catch(error){
-      console.log('error: ',error);
-    }
-  }
-
-  const clear = ()=>{
-    setMessages([])
-  }
-
-  const stopTranscribing = async ()=>{
-    try {
-      await Voice.stop();
-      setTranscribing(false);
-    }catch(error){
-      console.log('error: ',error);
-    }
-  }
-
-  const pauseTranscribing = async () => {
-    try {
-      await Voice.stop();
-      setTranscribing(false);
-    } catch (error) {
-      console.log('error: ', error);
-    }
-  };
-
-  const resumeTranscribing = async () => {
-    try {
-      setTranscribing(true);
-      await Voice.start('en-GB');
-    } catch (error) {
-      console.log('error: ', error);
-    }
-  };
-
-  const stopSpeaking = ()=>{
-    setSpeaking(false)
-  }
-
-
-  useEffect(()=>{
-    Voice.onSpeechStart = speechStartHandler;
-    Voice.onSpeechEnd = speechEndHandler;
-    Voice.onSpeechResults = speechResultsHandler;
-    Voice.onSpeechError = speechErrorHandler;  
-    setMessages([])
-
-    return ()=>{
-      //destroy voice instance
-      Voice.destroy().then(Voice.removeAllListeners);
-    }
-  }, [])
-
-
-  //END TRANSCRIBER
-
-
-  useEffect(() => {
-    const loadVoiceNotes = async () => {
-      const storedVoiceNotes = await getVoiceNotesFromLocal();
-      setVoiceNotes(storedVoiceNotes);
-    };
-    loadVoiceNotes();
-  }, []);
-
-  
-  
-
   async function startRecording() {
     try {
       await Audio.requestPermissionsAsync();
@@ -183,11 +82,9 @@ export default function RecordScreen() {
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
         undefined,
-        1000 / 60,
       );
 
       setRecording(recording);
-      startTranscribing();
       recording.setOnRecordingStatusUpdate((status) => {
         metering.value = status.metering || -100;
       });
@@ -200,7 +97,6 @@ export default function RecordScreen() {
     if (recording) {
       await recording.pauseAsync();
       setIsPaused(true);
-      pauseTranscribing();
     }
   }
 
@@ -208,7 +104,6 @@ export default function RecordScreen() {
     if (recording) {
       await recording.startAsync();
       setIsPaused(false);
-      resumeTranscribing();
     }
   }
 
@@ -225,7 +120,6 @@ export default function RecordScreen() {
   
     setRecording(undefined);
     setIsPaused(false);
-    stopTranscribing();
   
     try {
       await recording.stopAndUnloadAsync();
@@ -235,7 +129,7 @@ export default function RecordScreen() {
       const createdDate = getCurrentDate();
       const size = await getFileSize(uri);
       const location = await getLocation();
-      const transcript = result;
+      const transcript = await transcribeAudio(uri);
       const summary = '';
       const taskArray = [];
   
@@ -275,9 +169,78 @@ export default function RecordScreen() {
   async function cancelRecording() {
     if (recording) {
       await recording.stopAndUnloadAsync();
-      stopTranscribing();
       setRecording(null);
       setIsPaused(false);
+    }
+  }
+
+  async function transcribeAudio(uri) {
+    try {
+      const audioContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        type: 'audio/m4a', // Adjust this if your audio format is different
+        name: 'audio.m4a'
+      });
+      formData.append('model', 'whisper-1');
+
+    
+      const apiKey = functions.config().openai.key;
+
+      const response = await axios.post(
+        'https://api.openai.com/v1/audio/transcriptions',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': apiKey, // Replace with your actual API key
+          },
+        }
+      );
+
+      return response.data.text;
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      return 'Error transcribing audio';
+    }
+  }
+
+  async function transcribeAudio(uri) {
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        type: 'audio/m4a', // Adjust this if your audio format is different
+        name: 'audio.m4a'
+      });
+      formData.append('model', 'whisper-1');
+
+      const apiKey = functions.config().openai.key;
+
+  
+      const response = await axios.post(
+        'https://api.openai.com/v1/audio/transcriptions',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': apiKey, // Use environment variable or secure storage
+          },
+          timeout: 60000, // Increased timeout for larger files
+          maxContentLength: Infinity, // Allow for large file uploads
+          maxBodyLength: Infinity,
+        }
+      );
+  
+      return response.data.text;
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error:', error.response?.data || error.message);
+      }
+      throw new Error('Failed to transcribe audio');
     }
   }
 
@@ -300,7 +263,6 @@ export default function RecordScreen() {
                   Ready to record
                 </Text>
               </Animated.View>
-             
             </View>
             <Text style={{ fontSize: wp(3.5), color: '#A0AEC0', textAlign: 'center' }}>
                 {recording ? "Go ahead, I'm listening" : "What's on your mind?"}
@@ -310,49 +272,6 @@ export default function RecordScreen() {
        {/* VISUALIZER */}
         <View className="flex justify-center items-center mt-10" style={{ height: hp(39) }}>
           <AudioWaveform isRecording={!!recording} isPaused={isPaused} metering={metering.value} />
-        </View>
-
-        {/* LIVE TRANSCRIPTION */}
-        <View className="mt-2" style={{ maxHeight: 86, overflow: 'hidden' }}>
-        <ScrollView
-            style={{
-            height: hp(18),
-            // backgroundColor: 'red',
-            paddingHorizontal: 16,
-            flexDirection: 'column-reverse', // Reverse the order of children
-            }}
-            contentContainerStyle={{
-            justifyContent: 'flex-end',
-            flexGrow: 1,
-            }}
-            showsVerticalScrollIndicator={false}
-        >
-            {/* Display live transcription here */}
-            {messages.map((message, index) => (
-            <Text
-                key={index}
-                style={{
-                fontSize: 24,
-                fontFamily: 'Inter',
-                color: 'white',
-                textAlign: 'left', // Align text to the left
-                fontWeight: '500', // Set font weight to medium
-                }}
-            >
-                {/* Apply different styles to the newest 10 characters */}
-                {message.content.length > 10 ? (
-                <>
-                    {message.content.substring(0, message.content.length - 10)}
-                    <Text style={{ color: '#63646A' }}>
-                    {message.content.substring(message.content.length - 10)}
-                    </Text>
-                </>
-                ) : (
-                <Text style={{ color: '#63646A' }}>{message.content}</Text>
-                )}
-            </Text>
-            ))}
-        </ScrollView>
         </View>
         {/* RECORD, PAUSE, STOP, CANCEL BUTTONS */}
         <View className="flex justify-center items-center mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>

@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { Button, Alert, Image, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { ArrowLeftIcon } from 'react-native-heroicons/solid';
+import React, { useState, useEffect } from 'react';
+import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArrowLeftIcon } from 'react-native-heroicons/solid';
+import { useNavigation } from '@react-navigation/native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { ref, set } from 'firebase/database';
-import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../../config/firebase';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import * as AppleAuthentication from 'expo-apple-authentication';
+
+const { width } = Dimensions.get('window');
 
 export default function SignUpScreen() {
     const navigation = useNavigation();
@@ -15,6 +20,11 @@ export default function SignUpScreen() {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [passwordVisible, setPasswordVisible] = useState(false);
+    const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
+
+    useEffect(() => {
+        AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
+    }, []);
 
     const validate = () => {
         const errors = {};
@@ -23,6 +33,15 @@ export default function SignUpScreen() {
         if (!password) errors.password = 'Password is required';
         if (password && password.length < 6) errors.password = 'Password must be at least 6 characters';
         return errors;
+    };
+
+    const showCustomAlert = (title, message) => {
+        Alert.alert(
+            title,
+            message,
+            [{ text: 'OK', onPress: () => console.log('OK Pressed') }],
+            { cancelable: false }
+        );
     };
 
     const handleSubmit = async () => {
@@ -39,12 +58,13 @@ export default function SignUpScreen() {
                     name: name,
                     email: response.user.email,
                 };
-                await set(ref(db, `/users/${response.user.uid}`), userData);
+                await set(ref(db, `users/${response.user.uid}`), userData);
                 console.log('Data written to the database successfully!');
-                navigation.navigate('HomeScreen'); // Redirect to the main screen after successful signup
+                navigation.navigate('LibraryScreen');
             }
         } catch (err) {
-            Alert.alert('Error', err.message);
+            console.error("Signup error:", err);
+            showCustomAlert('Signup Error', err.message);
         } finally {
             setLoading(false);
         }
@@ -61,111 +81,183 @@ export default function SignUpScreen() {
         }
     };
 
+    const handleGoogleSignUp = async () => {
+        try {
+            await GoogleSignin.hasPlayServices();
+            const { idToken, user } = await GoogleSignin.signIn();
+            const googleCredential = GoogleAuthProvider.credential(idToken);
+            const userCredential = await signInWithCredential(auth, googleCredential);
+            
+            const userData = {
+                name: user.name,
+                email: user.email,
+            };
+            await set(ref(db, `users/${userCredential.user.uid}`), userData);
+            
+            console.log("User signed up successfully with Google");
+            navigation.navigate('LibraryScreen');
+        } catch (error) {
+            console.error("Google Sign-Up error:", error);
+            showCustomAlert('Google Sign-Up Error', 'An error occurred during Google sign-up. Please try again.');
+        }
+    };
+
+    const handleAppleSignUp = async () => {
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            
+            // Here you would typically send the credential to your server or use it to sign in to Firebase
+            console.log("User signed up successfully with Apple");
+            navigation.navigate('LibraryScreen');
+        } catch (error) {
+            if (error.code === 'ERR_CANCELED') {
+                console.log('User cancelled Apple Sign-In');
+            } else {
+                console.error("Apple Sign-Up error:", error);
+                showCustomAlert('Apple Sign-Up Error', 'An error occurred during Apple sign-up. Please try again.');
+            }
+        }
+    };
+
     return (
-        <View className="flex-1 bg-emerald-400" style={{ backgroundColor: '#191A23' }}>
-            <SafeAreaView className="flex">
-                <View className="flex-row justify-start">
-                    <TouchableOpacity onPress={() => navigation.goBack()}
-                        className="bg-white p-2 rounded-tr-2xl rounded-bl-2xl ml-4">
-                        <ArrowLeftIcon size="20" color="black" />
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, backgroundColor: '#191A23' }}
+        >
+            <SafeAreaView style={{ flex: 1, paddingTop: 50 }}> 
+                <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 20 }}
+                    >
+                        <ArrowLeftIcon size={20} color="white" />
                     </TouchableOpacity>
+                    <Text style={{ color: 'white', fontSize: 18, fontWeight: '600' }}>Sign Up</Text>
+                    <View style={{ width: 40 }} /> 
                 </View>
-                <View className="flex-row justify-center">
-                    <Image source={require('../../assets/images/glasscog.png')}
-                        style={{ width: 140, height: 140 }}
+
+                <View style={{ paddingHorizontal: 30 }}>
+                    <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' }}>Create Account</Text>
+                
+                <View style={{ marginBottom: 20 }}>
+                    <TextInput
+                        style={{
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            padding: 15,
+                            borderRadius: 10,
+                            color: 'white',
+                            fontSize: 16
+                        }}
+                        placeholder="Full Name"
+                        placeholderTextColor="rgba(255,255,255,0.6)"
+                        value={name}
+                        onChangeText={(value) => handleInputChange('name', value)}
                     />
                 </View>
-            </SafeAreaView>
-            <View className="flex-1 bg-white px-8 pt-8"
-                style={{ borderTopLeftRadius: 50, borderTopRightRadius: 50 }}
-            >
-                <View className="form space-y-2">
-                    <Text className="text-gray-700 ml-4">Full Name</Text>
-                    <View className="relative">
-                        <TextInput
-                            className="p-4 bg-gray-100 text-gray-700 rounded-2xl mb-3"
-                            value={name}
-                            onChangeText={value => handleInputChange('name', value)}
-                            placeholder={errors.name ? "" : "Enter Name"}
-                            style={errors.name ? { borderColor: 'red', borderWidth: 1 } : {}}
-                        />
-                        {errors.name && (
-                            <Text className="absolute left-4 top-4 text-red-500">{errors.name}</Text>
-                        )}
-                    </View>
-
-                    <Text className="text-gray-700 ml-4">Email Address</Text>
-                    <View className="relative">
-                        <TextInput
-                            className="p-4 bg-gray-100 text-gray-700 rounded-2xl mb-3"
-                            value={email}
-                            onChangeText={value => handleInputChange('email', value)}
-                            placeholder={errors.email ? "" : "Enter Email"}
-                            keyboardType="email-address"
-                            style={errors.email ? { borderColor: 'red', borderWidth: 1 } : {}}
-                        />
-                        {errors.email && (
-                            <Text className="absolute left-4 top-4 text-red-500">{errors.email}</Text>
-                        )}
-                    </View>
-
-                    <Text className="text-gray-700 ml-4">Password</Text>
-                    <View className="relative flex-row items-center bg-gray-100 rounded-2xl mb-1" style={errors.password ? { borderColor: 'red', borderWidth: 1 } : {}}>
-                        <TextInput
-                            className="p-4 text-gray-700 flex-1"
-                            secureTextEntry={!passwordVisible}
-                            value={password}
-                            onChangeText={value => handleInputChange('password', value)}
-                            placeholder={errors.password ? "" : "Enter Password"}
-                        />
-                        <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
-                            <Text className="p-4 text-gray-500">{passwordVisible ? 'Hide' : 'Show'}</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {errors.password && (
-                        <Text className="text-left ml-4 mb-4 text-red-500">{errors.password}</Text>
-                    )}
-
-                    <TouchableOpacity
-                        className="py-3 bg-400 rounded-xl"
-                        style={{ backgroundColor: '#191A23' }}
-                        onPress={handleSubmit}
-                        disabled={loading}
+                
+                <View style={{ marginBottom: 20 }}>
+                    <TextInput
+                        style={{
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            padding: 15,
+                            borderRadius: 10,
+                            color: 'white',
+                            fontSize: 16
+                        }}
+                        placeholder="Email"
+                        placeholderTextColor="rgba(255,255,255,0.6)"
+                        value={email}
+                        onChangeText={(value) => handleInputChange('email', value)}
+                        keyboardType="email-address"
+                    />
+                </View>
+                
+                <View style={{ marginBottom: 20 }}>
+                    <TextInput
+                        style={{
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            padding: 15,
+                            borderRadius: 10,
+                            color: 'white',
+                            fontSize: 16
+                        }}
+                        placeholder="Password"
+                        placeholderTextColor="rgba(255,255,255,0.6)"
+                        secureTextEntry={!passwordVisible}
+                        value={password}
+                        onChangeText={(value) => handleInputChange('password', value)}
+                    />
+                    <TouchableOpacity 
+                        onPress={() => setPasswordVisible(!passwordVisible)}
+                        style={{ position: 'absolute', right: 15, top: 15 }}
                     >
-                        {loading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text className="font-xl font-bold text-center text-white">
-                                Sign Up
-                            </Text>
-                        )}
+                        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>{passwordVisible ? 'Hide' : 'Show'}</Text>
                     </TouchableOpacity>
                 </View>
-
-                <Text className="text-xl text-gray-700 font-bold text-center py-5">
-                    Or
-                </Text>
-                <View className="flex-row justify-center space-x-12">
-                    <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('../../assets/images/google.png')}
-                            className="w-10 h-10" />
-                    </TouchableOpacity>
-                    <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('../../assets/images/apple-logo-transparent.png')}
-                            className="w-10 h-10" />
-                    </TouchableOpacity>
-                    <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('../../assets/images/facebook.png')}
-                            className="w-10 h-10" />
-                    </TouchableOpacity>
+                
+                <TouchableOpacity
+                    onPress={handleSubmit}
+                    style={{
+                        backgroundColor: 'white',
+                        padding: 15,
+                        borderRadius: 10,
+                        alignItems: 'center',
+                        marginBottom: 30
+                    }}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#191A23" />
+                    ) : (
+                        <Text style={{ color: '#191A23', fontSize: 18, fontWeight: 'bold' }}>Sign Up</Text>
+                    )}
+                </TouchableOpacity>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 30 }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', paddingHorizontal: 10 }}>Or create an account with</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.3)' }} />
                 </View>
-                <View className="flex-row justify-center mt-7">
-                    <Text className="text-gray-500 font-semibold">Already have an account? </Text>
+                
+                <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 30 }}>
+                    <TouchableOpacity 
+                        onPress={handleGoogleSignUp} 
+                        style={{ 
+                            marginRight: 20, 
+                            backgroundColor: 'rgba(255,255,255,0.1)', 
+                            padding: 10, 
+                            borderRadius: 10 
+                        }}
+                    >
+                        <Image source={require('../../assets/images/google.png')} style={{ width: 30, height: 30 }} />
+                    </TouchableOpacity>
+                    {isAppleSignInAvailable && (
+                        <TouchableOpacity 
+                            onPress={handleAppleSignUp}
+                            style={{ 
+                                backgroundColor: 'rgba(255,255,255,0.1)', 
+                                padding: 10, 
+                                borderRadius: 10 
+                            }}
+                        >
+                            <Image source={require('../../assets/images/apple-logo-transparent.png')} style={{ width: 30, height: 30 }} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+                
+                <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Already have an account? </Text>
                     <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
-                        <Text className="font-semibold" style={{ color: '#191A23' }}>Login</Text>
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Login</Text>
                     </TouchableOpacity>
                 </View>
-            </View>
-        </View>
+</View>
+            </SafeAreaView>
+        </KeyboardAvoidingView>
     );
 }
