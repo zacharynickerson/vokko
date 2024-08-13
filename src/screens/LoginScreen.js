@@ -1,14 +1,15 @@
-import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
-import React, { useState } from 'react';
-import { ArrowLeftIcon } from 'react-native-heroicons/solid';
+import React, { useEffect, useState } from 'react';
+import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { auth } from '../../config/firebase';
-import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
+import { ArrowLeftIcon } from 'react-native-heroicons/solid';
 import { useNavigation } from '@react-navigation/native';
+import { auth } from '../../config/firebase';
 import useAuth from '../../hooks/useAuth';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail, OAuthProvider } from 'firebase/auth';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
-
-
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
     const navigation = useNavigation();
@@ -18,7 +19,11 @@ export default function LoginScreen() {
     const [errors, setErrors] = useState({});
     const [passwordVisible, setPasswordVisible] = useState(false);
     const { updateUser } = useAuth();
+    const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
 
+    useEffect(() => {
+        AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
+    }, []);
 
     const validate = () => {
         const errors = {};
@@ -35,7 +40,6 @@ export default function LoginScreen() {
             { cancelable: false }
         );
     };
-
 
     const handleSubmit = async () => {
         const validationErrors = validate();
@@ -64,7 +68,6 @@ export default function LoginScreen() {
         }
     };
 
-    
     const handleInputChange = (field, value) => {
         setErrors(prevErrors => ({ ...prevErrors, [field]: '' }));
         if (field === 'email') {
@@ -74,102 +77,191 @@ export default function LoginScreen() {
         }
     };
 
+    const loginWithApple = async () => {
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            // signed in
+            console.log(credential);
 
+            // Here, you would typically send the credential to your server or use it to sign in to Firebase
+            // For Firebase, you might do something like this:
+            const { identityToken, nonce } = credential;
+            const appleCredential = new OAuthProvider('apple.com').credential({
+                idToken: identityToken,
+                rawNonce: nonce,
+            });
+            const userCredential = await signInWithCredential(auth, appleCredential);
+            updateUser(userCredential.user);
 
+        } catch (e) {
+            if (e.code === 'ERR_CANCELED') {
+                // handle that the user canceled the sign-in flow
+                console.log('User cancelled Apple Sign-In');
+            } else {
+                // handle other errors
+                console.error('Error during Apple Sign-In:', e);
+            }
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        try {
+            await GoogleSignin.hasPlayServices();
+            const { idToken } = await GoogleSignin.signIn();
+            const googleCredential = GoogleAuthProvider.credential(idToken);
+            const userCredential = await signInWithCredential(auth, googleCredential);
+            console.log("User signed in successfully");
+            updateUser(userCredential.user);  // Update the user state
+        } catch (error) {
+            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+                // user cancelled the login flow
+            } else if (error.code === statusCodes.IN_PROGRESS) {
+                // operation (e.g. sign in) is in progress already
+            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                // play services not available or outdated
+            } else {
+                // some other error happened
+                console.error(error);
+            }
+        }
+    };
+
+    const resetPassword = async () => {
+        try {
+            sendPasswordResetEmail(auth, email)
+            alert('Please check your email to reset your password')
+        } catch ({ message }) {
+            alert(message)
+        }
+    }
 
     return (
-        <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
-            <SafeAreaView className="flex">
-                <View className="flex-row justify-start">
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, backgroundColor: '#191A23' }}
+        >
+            <SafeAreaView style={{ flex: 1, paddingTop: 50 }}> 
+                <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
-                        className="bg-white p-2 rounded-tr-2xl rounded-bl-2xl ml-4">
-                        <ArrowLeftIcon size="20" color="black" />
+                        style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 20 }}
+                    >
+                        <ArrowLeftIcon size={20} color="white" />
                     </TouchableOpacity>
+                    <Text style={{ color: 'white', fontSize: 18, fontWeight: '600' }}>Login</Text>
+                    <View style={{ width: 40 }} /> 
                 </View>
-                <View className="flex-row justify-center">
-                    <Image source={require('../../assets/images/glasshead.png')}
-                        style={{ width: 100, height: 170, margin: 1 }} // Reduced size
-                    />
-                </View>
-            </SafeAreaView>
 
-            <View className="flex-1 bg-white px-8 pt-8"
-                style={{ borderTopLeftRadius: 50, borderTopRightRadius: 50 }}
-            >
-                <View className="form space-y-4">
-                    <Text className="text-gray-700 ml-4">Email Address</Text>
-                    <View className="relative">
+                <View style={{ paddingHorizontal: 30 }}>
+                    <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' }}>Welcome Back</Text>
+                    
+                    <View style={{ marginBottom: 20 }}>
                         <TextInput
-                            className="p-4 bg-gray-100 text-gray-700 rounded-2xl mb-1"
+                            style={{
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                                padding: 15,
+                                borderRadius: 10,
+                                color: 'white',
+                                fontSize: 16
+                            }}
+                            placeholder="Email"
+                            placeholderTextColor="rgba(255,255,255,0.6)"
                             value={email}
-                            onChangeText={value => handleInputChange('email', value)}
-                            placeholder={errors.email || "Enter Email"}
+                            onChangeText={(value) => handleInputChange('email', value)}
                             keyboardType="email-address"
-                            style={[{ borderColor: errors.email ? 'red' : 'transparent', borderWidth: 1 }]}
                         />
                     </View>
-
-                    <Text className="text-gray-700 ml-4">Password</Text>
-                    <View className="relative flex-row items-center bg-gray-100 rounded-2xl mb-1"
-                        style={[{ borderColor: errors.password ? 'red' : 'transparent', borderWidth: 1 }]}
-                    >
+                    
+                    <View style={{ marginBottom: 20 }}>
                         <TextInput
-                            className="p-4 text-gray-700 flex-1"
+                            style={{
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                                padding: 15,
+                                borderRadius: 10,
+                                color: 'white',
+                                fontSize: 16
+                            }}
+                            placeholder="Password"
+                            placeholderTextColor="rgba(255,255,255,0.6)"
                             secureTextEntry={!passwordVisible}
                             value={password}
-                            onChangeText={value => handleInputChange('password', value)}
-                            placeholder={errors.password || "Enter Password"}
+                            onChangeText={(value) => handleInputChange('password', value)}
                         />
-                        <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
-                            <Text className="p-4 text-gray-500">{passwordVisible ? 'Hide' : 'Show'}</Text>
+                        <TouchableOpacity 
+                            onPress={() => setPasswordVisible(!passwordVisible)}
+                            style={{ position: 'absolute', right: 15, top: 15 }}
+                        >
+                            <Text style={{ color: 'rgba(255,255,255,0.6)' }}>{passwordVisible ? 'Hide' : 'Show'}</Text>
                         </TouchableOpacity>
                     </View>
-
-                    <TouchableOpacity className="flex items-end mb-5">
-                        <Text className="text-gray-700">Forgot Password?</Text>
+                    
+                    <TouchableOpacity onPress={resetPassword} style={{ alignSelf: 'flex-end', marginBottom: 30 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Forgot Password?</Text>
                     </TouchableOpacity>
-
+                    
                     <TouchableOpacity
                         onPress={handleSubmit}
-                        className="py-3 rounded-xl"
-                        style={{ backgroundColor: '#191A23' }}
+                        style={{
+                            backgroundColor: 'white',
+                            padding: 15,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            marginBottom: 30
+                        }}
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color="#191A23" />
                         ) : (
-                            <Text className="text-xl font-bold text-center text-white">
-                                Login
-                            </Text>
+                            <Text style={{ color: '#191A23', fontSize: 18, fontWeight: 'bold' }}>Login</Text>
                         )}
                     </TouchableOpacity>
+                    
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 30 }}>
+                        <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+                        <Text style={{ color: 'rgba(255,255,255,0.6)', paddingHorizontal: 10 }}>Or continue with</Text>
+                        <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+                    </View>
+                    
+                    <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 30 }}>
+                        <TouchableOpacity 
+                            onPress={handleGoogleSignIn} 
+                            style={{ 
+                                marginRight: 20, 
+                                backgroundColor: 'rgba(255,255,255,0.1)', 
+                                padding: 10, 
+                                borderRadius: 10 
+                            }}
+                        >
+                            <Image source={require('../../assets/images/google.png')} style={{ width: 30, height: 30 }} />
+                        </TouchableOpacity>
+                        {isAppleSignInAvailable && (
+                            <TouchableOpacity 
+                                onPress={loginWithApple}
+                                style={{ 
+                                    backgroundColor: 'rgba(255,255,255,0.1)', 
+                                    padding: 10, 
+                                    borderRadius: 10 
+                                }}
+                            >
+                                <Image source={require('../../assets/images/apple-logo-transparent.png')} style={{ width: 30, height: 30 }} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    
+                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Don't have an account? </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('SignUpScreen')}>
+                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Sign Up</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-
-                <Text className="text-xl text-gray-700 font-bold text-center py-5">
-                    Or
-                </Text>
-                <View className="flex-row justify-center space-x-12">
-                <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('../../assets/images/google.png')}
-                            className="w-10 h-10" />
-                    </TouchableOpacity>
-                    <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('../../assets/images/apple-logo-transparent.png')}
-                            className="w-10 h-10" />
-                    </TouchableOpacity>
-                    <TouchableOpacity className="p-2 bg-gray-100 rounded-2xl">
-                        <Image source={require('../../assets/images/facebook.png')}
-                            className="w-10 h-10" />
-                    </TouchableOpacity>
-                </View>
-                <View className="flex-row justify-center mt-7">
-                    <Text className="text-gray-500 font-semibold">Don't have an account yet? </Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('SignUpScreen')}>
-                        <Text className="font-semibold" style={{ color: '#191A23' }}>Sign Up</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
+            </SafeAreaView>
+        </KeyboardAvoidingView>
     );
 }
