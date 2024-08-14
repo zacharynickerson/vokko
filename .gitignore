@@ -79,8 +79,13 @@ yarn-error.*
 config/vokko-f8f6a-19484f73e795.json
 config/logical-vim-411900-5d39334c6c74.json
 
+
 # OpenAI API Key
 .env
 
 # android folder
 android/
+
+# config file
+config
+config.js

@@ -14,10 +14,47 @@ import { db, storage, auth } from '../../config/firebase';
 import { get, onValue, ref, set } from 'firebase/database';
 import { ref as storageRef, deleteObject, getMetadata } from 'firebase/storage';
 import { ref as dbRef, remove } from 'firebase/database';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
+const SkeletonLine = ({ width, style }) => {
+  const opacity = useSharedValue(0.3);
 
+  React.useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(0.6, { duration: 1000 }),
+      -1,
+      true
+    );
+  }, []);
 
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.skeletonLine,
+        { width },
+        style,
+        animatedStyle,
+      ]}
+    />
+  );
+};
+
+const SkeletonParagraph = ({ lines, lastLineWidth = '100%' }) => (
+  <View style={styles.skeletonParagraph}>
+    {[...Array(lines)].map((_, i) => (
+      <SkeletonLine
+        key={i}
+        width={i === lines - 1 ? lastLineWidth : '100%'}
+        style={i !== lines - 1 ? styles.skeletonLineSpacing : null}
+      />
+    ))}
+  </View>
+);
 
 export default function VoiceNoteDetails({ route, navigation }) {
   const { voiceNote } = route.params;
@@ -40,9 +77,9 @@ export default function VoiceNoteDetails({ route, navigation }) {
 
   const [index, setIndex] = useState(0);
   const [routes] = useState([
-    { key: 'summary', title: 'Summary' },
+    { key: 'transcript', title: 'Script' },
     { key: 'tasks', title: 'Tasks' },
-    { key: 'transcript', title: 'Script' }
+    { key: 'summary', title: 'Summary' },
   ]);
 
 
@@ -245,7 +282,11 @@ export default function VoiceNoteDetails({ route, navigation }) {
     summary: () => (
       <ScrollView style={styles.tabContent}>
         {summaryLoading ? (
-          <ActivityIndicator size="large" color="#007AFF" />
+          <>
+            <SkeletonParagraph lines={3} />
+            <SkeletonParagraph lines={4} lastLineWidth="80%" />
+            <SkeletonParagraph lines={3} />
+          </>
         ) : (
           summary.split('.').filter(sentence => sentence.trim().length > 0).map((sentence, index) => (
             <Text key={index} style={styles.contentText}>
@@ -258,12 +299,19 @@ export default function VoiceNoteDetails({ route, navigation }) {
     tasks: () => (
       <FlatList
         style={styles.tabContent}
-        data={taskArray}
+        data={tasksLoading ? [1, 2, 3, 4, 5] : taskArray}
         renderItem={({ item }) => (
-          <View style={styles.taskItem}>
-            <Text style={styles.bullet}>•</Text>
-            <Text style={styles.contentText}>{item.replace(/^[-•]\s*/, '')}</Text>
-          </View>
+          tasksLoading ? (
+            <View style={styles.taskItem}>
+              <Text style={styles.bullet}>•</Text>
+              <SkeletonLine width="90%" style={styles.taskSkeletonLine} />
+            </View>
+          ) : (
+            <View style={styles.taskItem}>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.contentText}>{item.replace(/^[-•]\s*/, '')}</Text>
+            </View>
+          )
         )}
         keyExtractor={(item, index) => index.toString()}
       />
@@ -525,6 +573,21 @@ const styles = StyleSheet.create({
   emojiPicker: {
     flex: 1,
   },
+  skeletonLine: {
+    height: wp(4),
+    backgroundColor: '#2A2B35',
+    borderRadius: 4,
+  },
+  skeletonLineSpacing: {
+    marginBottom: 8,
+  },
+  skeletonParagraph: {
+    marginBottom: 20,
+  },
+  taskSkeletonLine: {
+    flex: 1,
+    marginLeft: 8,
+  },
 });
 
 const menuOptionsStyles = {
@@ -543,211 +606,3 @@ const menuOptionsStyles = {
     activeOpacity: 70,
   },
 };
-
-  
-//   const renderScene = SceneMap({
-//     summary: () => (
-//       <ScrollView style={{ padding: 20 }}>
-//         {summaryLoading ? (
-//           <ActivityIndicator size="large" color="#ffffff" />
-//         ) : (
-//           summary.split('.').filter(sentence => sentence.trim().length > 0).map((sentence, index) => (
-//             <View key={index} style={{ marginBottom: 20 }}>
-//               <Text style={{ color: 'white', fontSize: wp(4) }}>
-//                 {sentence.trim() + '.'}
-//               </Text>
-//             </View>
-//           ))
-//         )}
-//       </ScrollView>
-//     ),
-//     tasks: () => (
-//       <View style={{ flex: 1, padding: 20 }}>
-//         {tasksLoading ? (
-//           <ActivityIndicator size="large" color="#ffffff" />
-//         ) : (
-//           <FlatList
-//             data={taskArray}
-//             renderItem={({ item }) => (
-//               <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
-//                 <Text style={{ color: 'white', fontSize: wp(4), marginRight: 10 }}>•</Text>
-//                 <Text style={{ color: 'white', fontSize: wp(4), flex: 1 }}>
-//                   {item.replace(/^[-•]\s*/, '')}
-//                 </Text>
-//               </View>
-//             )}
-//             keyExtractor={(item, index) => index.toString()}
-//           />
-//         )}
-//       </View>
-//     ),
-//     transcript: () => (
-//       <ScrollView style={{ padding: 20 }}>
-//         {transcript.split('.').filter(sentence => sentence.trim().length > 0).map((sentence, index) => (
-//           <View key={index} style={{ marginBottom: 20 }}>
-//             <Text style={{ color: 'white', fontSize: wp(4) }}>
-//               {sentence.trim() + '.'}
-//             </Text>
-//           </View>
-//         ))}
-//       </ScrollView>
-//     ),
-//   });
-
-//   const renderTabBar = props => (
-//     <TabBar
-//       {...props}
-//       indicatorStyle={{ backgroundColor: 'white' }}
-//       style={{ backgroundColor: '#191A23' }}
-//       labelStyle={{ fontWeight: 'bold' }}
-//       renderLabel={({ route, focused }) => (
-//         <Text style={{ color: focused ? 'white' : 'gray' }}>
-//           {route.title}
-//         </Text>
-//       )}
-//     />
-//   );
-
-//   return (
-//     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
-//       <SafeAreaView className="flex-1 flex mx-5">
-//         <View className="space-y-2 flex-1">
-
-//      {/* PLAYBACK SECTION */}
-//      <View style={styles.playbackSection}>
-//         <TouchableOpacity 
-//           style={styles.emojiContainer} 
-//           onPress={() => setIsEmojiPickerVisible(true)}
-//         >
-//           <Text style={styles.emoji}>{noteEmoji}</Text>
-//         </TouchableOpacity>
-//         <View style={styles.contentContainer}>
-//           <TextInput
-//             style={styles.titleInput}
-//             value={noteTitle}
-//             onChangeText={(text) => setNoteTitle(text)}
-//             multiline
-//             placeholder="Enter note title"
-//             placeholderTextColor="#888"
-//           />
-//           <Text style={styles.dateLocation}>
-//             {voiceNote.createdDate} • {voiceNote.location}
-//           </Text>
-//           <Playback uri={voiceNote.uri} />
-//         </View>
-//       </View>
-
-//       {/* Emoji Picker Modal */}
-//       <Modal
-//         visible={isEmojiPickerVisible}
-//         transparent={true}
-//         animationType="fade"
-//       >
-//         <SafeAreaView style={styles.modalContainer}>
-//           <View style={styles.modalContent}>
-//             <View style={styles.modalHeader}>
-//               <Text style={styles.modalHeaderTitle}>Choose Emoji</Text>
-//               <TouchableOpacity onPress={() => setIsEmojiPickerVisible(false)}>
-//                 <Text style={styles.closeButton}>Close</Text>
-//               </TouchableOpacity>
-//             </View>
-//             <EmojiSelector
-//               onEmojiSelected={handleEmojiSelected}
-//               columns={8}
-//               showSearchBar={true}
-//               showSectionTitles={true}
-//               showHistory={true}
-//               style={styles.emojiPicker}
-//               category={undefined}
-//             />
-//           </View>
-//         </SafeAreaView>
-//       </Modal> 
-      
-
-//           {/* OUTPUT */}
-
-//           <View style={{ flex: 1, backgroundColor: '#191A23' }} className="bg-neutral-200 rounded-3xl p-4">
-//             <TabView
-//               navigationState={{ index, routes }}
-//               renderScene={renderScene}
-//               renderTabBar={renderTabBar}
-//               onIndexChange={setIndex}
-//               initialLayout={{ width: wp(100) }}
-//               style={{ backgroundColor: '#191A23' }}
-//             />
-//           </View>
-//         </View>
-//       </SafeAreaView>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   playbackSection: {
-//     flexDirection: 'row',
-//     alignItems: 'flex-start',
-//     padding: 16,
-//     borderRadius: 10,
-//     marginBottom: 20,
-//   },
-//   iconContainer: {
-//     marginRight: 12,
-//     paddingTop: 2,
-//   },
-//   contentContainer: {
-//     flex: 1,
-//   },
-//   emojiContainer: {
-//     marginRight: 12,
-//     paddingTop: 2,
-//   },
-//   emoji: {
-//     fontSize: 24,
-//   },
-//   titleInput: {
-//     fontSize: wp(4),
-//     color: '#fff',
-//     fontWeight: '500',
-//     padding: 0,
-//     marginBottom: 4,
-//   },
-//   dateLocation: {
-//     fontSize: wp(3.5),
-//     color: '#888',
-//     marginBottom: 12,
-//   },
-//   modalContainer: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-//   },
-//   modalContent: {
-//     backgroundColor: '#FFFFFF',
-//     borderRadius: 20,
-//     width: width * 0.9, // 90% of screen width
-//     height: height * 0.7, // 70% of screen height
-//     overflow: 'hidden',
-//   },
-//   modalHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     padding: 16,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#EEEEEE',
-//   },
-//   modalHeaderTitle: {
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//   },
-//   closeButton: {
-//     fontSize: 16,
-//     color: '#007AFF',
-//   },
-//   emojiPicker: {
-//     flex: 1,
-//     padding: 10,
-//   },
-// });

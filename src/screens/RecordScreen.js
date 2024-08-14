@@ -5,13 +5,13 @@ import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import { generateUUID, getFileSize, getLocation, getCurrentDate } from '../utilities/helpers';
 import { saveVoiceNotesToLocal, getVoiceNotesFromLocal } from '../utilities/voiceNoteLocalStorage';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, withSequence } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons'; 
 import { auth, saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
 import AudioWaveform from '../components/AudioWaveform'; // Adjust the import path as needed
-import * as FileSystem from 'expo-file-system';
 import axios from 'axios';
-
+import VoiceNoteDetailsSkeleton from '../components/VoiceNoteDetailsSkeleton.js'; // Import the new skeleton component
+import getEnvVars from '../../config.js';
 
 export default function RecordScreen() {
   const [recording, setRecording] = useState(null);
@@ -21,7 +21,8 @@ export default function RecordScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
   const navigation = useNavigation();
   const metering = useSharedValue(-100);  
-
+  const { OPENAI_API_KEY } = getEnvVars();
+ 
   useEffect(() => {
     const loadVoiceNotes = async () => {
       const storedVoiceNotes = await getVoiceNotesFromLocal();
@@ -29,6 +30,8 @@ export default function RecordScreen() {
     };
     loadVoiceNotes();
   }, []);
+
+  
 
   useEffect(() => {
     if (recording) {
@@ -175,50 +178,19 @@ export default function RecordScreen() {
   }
 
   async function transcribeAudio(uri) {
-    try {
-      const audioContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      
-      const formData = new FormData();
-      formData.append('file', {
-        uri: uri,
-        type: 'audio/m4a', // Adjust this if your audio format is different
-        name: 'audio.m4a'
-      });
-      formData.append('model', 'whisper-1');
-
-    
-      const apiKey = functions.config().openai.key;
-
-      const response = await axios.post(
-        'https://api.openai.com/v1/audio/transcriptions',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Authorization': apiKey, // Replace with your actual API key
-          },
-        }
-      );
-
-      return response.data.text;
-    } catch (error) {
-      console.error('Error transcribing audio:', error);
-      return 'Error transcribing audio';
+    if (!OPENAI_API_KEY) {
+      console.error('OpenAI API key not available');
+      throw new Error('OpenAI API key not available');
     }
-  }
-
-  async function transcribeAudio(uri) {
+  
     try {
       const formData = new FormData();
       formData.append('file', {
         uri: uri,
-        type: 'audio/m4a', // Adjust this if your audio format is different
+        type: 'audio/m4a',
         name: 'audio.m4a'
       });
       formData.append('model', 'whisper-1');
-
-      const apiKey = functions.config().openai.key;
-
   
       const response = await axios.post(
         'https://api.openai.com/v1/audio/transcriptions',
@@ -226,10 +198,10 @@ export default function RecordScreen() {
         {
           headers: {
             'Content-Type': 'multipart/form-data',
-            'Authorization': apiKey, // Use environment variable or secure storage
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
           },
-          timeout: 60000, // Increased timeout for larger files
-          maxContentLength: Infinity, // Allow for large file uploads
+          timeout: 60000,
+          maxContentLength: Infinity,
           maxBodyLength: Infinity,
         }
       );
@@ -248,6 +220,10 @@ export default function RecordScreen() {
   return (
     <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
       <SafeAreaView className="flex-1 flex mx-5">
+      {isLoading ? (
+          <VoiceNoteDetailsSkeleton />
+        ) : (
+          <>
        {/* TOP MESSAGING */}
        <View className="mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: hp(6) }}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -270,9 +246,10 @@ export default function RecordScreen() {
           </View>
         </View>
        {/* VISUALIZER */}
-        <View className="flex justify-center items-center mt-10" style={{ height: hp(39) }}>
+        <View className="flex justify-center items-center mt-10" style={{ height: hp(50) }}>
           <AudioWaveform isRecording={!!recording} isPaused={isPaused} metering={metering.value} />
         </View>
+
         {/* RECORD, PAUSE, STOP, CANCEL BUTTONS */}
         <View className="flex justify-center items-center mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
           {recording && (
@@ -306,11 +283,7 @@ export default function RecordScreen() {
             </Animated.View>
           )}
         </View>
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#ffffff" />
-            <Text style={styles.loadingText}>Processing your recording...</Text>
-          </View>
+        </>
         )}
       </SafeAreaView>
     </View>
@@ -337,20 +310,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 100,
   },
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  container: {
+    flex: 1,
+    backgroundColor: '#191A23',
   },
-  loadingText: {
-    color: '#ffffff',
-    marginTop: 10,
-    fontSize: 16,
+  content: {
+    flex: 1,
   },
   textContainer: {
     position: 'absolute',

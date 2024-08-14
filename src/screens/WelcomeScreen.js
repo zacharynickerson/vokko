@@ -2,19 +2,35 @@ import React, { useCallback } from 'react'
 import { Image, SafeAreaView, Text, TouchableOpacity, View } from 'react-native'
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
+import { useFonts, Lacquer_400Regular } from '@expo-google-fonts/lacquer';
+import AppLoading from 'expo-app-loading';
+
+
 
 export default function WelcomeScreen() {
     const navigation = useNavigation();
     const navigateToSignUp = useCallback(() => navigation.navigate('SignUpScreen'), [navigation]);
     const navigateToLogin = useCallback(() => navigation.navigate('LoginScreen'), [navigation]);
+    
+    let [fontsLoaded] = useFonts({
+        Lacquer_400Regular,
+    });
 
+    if (!fontsLoaded) {
+        return <AppLoading />;
+    }
 
     return (
         
         <SafeAreaView className="flex-1 flex justify-around" style={{ backgroundColor: '#191A23' }}>
             <View className="space-y-2">
-                <Text style={{fontSize: wp(10)}} className="text-center font-bold text-white">
-                    Vokko
+            <Text style={{
+                fontSize: wp(18),
+                fontFamily: 'Lacquer_400Regular',
+                textAlign: 'center',
+                color: 'white',
+            }}>
+                    vokko
                 </Text>
                 <Text style={{fontSize: wp(4)}} className="text-center tracking-wider text-white font-semibold">
                     Your voice notes, powered by AI.
