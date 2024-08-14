@@ -51,6 +51,14 @@ export default function SettingsScreen() {
         );
     }
 
+    const showComingSoonAlert = () => {
+        Alert.alert(
+            "Coming Soon",
+            "This section is coming soon!",
+            [{ text: "OK", onPress: () => console.log("OK Pressed") }]
+        );
+    };
+
     const SettingsItem = ({ icon, title, onPress }) => (
         <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
             <Ionicons name={icon} size={24} color="#fff" style={styles.settingsIcon} />
@@ -69,7 +77,7 @@ export default function SettingsScreen() {
                     <SettingsItem 
                         icon="person-outline" 
                         title="Account Details" 
-                        onPress={() => {/* Navigate to Account Details */}}
+                        onPress={showComingSoonAlert} // Updated to show the alert
                     />
                 </View>
 

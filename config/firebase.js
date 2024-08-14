@@ -18,8 +18,6 @@ const firebaseConfig = {
   measurementId: "G-8M4V4D26CG"
 };
 
-// IOS: 793156853153-168gt88b3jmk0di9k02v71fkmnaa0oaj.apps.googleusercontent.com
-// Android: 793156853153-1h9hm9i443ar5d1mn691k4beh033l8p2.apps.googleusercontent.com
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
