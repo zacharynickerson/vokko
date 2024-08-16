@@ -5,6 +5,8 @@ const storage = new Storage();
 const OpenAI = require("openai");
 const axios = require('axios');
 const dotenv = require('dotenv');
+const FormData = require('form-data');
+
 
 dotenv.config();
 
@@ -13,6 +15,47 @@ admin.initializeApp();
 const openai = new OpenAI({
   apiKey: functions.config().openai.key,
 });
+
+exports.transcribeAudio = functions.https.onCall(async (data, context) => {
+  // Check if the user is authenticated
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to use this function.');
+  }
+
+  const { audioBase64 } = data;
+
+  if (!audioBase64) {
+    throw new functions.https.HttpsError('invalid-argument', 'Audio data is required.');
+  }
+
+  try {
+    // Convert base64 to buffer
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+
+    // Prepare the form data for OpenAI API
+    const formData = new FormData();
+    formData.append('file', audioBuffer, { filename: 'audio.m4a', contentType: 'audio/m4a' });
+    formData.append('model', 'whisper-1');
+
+    // Make the request to OpenAI API
+    const openaiResponse = await axios.post(
+      'https://api.openai.com/v1/audio/transcriptions',
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'Authorization': `Bearer ${functions.config().openai.key}`,
+        },
+      }
+    );
+
+    return { transcript: openaiResponse.data.text };
+  } catch (error) {
+    console.error('Error transcribing audio:', error);
+    throw new functions.https.HttpsError('internal', 'Error transcribing audio');
+  }
+});
+
 
 exports.processTranscript = functions.database
   .ref('/users/{userId}/voiceNotes/{voiceNoteId}/transcript')
@@ -31,7 +74,7 @@ exports.processTranscript = functions.database
     const prompt = {
       model: "gpt-3.5-turbo-0125",
       messages: [
-        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title, summary, and list of action items based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A well-structured summary of the voice note's content]\n\nACTION ITEMS:\n- [Action item 1]\n- [Action item 2]\n- [Action item 3]\n...\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:, ACTION ITEMS:) and that the action items are presented as a bulleted list." },
+        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title, summary, and list of action items based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A well-structured summary of the voice note's content]\n\nACTION ITEMS:\n- [Action item 1]\n- [Action item 2]\n- [Action item 3]\n...\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:, ACTION ITEMS:) and that the action items are presented as a bulleted list. Detect the language that is used in the transcript and output all answers within each section using that same language" },
         { "role": "user", "content": `Please process the following voice note transcript:\n\n${transcript}` }
       ],
       max_tokens: 3000,
