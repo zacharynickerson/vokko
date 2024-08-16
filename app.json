@@ -16,6 +16,7 @@
     ],
     "ios": {
       "googleServicesFile": "GoogleService-Info.plist",
+      "buildNumber": "9",
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.VokkoApp",
       "usesAppleSignIn": true,
