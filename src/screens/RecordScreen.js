@@ -7,11 +7,11 @@ import { generateUUID, getFileSize, getLocation, getCurrentDate } from '../utili
 import { saveVoiceNotesToLocal, getVoiceNotesFromLocal } from '../utilities/voiceNoteLocalStorage';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, withSequence } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons'; 
-import { auth, saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
+import { auth, saveToFirebaseStorage, saveToFirebaseDatabase, functions, httpsCallable } from '../../config/firebase';
 import AudioWaveform from '../components/AudioWaveform'; // Adjust the import path as needed
 import axios from 'axios';
 import VoiceNoteDetailsSkeleton from '../components/VoiceNoteDetailsSkeleton.js'; // Import the new skeleton component
-import getEnvVars from '../../config.js';
+import { OPENAI_API_KEY} from '@env';
 
 export default function RecordScreen() {
   const [recording, setRecording] = useState(null);
@@ -21,7 +21,6 @@ export default function RecordScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
   const navigation = useNavigation();
   const metering = useSharedValue(-100);  
-  const { OPENAI_API_KEY } = getEnvVars();
  
   useEffect(() => {
     const loadVoiceNotes = async () => {
@@ -177,44 +176,30 @@ export default function RecordScreen() {
     }
   }
 
+
   async function transcribeAudio(uri) {
-    if (!OPENAI_API_KEY) {
-      console.error('OpenAI API key not available');
-      throw new Error('OpenAI API key not available');
-    }
-  
     try {
-      const formData = new FormData();
-      formData.append('file', {
-        uri: uri,
-        type: 'audio/m4a',
-        name: 'audio.m4a'
+      // Convert the audio file to base64
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const base64Audio = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
-      formData.append('model', 'whisper-1');
-  
-      const response = await axios.post(
-        'https://api.openai.com/v1/audio/transcriptions',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          },
-          timeout: 60000,
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-        }
-      );
-  
-      return response.data.text;
+
+      // Call the Firebase Cloud Function
+      const transcribeFunction = httpsCallable(functions, 'transcribeAudio');
+      const result = await transcribeFunction({ audioBase64: base64Audio });
+
+      return result.data.transcript;
     } catch (error) {
       console.error('Error transcribing audio:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Axios error:', error.response?.data || error.message);
-      }
       throw new Error('Failed to transcribe audio');
     }
   }
+
 
 
   return (
@@ -341,3 +326,6 @@ const styles = StyleSheet.create({
     lineHeight: wp(6), // Adjust this line height to match the container height
   },
 });
+
+
+

@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getFunctions, httpsCallable } from 'firebase/functions'; // Add this line
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +24,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
+const functions = getFunctions(app); // Add this line
 
 // Function to upload audio file to Firebase Storage
 const saveToFirebaseStorage = async (uri, voiceNoteId) => {
@@ -99,7 +101,7 @@ export const auth = getAuth(app, {
 });
 
 // Export necessary Firebase instances and functions
-export { db, storage, saveToFirebaseStorage, saveToFirebaseDatabase };
+export { db, storage, functions, httpsCallable, saveToFirebaseStorage, saveToFirebaseDatabase };
 
 // import 'firebase/storage';
 

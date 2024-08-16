@@ -69,6 +69,9 @@
     "extra": {
       "eas": {
         "projectId": "80c39e3f-46ca-4bf4-bb23-8bb45e4871f7"
+      },
+      "openAIApiKey": {
+        "secretName": "OPENAI_API_KEY"
       }
     },
     "scheme":"Vokko"
