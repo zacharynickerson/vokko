@@ -16,13 +16,15 @@
     ],
     "ios": {
       "googleServicesFile": "GoogleService-Info.plist",
-      "buildNumber": "9",
+      "buildNumber": "21",
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.VokkoApp",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app uses the microphone to record audio for transcription.",
-        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text."
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text.",
+        "NSPhotoLibraryUsageDescription": "Vokko needs access to your photo library to allow file system operations and to choose and upload photos within the app.",
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {

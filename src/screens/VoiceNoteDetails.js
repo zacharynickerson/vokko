@@ -16,6 +16,7 @@ import { ref as storageRef, deleteObject, getMetadata } from 'firebase/storage';
 import { ref as dbRef, remove } from 'firebase/database';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
+
 const { width, height } = Dimensions.get('window');
 const SkeletonLine = ({ width, style }) => {
   const opacity = useSharedValue(0.3);
@@ -72,6 +73,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
   const [isEmojiPickerVisible, setIsEmojiPickerVisible] = useState(false);
   const emojiButtonRef = useRef();
   const playbackRef = useRef(null);
+  const audioUri = voiceNote.cloudUri || voiceNote.uri;
 
 
 
@@ -391,7 +393,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
       </View>
 
       <View style={styles.playbackContainer}>
-        <Playback uri={voiceNote.uri} ref={playbackRef}/>
+        <Playback uri={audioUri} ref={playbackRef}/>
       </View>
 
       <TabView
