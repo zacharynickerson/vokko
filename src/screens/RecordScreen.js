@@ -12,6 +12,8 @@ import AudioWaveform from '../components/AudioWaveform'; // Adjust the import pa
 import axios from 'axios';
 import VoiceNoteDetailsSkeleton from '../components/VoiceNoteDetailsSkeleton.js'; // Import the new skeleton component
 import { OPENAI_API_KEY} from '@env';
+import { voiceNoteSync } from '../utilities/VoiceNoteSync';
+
 
 export default function RecordScreen() {
   const [recording, setRecording] = useState(null);
@@ -79,6 +81,11 @@ export default function RecordScreen() {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        interruptionModeIOS: 1, // This corresponds to Audio.InterruptionModeIOS.DoNotMix
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: 1, // This corresponds to Audio.InterruptionModeAndroid.DoNotMix
+        playThroughEarpieceAndroid: false
       });
 
       const { recording } = await Audio.Recording.createAsync(
@@ -111,29 +118,40 @@ export default function RecordScreen() {
 
   async function stopRecording() {
     if (!recording) {
+      console.log('No active recording to stop');
       return;
     }
   
-    setIsLoading(true); // Start loading
-  
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-    });
-  
-    setRecording(undefined);
-    setIsPaused(false);
+    setIsLoading(true);
   
     try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+  
+      setRecording(undefined);
+      setIsPaused(false);
+  
       await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      
+      if (!uri) {
+        throw new Error('Failed to get recording URI');
+      }
+  
       const voiceNoteId = generateUUID();
       const title = `Recording ${voiceNotes.length + 1}`;
-      const uri = recording.getURI();
       const createdDate = getCurrentDate();
       const size = await getFileSize(uri);
       const location = await getLocation();
-      const transcript = await transcribeAudio(uri);
-      const summary = '';
-      const taskArray = [];
+      let transcript = '';
+      
+      try {
+        transcript = await transcribeAudio(uri);
+      } catch (transcriptError) {
+        console.error('Error transcribing audio:', transcriptError);
+        // Continue with empty transcript if transcription fails
+      }
   
       const voiceNote = {
         voiceNoteId,
@@ -143,27 +161,35 @@ export default function RecordScreen() {
         size,
         location,
         transcript,
-        summary,
-        taskArray
+        summary: '',
+        taskArray: []
       };
   
       const updatedVoiceNotes = [voiceNote, ...voiceNotes];
       setVoiceNotes(updatedVoiceNotes);
+      voiceNoteSync.addToSyncQueue(voiceNote);
   
       try {
-        const userId = auth.currentUser.uid;
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          throw new Error('User not authenticated');
+        }
+  
         const downloadUrl = await saveToFirebaseStorage(voiceNote.uri, voiceNoteId);
         await saveToFirebaseDatabase(userId, voiceNote, downloadUrl);
         await saveVoiceNotesToLocal(updatedVoiceNotes);
-        setIsLoading(false); // Stop loading
+        
+        setIsLoading(false);
         navigation.navigate('VoiceNoteDetails', { voiceNote });
-      } catch (err) {
-        console.error('Error saving data to Firebase', err);
-        setIsLoading(false); // Stop loading even if there's an error
+      } catch (saveError) {
+        console.error('Error saving data:', saveError);
+        // Handle save error (e.g., show an error message to the user)
+        setIsLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to stop recording', err);
-      setIsLoading(false); // Stop loading if there's an error
+    } catch (error) {
+      console.error('Failed to stop recording or process voice note:', error);
+      setIsLoading(false);
+      // Handle the error (e.g., show an error message to the user)
     }
   }
 
