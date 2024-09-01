@@ -29,13 +29,18 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
   }
 
   try {
+    console.log('Starting audio transcription process');
+
     // Convert base64 to buffer
     const audioBuffer = Buffer.from(audioBase64, 'base64');
+    console.log('Audio buffer size:', audioBuffer.length);
 
     // Prepare the form data for OpenAI API
     const formData = new FormData();
     formData.append('file', audioBuffer, { filename: 'audio.m4a', contentType: 'audio/m4a' });
     formData.append('model', 'whisper-1');
+
+    console.log('Form data prepared, sending request to OpenAI API');
 
     // Make the request to OpenAI API
     const openaiResponse = await axios.post(
@@ -49,10 +54,35 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
       }
     );
 
+    console.log('Received response from OpenAI API');
+
+    if (!openaiResponse.data || !openaiResponse.data.text) {
+      console.error('Invalid response from OpenAI:', openaiResponse.data);
+      throw new Error('Invalid response from OpenAI API');
+    }
+
+    console.log('Transcription successful');
     return { transcript: openaiResponse.data.text };
+
   } catch (error) {
     console.error('Error transcribing audio:', error);
-    throw new functions.https.HttpsError('internal', 'Error transcribing audio');
+
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('OpenAI API Error Response:', {
+        status: error.response.status,
+        data: error.response.data,
+      });
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No response received from OpenAI API:', error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error setting up request:', error.message);
+    }
+
+    throw new functions.https.HttpsError('internal', `Error transcribing audio: ${error.message}`);
   }
 });
 
@@ -74,7 +104,7 @@ exports.processTranscript = functions.database
     const prompt = {
       model: "gpt-3.5-turbo-0125",
       messages: [
-        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title, summary, and list of action items based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A well-structured summary of the voice note's content]\n\nACTION ITEMS:\n- [Action item 1]\n- [Action item 2]\n- [Action item 3]\n...\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:, ACTION ITEMS:) and that the action items are presented as a bulleted list. Detect the language that is used in the transcript and output all answers within each section using that same language" },
+        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title, summary, and list of action items based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A cleaned up version of the original transcript that maintains as much of the original transcript text as possible while cleaning up the grammar, grouping text into logical paragraphs, and assigning plain text section headers when appropriate.]\n\nACTION ITEMS:\n- [Action item 1]\n- [Action item 2]\n- [Action item 3]\n...\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:, ACTION ITEMS:) and that the action items are presented as a bulleted list. Detect the language that is used in the transcript and output all answers within each section using that same language" },
         { "role": "user", "content": `Please process the following voice note transcript:\n\n${transcript}` }
       ],
       max_tokens: 3000,
