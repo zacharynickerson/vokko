@@ -1,9 +1,9 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { Image, SafeAreaView, Text, TouchableOpacity, View } from 'react-native'
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 import { useFonts, Lacquer_400Regular } from '@expo-google-fonts/lacquer';
-import AppLoading from 'expo-app-loading';
+import * as SplashScreen from 'expo-splash-screen';
 
 
 
@@ -16,8 +16,31 @@ export default function WelcomeScreen() {
         Lacquer_400Regular,
     });
 
-    if (!fontsLoaded) {
-        return <AppLoading />;
+    const [appIsReady, setAppIsReady] = useState(false);
+
+    useEffect(() => {
+        async function prepare() {
+            try {
+                await SplashScreen.preventAutoHideAsync();
+                // You can do any other preparation steps here, like loading data
+            } catch (e) {
+                console.warn(e);
+            } finally {
+                setAppIsReady(true);
+            }
+        }
+
+        prepare();
+    }, []);
+
+    useEffect(() => {
+        if (appIsReady && fontsLoaded) {
+            SplashScreen.hideAsync();
+        }
+    }, [appIsReady, fontsLoaded]);
+
+    if (!appIsReady || !fontsLoaded) {
+        return null;
     }
 
     return (
