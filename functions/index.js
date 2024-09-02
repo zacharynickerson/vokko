@@ -22,17 +22,18 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to use this function.');
   }
 
-  const { audioBase64 } = data;
+  const { audioUrl } = data;
 
-  if (!audioBase64) {
-    throw new functions.https.HttpsError('invalid-argument', 'Audio data is required.');
+  if (!audioUrl) {
+    throw new functions.https.HttpsError('invalid-argument', 'Audio URL is required.');
   }
 
   try {
     console.log('Starting audio transcription process');
 
-    // Convert base64 to buffer
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    // Download the audio file
+    const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' });
+    const audioBuffer = Buffer.from(audioResponse.data);
     console.log('Audio buffer size:', audioBuffer.length);
 
     // Prepare the form data for OpenAI API
@@ -68,23 +69,21 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
     console.error('Error transcribing audio:', error);
 
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
       console.error('OpenAI API Error Response:', {
         status: error.response.status,
         data: error.response.data,
       });
     } else if (error.request) {
-      // The request was made but no response was received
       console.error('No response received from OpenAI API:', error.request);
     } else {
-      // Something happened in setting up the request that triggered an Error
       console.error('Error setting up request:', error.message);
     }
 
     throw new functions.https.HttpsError('internal', `Error transcribing audio: ${error.message}`);
   }
 });
+
+
 
 
 exports.processTranscript = functions.database

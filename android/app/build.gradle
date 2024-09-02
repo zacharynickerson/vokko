@@ -109,7 +109,7 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.vokkoapp"
+    namespace 'com.anonymous.VokkoApp'
     defaultConfig {
         manifestPlaceholders = [appAuthRedirectScheme: 'Vokko']
         applicationId 'com.anonymous.VokkoApp'
