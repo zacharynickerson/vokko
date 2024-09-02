@@ -1,15 +1,11 @@
-import { StyleSheet } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { ActivityIndicator, Image, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import React, { useState } from 'react';
+import { StyleSheet, ActivityIndicator, SafeAreaView, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { getVoiceNotesFromLocal } from '../utilities/voiceNoteLocalStorage';
+import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { FlatList } from 'react-native-gesture-handler';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../../config/firebase';
 import { ref, get } from 'firebase/database';
-
+import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage';
 
 export default function LibraryScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
@@ -17,86 +13,74 @@ export default function LibraryScreen() {
   const navigation = useNavigation();
   const [userName, setUserName] = useState('');
 
-
-  // Function to clear AsyncStorage
-  const clearAsyncStorage = async () => {
+  const fetchVoiceNotes = async () => {
     try {
-      await AsyncStorage.clear();
-      console.log('AsyncStorage cleared successfully.');
-    } catch (error) {
-      console.error('Error clearing AsyncStorage:', error);
-    }
-  };
-
-  // Function to fetch user data
-  const fetchUserData = async () => {
-    try {
-      const userId = auth.currentUser.uid;
-      const userRef = ref(db, `/users/${userId}`);
-      const snapshot = await get(userRef);
-      if (snapshot.exists()) {
-        const userData = snapshot.val();
-        const firstName = userData.name.split(' ')[0];  // Extract the first name
-        setUserName(firstName);
-      } else {
-        console.log("No user data available");
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        throw new Error('User not authenticated');
       }
+
+      console.log('Fetching local notes...');
+      const localNotes = await getVoiceNotesFromLocal();
+      // console.log('Local notes:', localNotes);
+      
+      console.log('Fetching Firebase notes...');
+      // Updated path to match your database structure
+      const voiceNotesRef = ref(db, `/users/${userId}/voiceNotes`);
+      const snapshot = await get(voiceNotesRef);
+      let firebaseNotes = [];
+      if (snapshot.exists()) {
+        firebaseNotes = Object.values(snapshot.val());
+        // console.log('Firebase notes:', firebaseNotes);
+      } else {
+        console.log('No Firebase notes found');
+      }
+      
+      // Merge local and Firebase notes, preferring Firebase data
+      const mergedNotes = [...localNotes, ...firebaseNotes].reduce((acc, note) => {
+        const existingNote = acc.find(n => n.voiceNoteId === note.voiceNoteId);
+        if (!existingNote) {
+          acc.push(note);
+        } else if (new Date(note.createdDate) > new Date(existingNote.createdDate)) {
+          const index = acc.indexOf(existingNote);
+          acc[index] = note;
+        }
+        return acc;
+      }, []);
+
+      // console.log('Merged notes:', mergedNotes);
+
+      // Sort the notes by createdDate in descending order
+      const sortedNotes = mergedNotes.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
+      
+      await saveVoiceNotesToLocal(sortedNotes);
+      
+      setVoiceNotes(sortedNotes);
     } catch (error) {
-      console.error("Error fetching user data: ", error);
+      console.error('Failed to load voice notes:', error);
+      console.error('Error details:', error.message);
+      if (error.code) {
+        console.error('Firebase error code:', error.code);
+      }
+      Alert.alert(
+        'Error',
+        `Failed to load voice notes: ${error.message}. Please check your internet connection and try again.`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
-  
   useFocusEffect(
     React.useCallback(() => {
-      const fetchVoiceNotes = async () => {
-        try {
-          const notes = await getVoiceNotesFromLocal();
-          // Sort the notes by createdDate in descending order
-          const sortedNotes = notes.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
-          setVoiceNotes(sortedNotes);
-        } catch (error) {
-          console.error('Failed to load voice notes:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchUserData();  // Fetch user data when the screen is focused
       fetchVoiceNotes();
     }, [])
   );
 
-  // When the notes are loading:
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#191A23" />
-      </View>
-    );
-  }
+
 
   return (
-    // <View className="flex-1 space-y-4" style={{ backgroundColor: '#191A23' }}>
-    //   <SafeAreaView className="flex-1 flex mx-5">
-    //     {/* TOP TEXT */}
-    //     <TouchableOpacity onPress={clearAsyncStorage}>
-    //       <Text style={{ fontSize: wp(3.7) }} className="text-gray-400 font-regular mt-2">
-    //       {userName ? `Hello ${userName}` : 'Hello'}
-    //       </Text>
-    //     </TouchableOpacity>
-
-    //     <View style={{ marginBottom: 10 }}>
-    //       <Text className="text-white font-regular mt-2" style={{ fontSize: 18 }}>
-    //         Voice Notes
-    //       </Text>
-    //     </View>
-
-    //     {/* LIBRARY */}
-    //     <FlatList
-    //       data={voiceNotes.filter(note => note && note.uri)} // Filter out null or invalid items
-    //       keyExtractor={(item) => item?.voiceNoteId || ''}
-
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.greeting}>

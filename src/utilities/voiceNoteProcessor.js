@@ -15,27 +15,44 @@ export const processVoiceNote = async (uri, voiceNotes, userId) => {
     const downloadUrl = await saveToFirebaseStorage(uri, voiceNoteId);
     console.log('Audio file uploaded, URL:', downloadUrl);
 
-    // Call the Cloud Function for transcription
-    console.log('Calling transcribeAudio function with URL:', downloadUrl);
-    const transcribeFunction = httpsCallable(functions, 'transcribeAudio');
-    const transcriptionResult = await transcribeFunction({ audioUrl: downloadUrl });
-    console.log('Transcription result:', transcriptionResult);
-    const transcript = transcriptionResult.data.transcript;
-
+    // Create voice note object
     const voiceNote = {
       voiceNoteId,
       title,
-      uri: downloadUrl, // Use the Firebase Storage URL
+      uri: downloadUrl,
       createdDate,
       size,
       location,
-      transcript,
+      transcript: 'Transcription pending',
+      transcriptionStatus: 'pending',
       summary: '',
       taskArray: []
     };
 
-    // Save to Firebase Database
+    // Save voice note to Firebase Database immediately
     await saveToFirebaseDatabase(userId, voiceNote, downloadUrl);
+    console.log('Voice note metadata saved to database');
+
+    // Attempt transcription
+    try {
+      console.log('Calling transcribeAudio function with URL:', downloadUrl);
+      const transcribeFunction = httpsCallable(functions, 'transcribeAudio');
+      const transcriptionResult = await transcribeFunction({ audioUrl: downloadUrl });
+      console.log('Transcription result:', transcriptionResult);
+      const transcript = transcriptionResult.data.transcript;
+
+      // Update voice note with transcript
+      voiceNote.transcript = transcript;
+      voiceNote.transcriptionStatus = 'completed';
+      await saveToFirebaseDatabase(userId, voiceNote, downloadUrl);
+      console.log('Voice note updated with transcript');
+    } catch (transcriptionError) {
+      console.error('Transcription failed:', transcriptionError);
+      // Update transcription status to 'failed'
+      voiceNote.transcriptionStatus = 'failed';
+      await saveToFirebaseDatabase(userId, voiceNote, downloadUrl);
+      console.log('Voice note updated with failed transcription status');
+    }
 
     const updatedVoiceNotes = [voiceNote, ...voiceNotes];
     await saveVoiceNotesToLocal(updatedVoiceNotes);
@@ -45,10 +62,6 @@ export const processVoiceNote = async (uri, voiceNotes, userId) => {
     return { voiceNote, updatedVoiceNotes };
   } catch (error) {
     console.error('Error processing voice note:', error);
-    if (error.code && error.details) {
-      console.error('Firebase Error Code:', error.code);
-      console.error('Firebase Error Details:', error.details);
-    }
     throw error;
   }
 };
