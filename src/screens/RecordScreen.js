@@ -16,6 +16,8 @@ import { voiceNoteSync } from '../utilities/VoiceNoteSync';
 import { startUpload } from '../utilities/uploadQueue';
 import { compressAudio } from '../utilities/audioCompression';
 
+
+
 export default function RecordScreen() {
   const [recording, setRecording] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -151,19 +153,6 @@ export default function RecordScreen() {
       const size = await getFileSize(compressedUri);
       const location = await getLocation();
   
-      // Start transcription
-    console.log('Starting transcription...');
-    let transcript = 'Transcription pending';
-    try {
-      // Pass the Firebase Storage URL, not the local URI
-      const downloadUrl = await saveToFirebaseStorage(compressedUri, `${voiceNoteId}.m4a`);
-      transcript = await transcribeAudio(downloadUrl);
-      console.log('Transcription completed:', transcript);
-    } catch (transcriptionError) {
-      console.error('Transcription failed:', transcriptionError);
-      // Continue with the default 'Transcription pending' value
-    }
-  
       const voiceNote = {
         voiceNoteId,
         title,
@@ -171,8 +160,8 @@ export default function RecordScreen() {
         createdDate,
         size,
         location,
-        transcript,
-        transcriptionStatus: transcript === 'Transcription pending' ? 'pending' : 'completed',
+        transcript: 'Transcription pending',
+        transcriptionStatus: 'pending',
         summary: '',
         taskArray: []
       };
@@ -180,16 +169,15 @@ export default function RecordScreen() {
       const updatedVoiceNotes = [voiceNote, ...voiceNotes];
       setVoiceNotes(updatedVoiceNotes);
       await saveVoiceNotesToLocal(updatedVoiceNotes);
-    
+  
       const userId = auth.currentUser?.uid;
       if (!userId) {
         throw new Error('User not authenticated');
       }
-    
-      // Start upload
-      console.log('Queueing upload...');
-      startUpload(compressedUri, `${voiceNoteId}.m4a`, userId, voiceNote);
-    
+  
+      // Start upload and transcription in the background
+      startUploadAndTranscription(compressedUri, voiceNoteId, userId, voiceNote);
+  
       setIsLoading(false);
       navigation.navigate('VoiceNoteDetails', { voiceNote });
   
@@ -200,6 +188,41 @@ export default function RecordScreen() {
     }
   }
 
+  async function startUploadAndTranscription(uri, voiceNoteId, userId, voiceNote) {
+  try {
+    // Start upload
+    console.log('Starting upload...');
+    const downloadUrl = await saveToFirebaseStorage(uri, `${voiceNoteId}.m4a`);
+    console.log('Upload completed. Download URL:', downloadUrl);
+
+    // Start transcription
+    console.log('Starting transcription...');
+    const transcribeFunction = httpsCallable(functions, 'transcribeAudio');
+    const result = await transcribeFunction({ audioUrl: downloadUrl });
+    const transcript = result.data.transcript;
+    console.log('Transcription completed:', transcript);
+
+    // Update voice note with transcript
+    const updatedVoiceNote = {
+      ...voiceNote,
+      uri: downloadUrl,
+      transcript,
+      transcriptionStatus: 'completed'
+    };
+
+    // Update Firebase and local storage
+    await saveToFirebaseDatabase(userId, updatedVoiceNote);
+    const updatedVoiceNotes = (await getVoiceNotesFromLocal()).map(note => 
+      note.voiceNoteId === voiceNoteId ? updatedVoiceNote : note
+    );
+    await saveVoiceNotesToLocal(updatedVoiceNotes);
+
+    console.log('Voice note updated with transcript');
+  } catch (error) {
+    console.error('Error in upload or transcription:', error);
+    // Handle error (e.g., update voice note status to indicate error)
+  }
+}
 
   async function cancelRecording() {
     if (recording) {
@@ -209,6 +232,41 @@ export default function RecordScreen() {
     }
   }
 
+  async function startUploadAndTranscription(uri, voiceNoteId, userId, voiceNote) {
+    try {
+      // Start upload
+      console.log('Starting upload...');
+      const downloadUrl = await saveToFirebaseStorage(uri, `${voiceNoteId}.m4a`);
+      console.log('Upload completed. Download URL:', downloadUrl);
+  
+      // Start transcription
+      console.log('Starting transcription...');
+      const transcribeFunction = httpsCallable(functions, 'transcribeAudio');
+      const result = await transcribeFunction({ audioUrl: downloadUrl });
+      const transcript = result.data.transcript;
+      console.log('Transcription completed:', transcript);
+  
+      // Update voice note with transcript
+      const updatedVoiceNote = {
+        ...voiceNote,
+        uri: downloadUrl,
+        transcript,
+        transcriptionStatus: 'completed'
+      };
+  
+      // Update Firebase and local storage
+      await saveToFirebaseDatabase(userId, updatedVoiceNote);
+      const updatedVoiceNotes = (await getVoiceNotesFromLocal()).map(note => 
+        note.voiceNoteId === voiceNoteId ? updatedVoiceNote : note
+      );
+      await saveVoiceNotesToLocal(updatedVoiceNotes);
+  
+      console.log('Voice note updated with transcript');
+    } catch (error) {
+      console.error('Error in upload or transcription:', error);
+      // Handle error (e.g., update voice note status to indicate error)
+    }
+  }
 
   async function transcribeAudio(uri) {
     try {
@@ -352,6 +410,8 @@ const styles = StyleSheet.create({
     lineHeight: wp(6), // Adjust this line height to match the container height
   },
 });
+
+
 
 
 

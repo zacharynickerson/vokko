@@ -14,7 +14,7 @@ import { db, storage, auth } from '../../config/firebase';
 import { get, onValue, ref, set } from 'firebase/database';
 import { ref as storageRef, deleteObject, getMetadata } from 'firebase/storage';
 import { ref as dbRef, remove } from 'firebase/database';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 
 const { width, height } = Dimensions.get('window');
@@ -45,6 +45,29 @@ const SkeletonLine = ({ width, style }) => {
   );
 };
 
+const LoadingTitle = () => {
+  const opacity = useSharedValue(0.5);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.Text style={[styles.titleInput, styles.loadingTitle, animatedStyle]}>
+      Generating title...
+    </Animated.Text>
+  );
+};
+
+
 const SkeletonParagraph = ({ lines, lastLineWidth = '100%' }) => (
   <View style={styles.skeletonParagraph}>
     {[...Array(lines)].map((_, i) => (
@@ -67,8 +90,13 @@ export default function VoiceNoteDetails({ route, navigation }) {
   const [transcript, setTranscript] = useState('');
   const [summary, setSummary] = useState('');
   const [taskArray, setTaskArray] = useState('');
-  const [summaryLoading, setSummaryLoading] = useState(true);
+
+  const [titleLoading, setTitleLoading] = useState(true);
+  const [transcriptLoading, setTranscriptLoading] = useState(true);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+
+
   const [noteEmoji, setNoteEmoji] = useState(voiceNote.emoji || '🎙️'); // Default to microphone emoji if not set
   const [isEmojiPickerVisible, setIsEmojiPickerVisible] = useState(false);
   const emojiButtonRef = useRef();
@@ -104,7 +132,12 @@ export default function VoiceNoteDetails({ route, navigation }) {
     const handleData = (snapshot) => {
       const voiceNoteData = snapshot.val();
       if (voiceNoteData) {
+        if (voiceNoteData.title && voiceNoteData.summary && voiceNoteData.taskArray) {
+          setNoteTitle(voiceNoteData.title);
+          setTitleLoading(false);
+        }
         setTranscript(voiceNoteData.transcript || '');
+        setTranscriptLoading(false);
         if (voiceNoteData.title) {
           setNoteTitle(voiceNoteData.title);
         }
@@ -320,11 +353,20 @@ export default function VoiceNoteDetails({ route, navigation }) {
     ),
     transcript: () => (
       <ScrollView style={styles.tabContent}>
-        {transcript.split('.').filter(sentence => sentence.trim().length > 0).map((sentence, index) => (
-          <Text key={index} style={styles.contentText}>
-            {sentence.trim() + '.'}
-          </Text>
-        ))}
+        {transcriptLoading ? (
+          <>
+            <SkeletonParagraph lines={4} />
+            <SkeletonParagraph lines={5} lastLineWidth="60%" />
+            <SkeletonParagraph lines={4} />
+            <SkeletonParagraph lines={3} lastLineWidth="80%" />
+          </>
+        ) : (
+          transcript.split('.').filter(sentence => sentence.trim().length > 0).map((sentence, index) => (
+            <Text key={index} style={styles.contentText}>
+              {sentence.trim() + '.'}
+            </Text>
+          ))
+        )}
       </ScrollView>
     ),
   });
@@ -378,14 +420,18 @@ export default function VoiceNoteDetails({ route, navigation }) {
           <Text style={styles.emoji}>{noteEmoji}</Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
-          <TextInput
-            style={styles.titleInput}
-            value={noteTitle}
-            onChangeText={setNoteTitle}
-            multiline
-            placeholder="Enter note title"
-            placeholderTextColor="#888"
-          />
+          {titleLoading ? (
+            <LoadingTitle />
+          ) : (
+            <TextInput
+              style={styles.titleInput}
+              value={noteTitle}
+              onChangeText={setNoteTitle}
+              multiline
+              placeholder="Enter note title"
+              placeholderTextColor="#888"
+            />
+          )}
           <Text style={styles.dateLocation}>
             {voiceNote.createdDate} • {voiceNote.location}
           </Text>
@@ -606,5 +652,14 @@ const menuOptionsStyles = {
   optionTouchable: {
     underlayColor: 'rgba(255, 255, 255, 0.1)',
     activeOpacity: 70,
+  },
+  titleInput: {
+    fontSize: wp(5),
+    color: '#fff',
+    fontWeight: '600',
+    padding: 0,
+  },
+  loadingTitle: {
+    color: '#888', // Greyish color
   },
 };
