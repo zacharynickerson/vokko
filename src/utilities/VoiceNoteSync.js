@@ -26,8 +26,8 @@ class VoiceNoteSync {
       const localNotes = await getVoiceNotesFromLocal();
       const cloudNotes = await this.getCloudVoiceNotes();
 
-      console.log('Local notes:', localNotes);
-      console.log('Cloud notes:', cloudNotes);
+      console.log('Local notes fetched');
+      console.log('Cloud notes fetched');
 
       // Sync local to cloud
       for (const localNote of localNotes) {
@@ -49,7 +49,7 @@ class VoiceNoteSync {
       const mergedNotes = await this.mergeNotes(localNotes, cloudNotes);
       await saveVoiceNotesToLocal(mergedNotes);
 
-      console.log('Sync completed. Merged notes:', mergedNotes);
+      console.log('Sync completed. Merged notes');
 
     } catch (error) {
       console.error('Sync error:', error);

@@ -9,34 +9,22 @@ import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, wit
 import Icon from 'react-native-vector-icons/Ionicons'; 
 import { auth, saveToFirebaseStorage, saveToFirebaseDatabase, functions, httpsCallable } from '../../config/firebase';
 import AudioWaveform from '../components/AudioWaveform'; // Adjust the import path as needed
-import VoiceNoteDetailsSkeleton from '../components/VoiceNoteDetailsSkeleton.js'; // Import the new skeleton component
-import { voiceNoteSync } from '../utilities/VoiceNoteSync';
 import axios from 'axios';
+import VoiceNoteDetailsSkeleton from '../components/VoiceNoteDetailsSkeleton.js'; // Import the new skeleton component
 import { OPENAI_API_KEY} from '@env';
-import { processVoiceNote } from '/Users/zacharynickerson/Desktop/vokko/src/utilities/voiceNoteProcessor.js';
-import { useAudioRecorder } from '/Users/zacharynickerson/Desktop/vokko/hooks/useAudioRecorder.js';
-import { RecordingControls } from '/Users/zacharynickerson/Desktop/vokko/src/components/RecordingControls.js';
+import { voiceNoteSync } from '../utilities/VoiceNoteSync';
+import { startUpload } from '../utilities/uploadQueue';
+import { compressAudio } from '../utilities/audioCompression';
 
 export default function RecordScreen() {
+  const [recording, setRecording] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [permissionResponse, requestPermission] = Audio.usePermissions();
   const [voiceNotes, setVoiceNotes] = useState([]);
   const navigation = useNavigation();
-  const { 
-    recording, 
-    isPaused, 
-    metering, 
-    startRecording, 
-    stopRecording, 
-    pauseRecording, 
-    resumeRecording 
-  } = useAudioRecorder();
-
-  // Animation values
-  const recordingTextOpacity = useSharedValue(0);
-  const readyTextOpacity = useSharedValue(1);
-  const buttonOpacity = useSharedValue(0);
-  const buttonScale = useSharedValue(0.5);
-
+  const metering = useSharedValue(-100);  
+ 
   useEffect(() => {
     const loadVoiceNotes = async () => {
       const storedVoiceNotes = await getVoiceNotesFromLocal();
@@ -44,6 +32,8 @@ export default function RecordScreen() {
     };
     loadVoiceNotes();
   }, []);
+
+  
 
   useEffect(() => {
     if (recording) {
@@ -59,80 +49,252 @@ export default function RecordScreen() {
     }
   }, [recording]);
 
-  const handleStopRecording = async () => {
-    setIsLoading(true);
+    // Animation values
+    const recordingTextOpacity = useSharedValue(0);
+    const readyTextOpacity = useSharedValue(1);
+    const buttonOpacity = useSharedValue(0);
+    const buttonScale = useSharedValue(0.5);
+
+  const animatedRecordingTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: recordingTextOpacity.value,
+      zIndex: 1, // Ensure recording text is above the subtext
+    };
+  });
+
+  const animatedReadyTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: readyTextOpacity.value,
+      
+    };
+  });
+
+  const animatedButtonStyle = useAnimatedStyle(() => {
+    return {
+      opacity: buttonOpacity.value,
+      transform: [{ scale: buttonScale.value }],
+    };
+  });
+
+  async function startRecording() {
     try {
-      const uri = await stopRecording();
-      if (uri) {
-        const userId = auth.currentUser?.uid;
-        if (!userId) throw new Error('User not authenticated');
-        
-        console.log('Processing voice note with URI:', uri);
-        const { voiceNote, updatedVoiceNotes } = await processVoiceNote(uri, voiceNotes, userId);
-        setVoiceNotes(updatedVoiceNotes);
-        navigation.navigate('VoiceNoteDetails', { voiceNote });
-      }
-    } catch (error) {
-      console.error('Failed to process voice note:', error);
-      let errorMessage = 'Failed to process the voice note. Please try again.';
-      if (error.code && error.details) {
-        errorMessage += ` Error: ${error.code} - ${error.details}`;
-      }
-      Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
-    } finally {
-      setIsLoading(false);
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        interruptionModeIOS: 1, // This corresponds to Audio.InterruptionModeIOS.DoNotMix
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: 1, // This corresponds to Audio.InterruptionModeAndroid.DoNotMix
+        playThroughEarpieceAndroid: false
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        undefined,
+      );
+
+      setRecording(recording);
+      recording.setOnRecordingStatusUpdate((status) => {
+        metering.value = status.metering || -100;
+      });
+    } catch (err) {
+    console.error('Failed to start recording', err);
+  }
+}
+
+  async function pauseRecording() {
+    if (recording) {
+      await recording.pauseAsync();
+      setIsPaused(true);
     }
-  };
+  }
+
+  async function resumeRecording() {
+    if (recording) {
+      await recording.startAsync();
+      setIsPaused(false);
+    }
+  }
+
+  async function stopRecording() {
+    if (!recording) {
+      console.log('No active recording to stop');
+      return;
+    }
+  
+    setIsLoading(true);
+  
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+  
+      setRecording(undefined);
+      setIsPaused(false);
+  
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      
+      if (!uri) {
+        throw new Error('Failed to get recording URI');
+      }
+  
+      // Compress the audio
+      console.log('Compressing audio...');
+      const compressedUri = await compressAudio(uri);
+      console.log('Audio compressed. New URI:', compressedUri);
+  
+      const voiceNoteId = generateUUID();
+      const title = `Recording ${voiceNotes.length + 1}`;
+      const createdDate = getCurrentDate();
+      const size = await getFileSize(compressedUri);
+      const location = await getLocation();
+  
+      // Start transcription
+    console.log('Starting transcription...');
+    let transcript = 'Transcription pending';
+    try {
+      // Pass the Firebase Storage URL, not the local URI
+      const downloadUrl = await saveToFirebaseStorage(compressedUri, `${voiceNoteId}.m4a`);
+      transcript = await transcribeAudio(downloadUrl);
+      console.log('Transcription completed:', transcript);
+    } catch (transcriptionError) {
+      console.error('Transcription failed:', transcriptionError);
+      // Continue with the default 'Transcription pending' value
+    }
+  
+      const voiceNote = {
+        voiceNoteId,
+        title,
+        uri: compressedUri,
+        createdDate,
+        size,
+        location,
+        transcript,
+        transcriptionStatus: transcript === 'Transcription pending' ? 'pending' : 'completed',
+        summary: '',
+        taskArray: []
+      };
+    
+      const updatedVoiceNotes = [voiceNote, ...voiceNotes];
+      setVoiceNotes(updatedVoiceNotes);
+      await saveVoiceNotesToLocal(updatedVoiceNotes);
+    
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+    
+      // Start upload
+      console.log('Queueing upload...');
+      startUpload(compressedUri, `${voiceNoteId}.m4a`, userId, voiceNote);
+    
+      setIsLoading(false);
+      navigation.navigate('VoiceNoteDetails', { voiceNote });
+  
+    } catch (error) {
+      console.error('Failed to stop recording or process voice note:', error);
+      setIsLoading(false);
+      // Handle the error (e.g., show an error message to the user)
+    }
+  }
 
 
-  const animatedRecordingTextStyle = useAnimatedStyle(() => ({
-    opacity: recordingTextOpacity.value,
-    zIndex: 1,
-  }));
+  async function cancelRecording() {
+    if (recording) {
+      await recording.stopAndUnloadAsync();
+      setRecording(null);
+      setIsPaused(false);
+    }
+  }
 
-  const animatedReadyTextStyle = useAnimatedStyle(() => ({
-    opacity: readyTextOpacity.value,
-  }));
+
+  async function transcribeAudio(uri) {
+    try {
+      console.log('Transcribing audio from URI:', uri);
+      
+      // Call the Firebase Cloud Function
+      const transcribeFunction = httpsCallable(functions, 'transcribeAudio');
+      const result = await transcribeFunction({ audioUrl: uri });
+  
+      console.log('Transcription result:', result.data);
+      return result.data.transcript;
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      throw new Error('Failed to transcribe audio');
+    }
+  }
+
+
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.content}>
-        {isLoading ? (
+    <View className="flex-1" style={{ backgroundColor: '#191A23' }}>
+      <SafeAreaView className="flex-1 flex mx-5">
+      {isLoading ? (
           <VoiceNoteDetailsSkeleton />
         ) : (
           <>
-            <View style={styles.topMessage}>
-              <View style={styles.textContainer}>
-                <Animated.View style={[styles.textWrapper, animatedRecordingTextStyle]}>
-                  <Text style={styles.mainText}>Recording</Text>
-                </Animated.View>
-                <Animated.View style={[styles.textWrapper, animatedReadyTextStyle]}>
-                  <Text style={styles.mainText}>Ready to record</Text>
-                </Animated.View>
-              </View>
-              <Text style={styles.subText}>
+       {/* TOP MESSAGING */}
+       <View className="mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: hp(6) }}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            {/* Container for positioning */}
+            <View style={{ position: 'relative', height: hp(6), width: wp(100), justifyContent: 'center', alignItems: 'center' }}>
+              <Animated.View style={[styles.textContainer, animatedRecordingTextStyle]}>
+                <Text style={{ fontSize: wp(4.5), fontWeight: 'bold', color: 'white', textAlign: 'center' }}>
+                  Recording
+                </Text>
+              </Animated.View>
+              <Animated.View style={[styles.textContainer, animatedReadyTextStyle]}>
+                <Text style={{ fontSize: wp(4.5), fontWeight: 'bold', color: 'white', textAlign: 'center' }}>
+                  Ready to record
+                </Text>
+              </Animated.View>
+            </View>
+            <Text style={{ fontSize: wp(3.5), color: '#A0AEC0', textAlign: 'center' }}>
                 {recording ? "Go ahead, I'm listening" : "What's on your mind?"}
               </Text>
-            </View>
-            <View style={styles.waveformContainer}>
-              <AudioWaveform isRecording={!!recording} isPaused={isPaused} metering={metering} />
-            </View>
-            <RecordingControls 
-              recording={recording}
-              isPaused={isPaused}
-              onStartRecording={startRecording}
-              onStopRecording={handleStopRecording}
-              onPauseRecording={pauseRecording}
-              onResumeRecording={resumeRecording}
-              onCancelRecording={() => {
-                if (recording) {
-                  stopRecording();
-                }
-              }}
-              buttonOpacity={buttonOpacity}
-              buttonScale={buttonScale}
-            />
-          </>
+          </View>
+        </View>
+       {/* VISUALIZER */}
+        <View className="flex justify-center items-center mt-10" style={{ height: hp(50) }}>
+          <AudioWaveform isRecording={!!recording} isPaused={isPaused} metering={metering.value} />
+        </View>
+
+        {/* RECORD, PAUSE, STOP, CANCEL BUTTONS */}
+        <View className="flex justify-center items-center mt-5" style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+          {recording && (
+            <Animated.View style={[styles.controlButton, { position: 'absolute', left: -80 }, animatedButtonStyle]}>
+              <Pressable onPress={cancelRecording}>
+                <Icon name="close" size={30} color="white" />
+              </Pressable>
+            </Animated.View>
+          )}
+          <View>
+            <Pressable
+              style={styles.recordButton}
+              onPress={recording ? (isPaused ? resumeRecording : pauseRecording) : startRecording}
+            >
+              {recording ? (
+                isPaused ? (
+                  <Icon name="play" size={30} color="white" />
+                ) : (
+                  <Icon name="pause" size={30} color="white" />
+                )
+              ) : (
+                <Icon name="mic" size={30} color="white" />
+              )}
+            </Pressable>
+          </View>
+          {recording && (
+            <Animated.View style={[styles.controlButton, { position: 'absolute', right: -80 }, animatedButtonStyle]}>
+              <Pressable onPress={stopRecording}>
+                <Icon name="checkmark" size={30} color="white" />
+              </Pressable>
+            </Animated.View>
+          )}
+        </View>
+        </>
         )}
       </SafeAreaView>
     </View>
@@ -140,28 +302,33 @@ export default function RecordScreen() {
 }
 
 const styles = StyleSheet.create({
+  recordButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: 'gray',
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'gray',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 100,
+  },
   container: {
     flex: 1,
     backgroundColor: '#191A23',
   },
   content: {
     flex: 1,
-    marginHorizontal: wp(5),
-  },
-  topMessage: {
-    marginTop: hp(2),
-    height: hp(6),
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   textContainer: {
-    position: 'relative',
-    height: hp(6),
-    width: wp(100),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  textWrapper: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -170,21 +337,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mainText: {
+  recordingText: {
     fontSize: wp(4.5),
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
+    lineHeight: wp(6), // Adjust this line height to match the container height
   },
-  subText: {
-    fontSize: wp(3.5),
-    color: '#A0AEC0',
+  readyText: {
+    fontSize: wp(4.5),
+    fontWeight: 'bold',
+    color: 'white',
     textAlign: 'center',
-  },
-  waveformContainer: {
-    height: hp(50),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: hp(5),
+    lineHeight: wp(6), // Adjust this line height to match the container height
   },
 });
+
+
+
