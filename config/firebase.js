@@ -26,7 +26,7 @@ const storage = getStorage(app);
 const functions = getFunctions(app); // Add this line
 
 // Helper function to call Cloud Functions
-export const callFunction = (name, data) => {
+const callFunction = (name, data) => {
   const func = httpsCallable(functions, name);
   return func(data);
 };
@@ -36,7 +36,6 @@ export const callFunction = (name, data) => {
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
-
 // Initialize Firebase Authentication
 // export const FIREBASE_AUTH = initializeAuth(app, {
 //   persistence: getReactNativePersistence(AsyncStorage),
@@ -91,30 +90,29 @@ const saveToFirebaseStorage = async (uri, voiceNoteId) => {
 
 
 // Function to save the voice note data to Firebase Realtime Database
-const saveToFirebaseDatabase = async (userId, voiceNote, downloadUrl) => {
-    try {
-          const user = auth.currentUser;
-          if (!user) {
-            throw new Error('User is not authenticated');
-          }
-    
-          const userId = user.uid;
-          const voiceNoteData = {
-            ...voiceNote,
-            uri: downloadUrl // Replace local URI with Firebase Storage URL
-          };
-      
-          const databaseRef = ref(db, `users/${userId}/voiceNotes/${voiceNote.voiceNoteId}`);
-          await set(databaseRef, voiceNoteData);
-      
-          console.log('Data saved to Firebase Realtime Database');
-        } catch (error) {
-          console.error('Error saving data to Firebase:', error);
-          throw error;
-        }
+export const saveToFirebaseDatabase = async (userId, voiceNote) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User is not authenticated');
+    }
+
+    // Remove any properties with undefined values
+    const cleanVoiceNote = Object.fromEntries(
+      Object.entries(voiceNote).filter(([_, v]) => v !== undefined)
+    );
+
+    const databaseRef = ref(db, `users/${userId}/voiceNotes/${voiceNote.voiceNoteId}`);
+    await set(databaseRef, cleanVoiceNote);
+
+    console.log('Data saved to Firebase Realtime Database');
+  } catch (error) {
+    console.error('Error saving data to Firebase:', error);
+    throw error;
+  }
 };
 
 
 
 // Export necessary Firebase instances and functions
-export { db, storage, functions, httpsCallable, saveToFirebaseStorage, saveToFirebaseDatabase };
+export { db, storage, functions, httpsCallable, saveToFirebaseStorage };

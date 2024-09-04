@@ -16,6 +16,73 @@ const openai = new OpenAI({
   apiKey: functions.config().openai.key,
 });
 
+// exports.transcribeAudio = functions.https.onCall(async (data, context) => {
+//   // Check if the user is authenticated
+//   if (!context.auth) {
+//     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to use this function.');
+//   }
+
+//   const { audioUrl } = data;
+
+//   if (!audioUrl) {
+//     throw new functions.https.HttpsError('invalid-argument', 'Audio URL is required.');
+//   }
+
+//   try {
+//     console.log('Starting audio transcription process');
+
+//     // Download the audio file
+//     const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' });
+//     const audioBuffer = Buffer.from(audioResponse.data);
+//     console.log('Audio buffer size:', audioBuffer.length);
+
+//     // Prepare the form data for OpenAI API
+//     const formData = new FormData();
+//     formData.append('file', audioBuffer, { filename: 'audio.m4a', contentType: 'audio/m4a' });
+//     formData.append('model', 'whisper-1');
+
+//     console.log('Form data prepared, sending request to OpenAI API');
+
+//     // Make the request to OpenAI API
+//     const openaiResponse = await axios.post(
+//       'https://api.openai.com/v1/audio/transcriptions',
+//       formData,
+//       {
+//         headers: {
+//           ...formData.getHeaders(),
+//           'Authorization': `Bearer ${functions.config().openai.key}`,
+//         },
+//       }
+//     );
+
+//     console.log('Received response from OpenAI API');
+
+//     if (!openaiResponse.data || !openaiResponse.data.text) {
+//       console.error('Invalid response from OpenAI:', openaiResponse.data);
+//       throw new Error('Invalid response from OpenAI API');
+//     }
+
+//     console.log('Transcription successful');
+//     return { transcript: openaiResponse.data.text };
+
+//   } catch (error) {
+//     console.error('Error transcribing audio:', error);
+
+//     if (error.response) {
+//       console.error('OpenAI API Error Response:', {
+//         status: error.response.status,
+//         data: error.response.data,
+//       });
+//     } else if (error.request) {
+//       console.error('No response received from OpenAI API:', error.request);
+//     } else {
+//       console.error('Error setting up request:', error.message);
+//     }
+
+//     throw new functions.https.HttpsError('internal', `Error transcribing audio: ${error.message}`);
+//   }
+// });
+
 exports.transcribeAudio = functions.https.onCall(async (data, context) => {
   // Check if the user is authenticated
   if (!context.auth) {
@@ -28,8 +95,16 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('invalid-argument', 'Audio URL is required.');
   }
 
+  // Retrieve the OpenAI API key
+  const openaiApiKey = functions.config().openai.key;
+  
+  if (!openaiApiKey) {
+    console.error('OpenAI API key is not configured');
+    throw new functions.https.HttpsError('failed-precondition', 'OpenAI API key is not configured');
+  }
+
   try {
-    console.log('Starting audio transcription process');
+    console.log('Starting audio transcription process for URL:', audioUrl);
 
     // Download the audio file
     const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' });
@@ -50,7 +125,7 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
       {
         headers: {
           ...formData.getHeaders(),
-          'Authorization': `Bearer ${functions.config().openai.key}`,
+          'Authorization': `Bearer ${openaiApiKey}`,
         },
       }
     );
@@ -82,8 +157,6 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('internal', `Error transcribing audio: ${error.message}`);
   }
 });
-
-
 
 
 exports.processTranscript = functions.database
