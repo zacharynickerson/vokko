@@ -1,21 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../../config/firebase'; // Adjust the import path as needed
 
-const VOICE_NOTES_KEY = 'voice_notes';
+const getVoiceNotesKey = (userId) => `voice_notes_${userId}`;
 
-// Function to save the entire voice notes array to local storage
 export const saveVoiceNotesToLocal = async (voiceNotes) => {
   try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
     const jsonValue = JSON.stringify(voiceNotes);
-    await AsyncStorage.setItem(VOICE_NOTES_KEY, jsonValue);
+    await AsyncStorage.setItem(getVoiceNotesKey(userId), jsonValue);
   } catch (e) {
     console.error('Failed to save voice notes to local storage', e);
   }
 };
 
-// Function to get the entire voice notes array from local storage
 export const getVoiceNotesFromLocal = async () => {
   try {
-    const jsonValue = await AsyncStorage.getItem(VOICE_NOTES_KEY);
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    const jsonValue = await AsyncStorage.getItem(getVoiceNotesKey(userId));
     return jsonValue != null ? JSON.parse(jsonValue) : [];
   } catch (e) {
     console.error('Failed to load voice notes from local storage', e);
@@ -23,13 +30,28 @@ export const getVoiceNotesFromLocal = async () => {
   }
 };
 
-// Function to save a single voice note to the existing array in local storage
 export const saveVoiceNoteToLocal = async (voiceNote) => {
   try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
     const existingVoiceNotes = await getVoiceNotesFromLocal();
     existingVoiceNotes.push(voiceNote);
     await saveVoiceNotesToLocal(existingVoiceNotes);
   } catch (error) {
     console.error('Failed to save voice note locally:', error);
+  }
+};
+
+export const clearLocalVoiceNotes = async () => {
+  try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    await AsyncStorage.removeItem(getVoiceNotesKey(userId));
+  } catch (e) {
+    console.error('Failed to clear local voice notes', e);
   }
 };
