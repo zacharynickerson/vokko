@@ -1,18 +1,17 @@
-import { Modal, TouchableOpacity, TouchableWithoutFeedback, Dimensions, ActivityIndicator, Image, Alert, StyleSheet, SafeAreaView, Text, TextInput, View, ScrollView, FlatList } from 'react-native';
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Modal, TouchableOpacity, Dimensions, Alert, StyleSheet, SafeAreaView, Text, TextInput, View, ScrollView, FlatList } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { Audio } from 'expo-av';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import Playback from "../components/playback.js";
 import EmojiSelector from 'react-native-emoji-selector';
 
-import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
-import { useFocusEffect } from '@react-navigation/native';
 import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage';
 import { db, storage, auth } from '../../config/firebase';
 import { get, onValue, ref, set } from 'firebase/database';
-import { ref as storageRef, deleteObject, getMetadata } from 'firebase/storage';
+import { ref as storageRef, deleteObject, getMetadata, getDownloadURL } from 'firebase/storage';
 import { ref as dbRef, remove } from 'firebase/database';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
@@ -45,28 +44,7 @@ const SkeletonLine = ({ width, style }) => {
   );
 };
 
-const LoadingTitle = () => {
-  const opacity = useSharedValue(0.5);
-
-  useEffect(() => {
-    opacity.value = withRepeat(
-      withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.Text style={[styles.titleInput, styles.loadingTitle, animatedStyle]}>
-      Generating title...
-    </Animated.Text>
-  );
-};
-
+// 
 
 const SkeletonParagraph = ({ lines, lastLineWidth = '100%' }) => (
   <View style={styles.skeletonParagraph}>
@@ -82,27 +60,50 @@ const SkeletonParagraph = ({ lines, lastLineWidth = '100%' }) => (
 
 export default function VoiceNoteDetails({ route, navigation }) {
   const { voiceNote } = route.params;
-  // Destructure route.params to get voice note attributes
-  const { voiceNoteId, uri, createdDate, location } = voiceNote;
+  const [audioUri, setAudioUri] = useState(null);
 
-  // Initialize noteTitle with the titlqe from voiceNote
+  const { voiceNoteId } = voiceNote;
+
+  // Initialize noteTitle with the title from voiceNote
   const [noteTitle, setNoteTitle] = useState(voiceNote.title);
   const [transcript, setTranscript] = useState('');
   const [summary, setSummary] = useState('');
   const [taskArray, setTaskArray] = useState('');
 
+
   const [titleLoading, setTitleLoading] = useState(true);
   const [transcriptLoading, setTranscriptLoading] = useState(true);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [sound, setSound] = useState(null); // Use useState to manage Audio.Sound object
+  const playbackRef = useRef(null);
 
 
   const [noteEmoji, setNoteEmoji] = useState(voiceNote.emoji || '🎙️'); // Default to microphone emoji if not set
   const [isEmojiPickerVisible, setIsEmojiPickerVisible] = useState(false);
   const emojiButtonRef = useRef();
-  const playbackRef = useRef(null);
-  const audioUri = voiceNote.cloudUri || voiceNote.uri;
 
+  const loadAudioUri = useCallback(async () => {
+    if (voiceNote.cloudUri) {
+      setAudioUri(voiceNote.cloudUri);
+    } else if (voiceNote.uri) {
+      setAudioUri(voiceNote.uri);
+    } else {
+      try {
+        const storage = getStorage();
+        const audioRef = storageRef(storage, `users/${auth.currentUser.uid}/voiceNotes/${voiceNote.voiceNoteId}.m4a`);
+        const url = await getDownloadURL(audioRef);
+        setAudioUri(url);
+      } catch (error) {
+        console.error('Error fetching audio URL:', error);
+      }
+    }
+    setLoading(false);
+  }, [voiceNote]);
+
+  useEffect(() => {
+    loadAudioUri();
+  }, [loadAudioUri])
 
 
   const [index, setIndex] = useState(0);
@@ -161,41 +162,42 @@ export default function VoiceNoteDetails({ route, navigation }) {
   
 
 
-  const [sound, setSound] = useState(null); // Use useState to manage Audio.Sound object
-  // const ScrollViewRef = useRef(); // Reference for ScrollView component
-
   // Callback function for playback status update
-  const onPlaybackStatusUpdate = async (newStatus) => {
+  const onPlaybackStatusUpdate = useCallback(async (status) => {
     // Handle playback status update here if needed
-  };
-
-  // Load the audio file asynchronously when the component mounts
+  }, []);
+  
   useEffect(() => {
+    let isMounted = true;
     const loadSound = async () => {
-      try {
-        console.log('Loading Sound');
-        const { sound } = await Audio.Sound.createAsync(
-          { uri },
-          { progressUpdateIntervalMillis: 1000 / 60 },
-          onPlaybackStatusUpdate
-        );
-        setSound(sound);
-        console.log("loaded uri", uri);
-      } catch (error) {
-        console.error('Error loading sound:', error);
+      if (audioUri) {
+        try {
+          console.log('Loading Sound');
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: audioUri },
+            { progressUpdateIntervalMillis: 1000 / 60 },
+            onPlaybackStatusUpdate
+          );
+          if (isMounted) {
+            setSound(sound);
+          }
+          console.log("loaded uri", audioUri);
+        } catch (error) {
+          console.error('Error loading sound:', error);
+        }
       }
     };
 
     loadSound();
 
-    // Clean up function to unload audio when component unmounts
     return () => {
+      isMounted = false;
       if (sound) {
         console.log('Unloading Sound');
         sound.unloadAsync();
       }
     };
-  }, [uri]);
+  }, [audioUri]);
 
   // Debounce the saveAsyncData function to avoid saving for every character typed
   const debounceSave = useRef(null);
@@ -663,3 +665,27 @@ const menuOptionsStyles = {
     color: '#888', // Greyish color
   },
 };
+
+
+// const LoadingTitle = () => {
+  //   const opacity = useSharedValue(0.5);
+  
+  //   useEffect(() => {
+  //     opacity.value = withRepeat(
+  //       withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+  //       -1,
+  //       true
+  //     );
+  //   }, []);
+  
+  //   const animatedStyle = useAnimatedStyle(() => ({
+  //     opacity: opacity.value,
+  //   }));
+  
+  //   return (
+  //     <Animated.Text style={[styles.titleInput, styles.loadingTitle, animatedStyle]}>
+  //       Generating title...
+  //     </Animated.Text>
+  //   );
+  // };
+  

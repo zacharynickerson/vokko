@@ -205,7 +205,7 @@ export default function RecordScreen() {
     // Update voice note with transcript
     const updatedVoiceNote = {
       ...voiceNote,
-      uri: downloadUrl,
+      cloudUri: downloadUrl,
       transcript,
       transcriptionStatus: 'completed'
     };
