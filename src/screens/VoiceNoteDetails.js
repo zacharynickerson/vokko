@@ -422,9 +422,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
           <Text style={styles.emoji}>{noteEmoji}</Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
-          {titleLoading ? (
-            <LoadingTitle />
-          ) : (
+
             <TextInput
               style={styles.titleInput}
               value={noteTitle}
@@ -433,7 +431,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
               placeholder="Enter note title"
               placeholderTextColor="#888"
             />
-          )}
+    
           <Text style={styles.dateLocation}>
             {voiceNote.createdDate} • {voiceNote.location}
           </Text>
