@@ -172,6 +172,7 @@ export default function RecordScreen() {
         voiceNoteId,
         title,
         uri: compressedUri,
+        cloudUri: null, // Will be filled with Firebase Storage download URL
         createdDate,
         size,
         location,
