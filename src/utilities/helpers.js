@@ -24,7 +24,6 @@ export const getLocation = async () => {
       const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyCIamHe2AVao_SfZPn6qZpn2YuOuk97bHU`);
       const data = await response.json();
 
-      // console.log('Geocoding API response:', data); // Log the full response
 
       if (data.results && data.results.length > 0) {
         const addressComponents = data.results[0].address_components;
@@ -49,6 +48,11 @@ export const getLocation = async () => {
   };
 
   export const getCurrentDate = () => {
+    return new Date().toISOString();
+  };
+  
+  // If you still want to display the date in a human-readable format in your UI:
+  export const formatDateForDisplay = (isoString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date().toLocaleDateString(undefined, options);
+    return new Date(isoString).toLocaleDateString(undefined, options);
   };
