@@ -33,6 +33,15 @@ export default function RecordScreen() {
       setVoiceNotes(storedVoiceNotes);
     };
     loadVoiceNotes();
+
+    // Cleanup function to reset audio mode when component unmounts
+    return async () => {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+    };
   }, []);
 
   
@@ -85,14 +94,12 @@ export default function RecordScreen() {
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
-        interruptionModeIOS: 1, // This corresponds to Audio.InterruptionModeIOS.DoNotMix
         shouldDuckAndroid: true,
-        interruptionModeAndroid: 1, // This corresponds to Audio.InterruptionModeAndroid.DoNotMix
         playThroughEarpieceAndroid: false
       });
 
       const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        Audio.RecordingOptionsPresets.LOW_QUALITY,
         undefined,
       );
 
@@ -128,31 +135,39 @@ export default function RecordScreen() {
     setIsLoading(true);
   
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-      });
-  
-      setRecording(undefined);
-      setIsPaused(false);
-  
       await recording.stopAndUnloadAsync();
+      console.log("bing bing", recording)
       const uri = recording.getURI();
-      
+
       if (!uri) {
         throw new Error('Failed to get recording URI');
       }
+
+      // Reset audio mode immediately after stopping recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+
+      setRecording(undefined);
+      setIsPaused(false);
+  
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
   
       // Compress the audio
-      console.log('Compressing audio...');
-      const compressedUri = await compressAudio(uri);
-      console.log('Audio compressed. New URI:', compressedUri);
-  
+      const compressedUri = await compressAudio(uri);  
       const voiceNoteId = generateUUID();
       const title = `Recording ${voiceNotes.length + 1}`;
       const createdDate = getCurrentDate();
       const size = await getFileSize(compressedUri);
       const location = await getLocation();
   
+
+      //You might want to add cloud uri depending on if you want to replace the uri or add both
       const voiceNote = {
         voiceNoteId,
         title,
@@ -169,12 +184,7 @@ export default function RecordScreen() {
       const updatedVoiceNotes = [voiceNote, ...voiceNotes];
       setVoiceNotes(updatedVoiceNotes);
       await saveVoiceNotesToLocal(updatedVoiceNotes);
-  
-      const userId = auth.currentUser?.uid;
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-  
+      
       // Start upload and transcription in the background
       startUploadAndTranscription(compressedUri, voiceNoteId, userId, voiceNote);
   

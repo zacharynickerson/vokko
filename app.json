@@ -24,7 +24,8 @@
         "NSMicrophoneUsageDescription": "This app uses the microphone to record audio for transcription.",
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text.",
         "NSPhotoLibraryUsageDescription": "Vokko needs access to your photo library to allow file system operations and to choose and upload photos within the app.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": ["audio"],
+        "NSCameraUsageDescription": "Camera permission description"
       }
     },
     "android": {
@@ -43,6 +44,8 @@
     },
     "plugins": [
       "@react-native-firebase/app",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
       [
         "expo-build-properties",
         {
