@@ -5,6 +5,8 @@ import { Audio } from 'expo-av';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import Playback from "../components/playback.js";
 import EmojiSelector from 'react-native-emoji-selector';
+import { getCurrentDate, formatDateForDisplay } from '../utilities/helpers';
+import { useNavigation } from '@react-navigation/native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
@@ -124,6 +126,8 @@ export default function VoiceNoteDetails({ route, navigation }) {
 
     return unsubscribe;
   }, [navigation]);
+
+
 
 
   // Load transcript from Firebase Realtime Database
@@ -276,17 +280,23 @@ export default function VoiceNoteDetails({ route, navigation }) {
           text: "Delete", 
           onPress: async () => {
             try {
+              console.log('Starting deletion process for voiceNoteId:', voiceNote.title);
+  
               // 1. Delete from local storage
+              console.log('Fetching existing voice notes from local storage');
               const existingVoiceNotes = await getVoiceNotesFromLocal();
+  
               const updatedVoiceNotes = existingVoiceNotes.filter(
                 note => note.voiceNoteId !== voiceNoteId
               );
+  
               await saveVoiceNotesToLocal(updatedVoiceNotes);
+              console.log('Updated voice notes saved to local storage');
   
               // 2. Delete from Firebase Storage
               const audioRef = storageRef(storage, `users/${auth.currentUser.uid}/voiceNotes/${voiceNoteId}`);
               try {
-                // Check if the file exists before attempting to delete
+                console.log('Attempting to delete from Firebase Storage');
                 await getMetadata(audioRef);
                 await deleteObject(audioRef);
                 console.log('Audio file deleted from Firebase Storage');
@@ -294,16 +304,19 @@ export default function VoiceNoteDetails({ route, navigation }) {
                 if (storageError.code === 'storage/object-not-found') {
                   console.log('Audio file not found in Firebase Storage, skipping deletion');
                 } else {
+                  console.error('Error deleting from Firebase Storage:', storageError);
                   throw storageError;
                 }
               }
   
               // 3. Delete from Firebase Realtime Database
+              console.log('Deleting from Firebase Realtime Database');
               const voiceNoteDbRef = dbRef(db, `users/${auth.currentUser.uid}/voiceNotes/${voiceNoteId}`);
               await remove(voiceNoteDbRef);
+              console.log('Deleted from Firebase Realtime Database');
   
               console.log('Voice note deleted successfully');
-              navigation.goBack();
+              navigation.navigate('LibraryScreen', { refresh: true });
             } catch (error) {
               console.error('Error deleting voice note:', error);
               Alert.alert('Error', 'Failed to delete the voice note. Please try again.');
@@ -433,7 +446,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
             />
     
           <Text style={styles.dateLocation}>
-            {voiceNote.createdDate} • {voiceNote.location}
+            {formatDateForDisplay(voiceNote.createdDate)}• {voiceNote.location}
           </Text>
         </View>
       </View>

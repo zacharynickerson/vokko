@@ -8,6 +8,9 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { voiceNoteSync } from './src/utilities/VoiceNoteSync';
 import { auth } from './config/firebase';
+import { registerGlobals } from '@livekit/react-native';
+
+registerGlobals();
 
 export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);

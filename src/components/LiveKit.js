@@ -17,12 +17,14 @@ import {
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
 
+registerGlobals();
+
 // !! Note !!
 // This sample hardcodes a token which expires in 2 hours.
 const wsURL = "wss://vokko-br0jpzwx.livekit.cloud"
-const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MjQ5MDc1MDQsImlzcyI6IkFQSVZwbllrZlpZS1U5RCIsIm5iZiI6MTcyNDkwMDMwNCwic3ViIjoicXVpY2tzdGFydCB1c2VyIG9lNTN6ZSIsInZpZGVvIjp7ImNhblB1Ymxpc2giOnRydWUsImNhblB1Ymxpc2hEYXRhIjp0cnVlLCJjYW5TdWJzY3JpYmUiOnRydWUsInJvb20iOiJxdWlja3N0YXJ0IHJvb20iLCJyb29tSm9pbiI6dHJ1ZX19.41ykKJo1T8CkCN6Z9PhiL-_NNDtWGPVlxy_b9ihPqGA"
+const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MjYwMjQ3ODcsImlzcyI6IkFQSVZwbllrZlpZS1U5RCIsIm5iZiI6MTcyNjAxNzU4Nywic3ViIjoicXVpY2tzdGFydCB1c2VyIDk1cXV4ayIsInZpZGVvIjp7ImNhblB1Ymxpc2giOnRydWUsImNhblB1Ymxpc2hEYXRhIjp0cnVlLCJjYW5TdWJzY3JpYmUiOnRydWUsInJvb20iOiJxdWlja3N0YXJ0IHJvb20iLCJyb29tSm9pbiI6dHJ1ZX19.xSs-LSZ9YcHMjA-7O6WOVB6FceAwpFDYCSjH1yo_eSA"
 
-export default function LiveKit() {
+export default function App() {
   // Start the audio session first.
   useEffect(() => {
     let start = async () => {
@@ -49,6 +51,29 @@ export default function LiveKit() {
     >
       <RoomView />
     </LiveKitRoom>
+  );
+};
+
+const RoomView = () => {
+  // Get all camera tracks.
+  const tracks = useTracks([Track.Source.Camera]);
+
+  const renderTrack: ListRenderItem<TrackReferenceOrPlaceholder> = ({item}) => {
+    // Render using the VideoTrack component.
+    if(isTrackReference(item)) {
+      return (<VideoTrack trackRef={item} style={styles.participantView} />)
+    } else {
+      return (<View style={styles.participantView} />)
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={tracks}
+        renderItem={renderTrack}
+      />
+    </View>
   );
 };
 
