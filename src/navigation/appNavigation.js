@@ -12,6 +12,7 @@ import SignUpScreen from '../screens/SignUpScreen';
 import VoiceNoteDetails from '../screens/VoiceNoteDetails';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import useAuth from '../../hooks/useAuth';
+import GuidedSession from '../screens/GuidedSession';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -35,6 +36,7 @@ function LibraryStack() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="LibraryScreen" component={LibraryScreen} />
             <Stack.Screen name="VoiceNoteDetails" component={VoiceNoteDetails} />
+            <Stack.Screen name="GuidedSession" component={GuidedSession} />
         </Stack.Navigator>
     );
 }

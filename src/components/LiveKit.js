@@ -4,6 +4,7 @@ import {
   View,
   FlatList,
   ListRenderItem,
+  Text,
 } from 'react-native';
 import { useEffect } from 'react';
 import {
@@ -19,12 +20,8 @@ import { Track } from 'livekit-client';
 
 registerGlobals();
 
-// !! Note !!
-// This sample hardcodes a token which expires in 2 hours.
-const wsURL = "wss://vokko-br0jpzwx.livekit.cloud"
-const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MjYwMjQ3ODcsImlzcyI6IkFQSVZwbllrZlpZS1U5RCIsIm5iZiI6MTcyNjAxNzU4Nywic3ViIjoicXVpY2tzdGFydCB1c2VyIDk1cXV4ayIsInZpZGVvIjp7ImNhblB1Ymxpc2giOnRydWUsImNhblB1Ymxpc2hEYXRhIjp0cnVlLCJjYW5TdWJzY3JpYmUiOnRydWUsInJvb20iOiJxdWlja3N0YXJ0IHJvb20iLCJyb29tSm9pbiI6dHJ1ZX19.xSs-LSZ9YcHMjA-7O6WOVB6FceAwpFDYCSjH1yo_eSA"
 
-export default function App() {
+export default function LiveKit({ wsURL, token }) {
   // Start the audio session first.
   useEffect(() => {
     let start = async () => {
@@ -36,6 +33,10 @@ export default function App() {
       AudioSession.stopAudioSession();
     };
   }, []);
+
+  // if (!wsURL || !token) {
+  //   return <Text>Error: Missing LiveKit configuration</Text>;
+  // }
 
   return (
     <LiveKitRoom
@@ -58,7 +59,7 @@ const RoomView = () => {
   // Get all camera tracks.
   const tracks = useTracks([Track.Source.Camera]);
 
-  const renderTrack: ListRenderItem<TrackReferenceOrPlaceholder> = ({item}) => {
+  const renderTrack = ({item}) => {
     // Render using the VideoTrack component.
     if(isTrackReference(item)) {
       return (<VideoTrack trackRef={item} style={styles.participantView} />)
@@ -72,6 +73,7 @@ const RoomView = () => {
       <FlatList
         data={tracks}
         renderItem={renderTrack}
+        keyExtractor={(item) => item.sid}
       />
     </View>
   );

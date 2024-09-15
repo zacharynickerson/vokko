@@ -15,6 +15,12 @@ export default function LibraryScreen() {
   const route = useRoute();
   const [userName, setUserName] = useState('');
 
+
+  const navigateToGuidedSession = () => {
+    navigation.navigate('GuidedSession');
+  };
+
+
   const fetchVoiceNotes = useCallback(async () => {
     const userId = auth.currentUser?.uid;
     if (!userId) {
@@ -96,7 +102,9 @@ export default function LibraryScreen() {
         <Text style={styles.greeting}>
           {userName ? `Hello ${userName}` : 'Hello'}
         </Text>
-        <Text style={styles.title}>Voice Notes</Text>
+        <TouchableOpacity onPress={navigateToGuidedSession}>
+          <Text style={styles.title}>Voice Notes</Text>
+        </TouchableOpacity>      
       </View>
       <FlatList
         data={voiceNotes.filter(note => note && note.uri)}
