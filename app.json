@@ -25,7 +25,10 @@
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text.",
         "NSPhotoLibraryUsageDescription": "Vokko needs access to your photo library to allow file system operations and to choose and upload photos within the app.",
         "UIBackgroundModes": ["audio"],
-        "NSCameraUsageDescription": "Camera permission description"
+        "NSCameraUsageDescription": "Camera permission description",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "android": {
