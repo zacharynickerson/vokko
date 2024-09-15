@@ -14,15 +14,27 @@ import {
 registerGlobals();
 
 const GuidedSession = () => {
+
   const [token, setToken] = useState(null);
   const [url, setUrl] = useState(null);
   const [roomName, setRoomName] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [isTalking, setIsTalking] = useState(false);
+
 
   useEffect(() => {
     const start = async () => {
       await AudioSession.startAudioSession();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        interruptionModeIOS: 1,
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: 1,
+        playThroughEarpieceAndroid: false,
+      });
     };
     start();
     return () => {
