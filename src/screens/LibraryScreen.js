@@ -7,6 +7,7 @@ import { auth, db } from '../../config/firebase';
 import { ref, onValue, off } from 'firebase/database';
 import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage';
 import { formatDateForDisplay } from '../utilities/helpers';
+import { Entypo } from '@expo/vector-icons'; // Add this import
 
 export default function LibraryScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
@@ -16,9 +17,11 @@ export default function LibraryScreen() {
   const [userName, setUserName] = useState('');
 
 
-  const navigateToGuidedSession = () => {
-    navigation.navigate('GuidedSession');
+  const navigateToSettings = () => {
+    navigation.navigate('SettingsScreen');
   };
+
+
 
 
   const fetchVoiceNotes = useCallback(async () => {
@@ -98,13 +101,14 @@ export default function LibraryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>
-          {userName ? `Hello ${userName}` : 'Hello'}
-        </Text>
-        <TouchableOpacity onPress={navigateToGuidedSession}>
-          <Text style={styles.title}>Voice Notes</Text>
-        </TouchableOpacity>      
+      <View style={styles.header}>       
+       <View style={styles.titleContainer}>
+       <Text style={styles.greeting}>{userName ? `Hello ${userName}` : 'Hello'} </Text>
+        <TouchableOpacity onPress={navigateToSettings}>
+          <Entypo name="cog" size={24} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+        <Text style={styles.title}>Voice Notes</Text>
       </View>
       <FlatList
         data={voiceNotes.filter(note => note && note.uri)}
@@ -179,6 +183,11 @@ const styles = StyleSheet.create({
     fontSize: wp(3.5),
     color: '#888',
     marginTop: 4,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });
 
