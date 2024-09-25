@@ -37,6 +37,7 @@ function LibraryStack() {
             <Stack.Screen name="LibraryScreen" component={LibraryScreen} />
             <Stack.Screen name="VoiceNoteDetails" component={VoiceNoteDetails} />
             <Stack.Screen name="GuidedSession" component={GuidedSession} />
+            <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         </Stack.Navigator>
     );
 }
@@ -78,18 +79,19 @@ function TabNavigator() {
                     tabBarStyle: { backgroundColor: "#1F222A" },
                 }}
             />
-            <Tab.Screen
-                name="Settings"
-                component={SettingsScreen}
+             <Tab.Screen
+                name="GuidedSession"
+                component={GuidedSession}
                 options={{
                     tabBarIcon: ({ focused }) => (
                         <View style={{ alignItems: "center", justifyContent: "center" }}>
-                            <Entypo name="cog" size={24} color={focused ? "#FFF" : "#8B8B8B"} />
+                            <Entypo name="chat" size={24} color={focused ? "#FFF" : "#8B8B8B"} />
                         </View>
                     ),
                     tabBarStyle: { backgroundColor: "#1F222A" },
                 }}
             />
+
         </Tab.Navigator>
     );
 }
@@ -138,3 +140,16 @@ export default function AppNavigation() {
     );
 }
 
+
+            /* <Tab.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{
+                    tabBarIcon: ({ focused }) => (
+                        <View style={{ alignItems: "center", justifyContent: "center" }}>
+                            <Entypo name="cog" size={24} color={focused ? "#FFF" : "#8B8B8B"} />
+                        </View>
+                    ),
+                    tabBarStyle: { backgroundColor: "#1F222A" },
+                }}
+            /> */

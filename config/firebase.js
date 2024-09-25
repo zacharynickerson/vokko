@@ -112,7 +112,31 @@ export const saveToFirebaseDatabase = async (userId, voiceNote) => {
   }
 };
 
+// Function to save conversation to Firebase Realtime Database
+// export const saveConversationToFirebase = async (roomName, messages) => {
+//   try {
+//     const user = auth.currentUser;
+//     if (!user) {
+//       throw new Error('User is not authenticated');
+//     }
+
+//     const conversationData = {
+//       userId: user.uid,
+//       roomName: roomName,
+//       messages: messages,
+//       timestamp: new Date().toISOString()
+//     };
+
+//     const databaseRef = ref(db, `conversations/${roomName}`);
+//     await set(databaseRef, conversationData);
+
+//     console.log('Conversation saved to Firebase Realtime Database');
+//   } catch (error) {
+//     console.error('Error saving conversation to Firebase:', error);
+//     throw error;
+//   }
+// };
 
 
 // Export necessary Firebase instances and functions
-export { db, storage, functions, httpsCallable, saveToFirebaseStorage };
+export { db, storage, functions, httpsCallable };
