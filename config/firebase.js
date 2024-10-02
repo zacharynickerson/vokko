@@ -1,11 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getDatabase, ref, set } from 'firebase/database';
+import { getDatabase, ref, set, get, push, update, query, orderByChild } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getFunctions, httpsCallable } from 'firebase/functions'; // Add this line
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
-
 
 const firebaseConfig = {
   apiKey: "AIzaSyBVWVsTVx5i9TtQCgwgobQA-Q4Ik_oWO14",
@@ -18,125 +16,134 @@ const firebaseConfig = {
   measurementId: "G-8M4V4D26CG"
 };
 
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const storage = getStorage(app);
-const functions = getFunctions(app); // Add this line
-
-// Helper function to call Cloud Functions
-const callFunction = (name, data) => {
-  const func = httpsCallable(functions, name);
-  return func(data);
-};
-
+export const db = getDatabase(app);
+export const storage = getStorage(app);
+export const functions = getFunctions(app);
 
 // Initialize Firebase Authentication
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
-// Initialize Firebase Authentication
-// export const FIREBASE_AUTH = initializeAuth(app, {
-//   persistence: getReactNativePersistence(AsyncStorage),
-// });
 
-// // Get Firebase Authentication instance
-// export const auth = getAuth(app, {
-//   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
-// });
+// Helper function to call Cloud Functions
+export const callFunction = (name, data) => {
+  const func = httpsCallable(functions, name);
+  return func(data);
+};
 
-
-// Function to upload audio file to Firebase Storage
-const saveToFirebaseStorage = async (uri, voiceNoteId) => {
-  try {
-    // Ensure user is authenticated
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User is not authenticated');
+// User operations
+export const createUser = async (userId, userData) => {
+  const userRef = ref(db, `users/${userId}`);
+  await set(userRef, {
+    ...userData,
+    createdAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(), // Added lastLoginAt
+    settings: {
+      notifications: true,
     }
-    // Fetch the audio file as a blob
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    
+  });
+};
 
-    // Use voiceNoteId as the filename
-    const filename = `${voiceNoteId}.m4a`; // or any other extension
+export const updateUser = async (userId, updates) => {
+  const userRef = ref(db, `users/${userId}`);
+  await update(userRef, updates);
+};
 
-    // Get user's UID
-    const userId = user.uid;
+// Voice Note operations
+export const createVoiceNote = async (userId, voiceNoteData) => {
+  const voiceNotesRef = ref(db, `voiceNotes/${userId}`);
+  const newVoiceNoteRef = push(voiceNotesRef);
+  const voiceNoteId = newVoiceNoteRef.key;
 
-    // Get a reference to the storage location (adjust the path as needed)
-    const audioStorageRef = storageRef(storage, `users/${userId}/voiceNotes/${filename}`);
+  await set(newVoiceNoteRef, {
+    ...voiceNoteData,
+    voiceNoteId, // Ensure voiceNoteId is stored
+    createdDate: new Date().toISOString(),
+  });
 
-    // Upload the blob to Firebase Storage
-    await uploadBytes(audioStorageRef, blob);
+  return voiceNoteId;
+};
 
-    // Log the upload success and get the download URL
-    console.log('Officially done uploading to Firebase Storage!');
+export const getVoiceNotes = async (userId) => {
+  const voiceNotesRef = ref(db, `voiceNotes/${userId}`);
+  const snapshot = await get(voiceNotesRef);
+  return snapshot.val();
+};
 
-    const downloadURL = await getDownloadURL(audioStorageRef);
+export const updateVoiceNote = async (userId, voiceNoteId, updates) => {
+  const voiceNoteRef = ref(db, `voiceNotes/${userId}/${voiceNoteId}`);
+  await update(voiceNoteRef, updates);
+};
 
-    console.log('Download URL:', downloadURL);
+// Module operations
+export const getModule = async (moduleId) => {
+  const moduleRef = ref(db, `modules/${moduleId}`);
+  const snapshot = await get(moduleRef);
+  return snapshot.val();
+};
 
-    // Return the download URL or any other relevant information
-    return downloadURL;
+export const getModules = async () => {
+  const modulesRef = ref(db, 'modules');
+  const snapshot = await get(modulesRef);
+  const modules = {};
+  snapshot.forEach((childSnapshot) => {
+    modules[childSnapshot.key] = {
+      id: childSnapshot.key,
+      ...childSnapshot.val()
+    };
+  });
+  return modules;
+};
+
+// Coach operations
+export const getCoach = async (coachId) => {
+  const coachRef = ref(db, `coaches/${coachId}`);
+  const snapshot = await get(coachRef);
+  return snapshot.val();
+};
+
+export const getCoaches = async () => {
+  const coachesRef = ref(db, 'coaches');
+  const snapshot = await get(coachesRef);
+  return snapshot.val();
+};
+
+export const getModuleWithCoach = async (moduleId) => {
+  try {
+    const module = await getModule(moduleId);
+    if (module && module.coachId) {
+      const coach = await getCoach(module.coachId);
+      return { ...module, id: moduleId, coach: { ...coach, id: module.coachId } };
+    }
+    console.error('Module or coachId not found', { moduleId, module });
+    return null;
   } catch (error) {
-    console.error('Error uploading audio file:', error);
-    throw error; // Rethrow the error for handling in the calling function
+    console.error('Error in getModuleWithCoach:', error);
+    return null;
   }
 };
 
-
-
-// Function to save the voice note data to Firebase Realtime Database
-export const saveToFirebaseDatabase = async (userId, voiceNote) => {
+// Function to upload audio file to Firebase Storage
+export const saveToFirebaseStorage = async (uri, voiceNoteId) => {
   try {
     const user = auth.currentUser;
-    if (!user) {
-      throw new Error('User is not authenticated');
-    }
+    if (!user) throw new Error('User is not authenticated');
+    
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    
+    const filename = `${voiceNoteId}.m4a`; // Ensure filename matches voiceNoteId
+    const audioStorageRef = storageRef(storage, `users/${user.uid}/voiceNotes/${filename}`);
 
-    // Remove any properties with undefined values
-    const cleanVoiceNote = Object.fromEntries(
-      Object.entries(voiceNote).filter(([_, v]) => v !== undefined)
-    );
-
-    const databaseRef = ref(db, `users/${userId}/voiceNotes/${voiceNote.voiceNoteId}`);
-    await set(databaseRef, cleanVoiceNote);
-
-    console.log('Data saved to Firebase Realtime Database');
+    await uploadBytes(audioStorageRef, blob);
+    return await getDownloadURL(audioStorageRef);
   } catch (error) {
-    console.error('Error saving data to Firebase:', error);
+    console.error('Error uploading audio file:', error);
     throw error;
   }
 };
 
-// Function to save conversation to Firebase Realtime Database
-// export const saveConversationToFirebase = async (roomName, messages) => {
-//   try {
-//     const user = auth.currentUser;
-//     if (!user) {
-//       throw new Error('User is not authenticated');
-//     }
-
-//     const conversationData = {
-//       userId: user.uid,
-//       roomName: roomName,
-//       messages: messages,
-//       timestamp: new Date().toISOString()
-//     };
-
-//     const databaseRef = ref(db, `conversations/${roomName}`);
-//     await set(databaseRef, conversationData);
-
-//     console.log('Conversation saved to Firebase Realtime Database');
-//   } catch (error) {
-//     console.error('Error saving conversation to Firebase:', error);
-//     throw error;
-//   }
-// };
-
-
 // Export necessary Firebase instances and functions
-export { db, storage, functions, httpsCallable };
+export { httpsCallable };

@@ -1,7 +1,8 @@
 import { generateUUID, getFileSize, getLocation, getCurrentDate } from './helpers';
-import { saveVoiceNotesToLocal } from './voiceNoteLocalStorage';
-import { compressAudio } from './audioCompression';
+// import { saveVoiceNotesToLocal } from './voiceNoteLocalStorage';
 import { startBackgroundUpload } from './backgroundUpload';
+import { createVoiceNote } from '../../config/firebase'; // Import the new Firebase function
+
 
 export const processVoiceNote = async (uri, voiceNotes, userId) => {
   try {
@@ -11,33 +12,33 @@ export const processVoiceNote = async (uri, voiceNotes, userId) => {
     const createdDate = getCurrentDate();
     const location = await getLocation();
 
-    // Compress the audio
-    const compressedUri = await compressAudio(uri);
-    const size = await getFileSize(compressedUri);
 
     const voiceNote = {
       voiceNoteId,
+      type: 'solo', // or 'guided' based on your logic
       title,
-      uri: compressedUri, // Use the compressed URI for now
-      createdDate,
-      size,
       location,
-      transcript: 'Transcription pending',
+      audioFileSize: await getFileSize(uri),
+      audioFileUri: uri,
+      createdDate,
       transcriptionStatus: 'pending',
       summary: '',
-      taskArray: []
     };
 
-    // Start background upload
-    await startBackgroundUpload(compressedUri, `${voiceNoteId}.m4a`, userId, voiceNote);
 
-    const updatedVoiceNotes = [voiceNote, ...voiceNotes];
-    await saveVoiceNotesToLocal(updatedVoiceNotes);
+   // Create voice note in Firebase
+   await createVoiceNote(userId, voiceNote);
 
-    console.log('Voice note processed and queued for upload');
-    return { voiceNote, updatedVoiceNotes };
-  } catch (error) {
-    console.error('Error processing voice note:', error);
-    throw error;
-  }
+   // Start background upload
+   await startBackgroundUpload(uri, voiceNoteId, userId, voiceNote);
+
+   const updatedVoiceNotes = [voiceNote, ...voiceNotes];
+  //  await saveVoiceNotesToLocal(updatedVoiceNotes);
+
+   console.log('Voice note processed and queued for upload');
+   return { voiceNote, updatedVoiceNotes };
+ } catch (error) {
+   console.error('Error processing voice note:', error);
+   throw error;
+ }
 };

@@ -1,15 +1,56 @@
 import asyncio
 import logging
-import os
-from dotenv import load_dotenv
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, stt
+
+from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, tts, stt, tokenize
 from livekit.agents.voice_assistant import VoiceAssistant
 from livekit.plugins import deepgram, openai, silero
-from livekit import rtc
-from datetime import datetime
+
+import os
+from dotenv import load_dotenv
 import firebase_admin
-from firebase_admin import firestore
-from firebase_admin import db  # Ensure you have initialized Firebase Admin SDK
+from firebase_admin import credentials, firestore, db
+import colorlog
+
+# ============================
+# Initialize Firebase
+# ============================
+cred = credentials.Certificate("/Users/zacharynickerson/Desktop/vokko/config/vokko-f8f6a-firebase-adminsdk-8f7lc-a5c3daf9b9.json")
+firebase_admin.initialize_app(cred, {
+    'databaseURL': 'https://vokko-f8f6a-default-rtdb.europe-west1.firebasedatabase.app'
+})
+
+# ============================
+# Firebase Functions
+# ============================
+def get_module(module_id):
+    return db.reference(f'modules/{module_id}').get()
+
+def get_coach(coach_id):
+    coach = db.reference(f'coaches/{coach_id}').get()
+    if coach and 'voice' in coach:
+        openai_voices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+        coach['voice'] = coach['voice'] if coach['voice'] in openai_voices else 'alloy'
+    return coach
+
+def save_conversation_to_firebase(conversation_entry, user_id, session_id, question_index):
+    try:
+        session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}/conversation/q{question_index + 1}')
+        session_ref.set(conversation_entry)
+        logger.info(f"Conversation entry saved to Firebase: {conversation_entry}")
+    except Exception as e:
+        logger.error(f"Error saving conversation to Firebase: {str(e)}")
+
+def save_summary_to_firebase(summary, user_id, session_id):
+    try:
+        session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}')
+        session_ref.update({
+            'summary': summary,
+            'completed_at': {'.sv': 'timestamp'}
+        })
+        logger.info(f"Summary saved to Firebase: {summary}")
+    except Exception as e:
+        logger.error(f"Error saving summary to Firebase: {str(e)}")
+
 
 # ============================
 # Load Environment Variables
@@ -25,96 +66,97 @@ openai_api_key = os.getenv('OPENAI_API_KEY')
 # ============================
 # Logger Initialization
 # ============================
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)  # Add this line to initialize the logger
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Corrected 'levellevel' to 'levelname'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    log_colors={
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'bold_red',
+    }
+))
+logging.basicConfig(level=logging.INFO, handlers=[handler])
+logger = logging.getLogger(__name__)
 
-# ============================
-# Session Prompts
-# ============================
-SESSION_PROMPTS = {
-    "daily_standup": [
-        "What will you do today?",
-        "Anything else?"
-        # "Given what we've discussed, how would you prioritize your tasks for today?",
-        # "Before we wrap up, is there anything else you'd like to address to ensure a productive day?"
-    ],
-    "goal_setting": [
-        "Let's begin by reviewing your existing goals. Can you tell me about your progress on them?",
-        "What potential obstacles do you foresee in achieving these goals, and how might you overcome them?",
-        "Before we wrap up, is there anything else you'd like to address to ensure a productive day?"
-    ],
-}
+async def wait_for_user_input(assistant):
+    response = ""
+    response_received = asyncio.Event()
 
-# ============================
-# Function to Conduct Interactive Session
-# ============================
-async def conduct_interactive_session(assistant, session_type):
-    global conversation_messages
-    questions = SESSION_PROMPTS[session_type]
+    def on_user_speech_committed(message):
+        nonlocal response
+        # Assuming the content is stored in a 'content' attribute
+        # If it's different, replace 'content' with the correct attribute name
+        response = message.content
+        response_received.set()
+
+    assistant.on("user_speech_committed", on_user_speech_committed)
     
-    for question in questions:
-        # AI asks a question
-        print(f"AI: {question}")
-        logger.info(f"AI: {question}")
+    try:
+        await response_received.wait()
+    finally:
+        assistant.off("user_speech_committed", on_user_speech_committed)
+
+    return response
+
+async def conduct_interactive_session(assistant, module, user_id, session_id):
+    conversation_messages = []
+
+    for idx, question in enumerate(module['questions']):
         await assistant.say(question, allow_interruptions=True)
         conversation_messages.append(("AI", question))
-        
-        # Wait for user response
-        print("Waiting for user response...")
+
         logger.info("Waiting for user response...")
-        response = await assistant.listen()
+        response = await wait_for_user_input(assistant)
+        
         print(f"User: {response}")
         logger.info(f"User: {response}")
         conversation_messages.append(("User", response))
         
-        # Save conversation to Firebase
-        save_conversation_to_firebase(session_type, question, response)  # <-- Called here
-
-        # Generate AI follow-up
-        print("Generating AI follow-up...")
-        logger.info("Generating AI follow-up...")
-        follow_up = await assistant.llm.complete(
-            llm.ChatContext().append(
-                role="system",
-                text=f"You are an AI life coach named Vokko. The user has just responded to this question: {question}\n"
-                     f"Their response was: {response}\n"
-                     f"Provide a brief, supportive comment on their response and, if appropriate, ask a follow-up question to dig deeper."
-            )
-        )
-        
-        print(f"AI: {follow_up}")
-        logger.info(f"AI: {follow_up}")
-        await assistant.say(follow_up, allow_interruptions=True)
-        conversation_messages.append(("AI", follow_up))
-        
-        await asyncio.sleep(1)
-
-def save_conversation_to_firebase(session_type, question, response):
-    # Save to Firebase logic
-    try:
-        ref = db.reference(f'conversations/{session_type}')
-        conversation_data = {
+        conversation_entry = {
             'question': question,
-            'response': response,
-            'timestamp': firebase_admin.firestore.SERVER_TIMESTAMP  # Use server timestamp
+            'answer': response,
         }
-        ref.push(conversation_data)  # Use push to create a unique key for each message
-    except Exception as e:
-        logger.error(f"Error saving conversation to Firebase: {str(e)}")
 
-# ============================
-# Entry Point for the Agent
-# ============================
+        conversation_messages.append(conversation_entry)
+        logger.info("Saving conversation to Firebase")
+
+        save_conversation_to_firebase(conversation_entry, user_id, session_id, idx)
+
+
+
+# =================================
+# Entrypoint for the Worker
+# =================================
 async def entrypoint(ctx: JobContext):
-    global conversation_messages, session_type
+    logger.info(f"New session started with room name: {ctx.room.name}")
+
+    # Extract module_id and coach_id from the room name
+    room_name_parts = ctx.room.name.split('_')
+    if len(room_name_parts) != 4:
+        logger.error(f"Invalid room name format: {ctx.room.name}")
+        raise ValueError("Invalid room name format")
+    
+    user_id, module_id, coach_id, session_id = room_name_parts
+
+    module = get_module(module_id)
+    coach = get_coach(coach_id)
+
+    if not module or not coach:
+        logger.error(f"Invalid Module ID ({module_id}) or Coach ID ({coach_id})")
+        raise ValueError("Invalid Module ID or Coach ID")
 
     initial_ctx = llm.ChatContext().append(
         role="system",
         text=(
-            "You are an AI life coach named Vohko. Your role is to guide users through various personal development sessions. "
-            "Approach each conversation with empathy, wisdom, and a focus on helping the user achieve their goals. "
+            f"You are a therapist named {coach['name']}. "
+            f"Your role is to guide users through the '{module['name']}' module. "
+            # "Approach each conversation with empathy, wisdom, and a focus on helping the user achieve their goals. "
             "Ask one question at a time, listen to the response, and provide very short but supportive feedback before moving to the next question. "
-            "End the session by reviewing the main takeaways and next steps."
+            # "if there are no more questions, end the session by saying COWABUNGA!"
+            # "End the session by reviewing the main takeaways and next steps."
         ),
     )
 
@@ -126,82 +168,26 @@ async def entrypoint(ctx: JobContext):
         vad=silero.VAD.load(),
         stt=deepgram.STT(),
         llm=openai.LLM(),
-        tts=openai.TTS(),
+        tts=openai.TTS(voice=coach['voice']),
         chat_ctx=initial_ctx,
     )
 
     # Start the voice assistant with the LiveKit room
     assistant.start(ctx.room)
 
-    logger.info("Starting the guided session.")
-    await assistant.say("Hey, welcome to a new guided session with Vohko.", allow_interruptions=True)
-    conversation_messages.append(("AI", "Hey, welcome to a new guided session with Vohko."))
-    logger.info("AI: Hey, welcome to a new guided session with Vohko.")
+    # logger.info(f"Starting the {module['name']} session with {coach['name']}.")
+    welcome_message = f"Welcome to your {module['name']} session. I'm {coach['name']}, and I'll be your guide today."
+    await assistant.say(welcome_message, allow_interruptions=True)
 
-    session_type = await get_session_type(assistant)
-    logger.info(f"Session type selected: {session_type}")
-
-    if session_type in SESSION_PROMPTS:
-        await conduct_interactive_session(assistant, session_type)
-    else:
-        await assistant.say("I'm sorry, I didn't understand the session type. Let's proceed with a general guided session.", allow_interruptions=True)
-        conversation_messages.append(("AI", "I'm sorry, I didn't understand the session type. Let's proceed with a general guided session."))
-        logger.info("AI: I'm sorry, I didn't understand the session type. Let's proceed with a general guided session.")
+    await conduct_interactive_session(assistant, module, user_id, session_id)
+    goodbye_message = f"Great job doing today's {module['name']} session!"
 
     # Wrap up the session
-    await assistant.say("We've come to the end of our session. Let's quickly review the main points and action steps we've discussed.", allow_interruptions=True)
-    conversation_messages.append(("AI", "We've come to the end of our session. Let's quickly review the main points and action steps we've discussed."))
-    logger.info("AI: We've come to the end of our session. Let's quickly review the main points and action steps we've discussed.")
+    await assistant.say(goodbye_message, allow_interruptions=False)
 
 
 # ============================
-# Function to Get Session Type
-# ============================
-async def get_session_type(assistant: VoiceAssistant):
-    await assistant.say("What type of session would you like to have today? Options include Daily Morning Standup or Goal Setting and Review", allow_interruptions=True)
-    conversation_messages.append(("AI", "What type of session would you like to have today? Options include Daily Morning Standup or Goal Setting and Review"))
-    
-    user_input = await wait_for_user_input(assistant)
-    logger.info(f"Human: {conversation_messages}")
-
-    conversation_messages.append(("User", user_input))
-    
-    if "daily" in user_input.lower() or "standup" in user_input.lower():
-        return "daily_standup"
-    elif "goal" in user_input.lower():
-        return "goal_setting"
-    else:
-        return None
-
-# ============================
-# Function to Wait for User Input
-# ============================
-async def wait_for_user_input(assistant: VoiceAssistant):
-    while True:
-        await asyncio.sleep(0.1)  # Small delay to prevent busy waiting
-        if assistant._human_input and assistant._human_input._events:
-            for event in assistant._human_input._events:
-                if isinstance(event, stt.SpeechEvent) and event.is_final:
-                    assistant._human_input._events.clear()  # Clear the events after processing
-                    return event.alternatives[0].text
-    return ""
-
-# ============================
-# Function to Handle End Call
-# ============================
-
-async def handle_end_call(assistant: VoiceAssistant):
-    await assistant.room.disconnect()  # Ensure the room disconnects gracefully
-
-# ============================
-# Initialize the Worker with the Entry Point
+# Main       
 # ============================
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
-
-# ============================
-# Command to Run the Application
-# ============================
-# cd livekitt
-# cd venv
-# python3 main.py dev

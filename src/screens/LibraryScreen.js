@@ -5,7 +5,7 @@ import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-nat
 import { FlatList } from 'react-native-gesture-handler';
 import { auth, db } from '../../config/firebase';
 import { ref, onValue, off } from 'firebase/database';
-import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage';
+// import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage'; // Commented out
 import { formatDateForDisplay } from '../utilities/helpers';
 import { Entypo } from '@expo/vector-icons'; // Add this import
 
@@ -16,13 +16,9 @@ export default function LibraryScreen() {
   const route = useRoute();
   const [userName, setUserName] = useState('');
 
-
   const navigateToSettings = () => {
     navigation.navigate('SettingsScreen');
   };
-
-
-
 
   const fetchVoiceNotes = useCallback(async () => {
     const userId = auth.currentUser?.uid;
@@ -31,22 +27,25 @@ export default function LibraryScreen() {
       return;
     }
 
-    const voiceNotesRef = ref(db, `/users/${userId}/voiceNotes`);
-    
+    const voiceNotesRef = ref(db, `/voiceNotes/${userId}`); // Updated path
+
     const onDataChange = async (snapshot) => {
       try {
         setLoading(true);
         let firebaseNotes = [];
         if (snapshot.exists()) {
-          firebaseNotes = Object.values(snapshot.val());
+          firebaseNotes = Object.values(snapshot.val()).map(note => {
+            return {
+              ...note,
+              voiceNoteId: note.voiceNoteId || extractVoiceNoteIdFromUri(note.audioFileUri)
+            };
+          }).filter(note => note !== null);
         }
-        
-        const localNotes = await getVoiceNotesFromLocal();
-        
-        const mergedNotes = mergeAndSortNotes(localNotes, firebaseNotes);
-        
-        await saveVoiceNotesToLocal(mergedNotes);
-        setVoiceNotes(mergedNotes);
+
+        // Sort notes chronologically
+        const sortedNotes = sortNotesChronologically(firebaseNotes);
+
+        setVoiceNotes(sortedNotes); // Use sortedNotes directly
       } catch (error) {
         console.error('Error processing voice notes:', error);
         Alert.alert('Error', 'Failed to load voice notes. Please try again.');
@@ -78,25 +77,40 @@ export default function LibraryScreen() {
     fetchVoiceNotes();
   }, [fetchVoiceNotes]);
 
-  const mergeAndSortNotes = (localNotes, firebaseNotes) => {
-    const mergedNotes = [...localNotes, ...firebaseNotes].reduce((acc, note) => {
-      const existingNote = acc.find(n => n.voiceNoteId === note.voiceNoteId);
-      if (!existingNote) {
-        acc.push(note);
-      } else {
-        const mergedNote = {
-          ...existingNote,
-          ...note,
-          localUri: existingNote.localUri || note.localUri
-        };
-        const index = acc.indexOf(existingNote);
-        acc[index] = mergedNote;
-      }
-      return acc;
-    }, []);
+  // const mergeAndSortNotes = (localNotes, firebaseNotes) => { // Commented out
+  //   const mergedNotes = [...localNotes, ...firebaseNotes].reduce((acc, note) => {
+  //     const existingNote = acc.find(n => n.voiceNoteId === note.voiceNoteId);
+  //     if (!existingNote) {
+  //       acc.push(note);
+  //     } else {
+  //       const mergedNote = {
+  //         ...existingNote,
+  //         ...note,
+  //         localUri: existingNote.localUri || note.localUri
+  //       };
+  //       const index = acc.indexOf(existingNote);
+  //       acc[index] = mergedNote;
+  //     }
+  //     return acc;
+  //   }, []);
   
-    // Sort notes by createdDate in descending order (most recent first)
-    return mergedNotes.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
+  //   // Sort notes by createdDate in descending order (most recent first)
+  //   return mergedNotes.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
+  // };
+
+  // Helper function to extract voiceNoteId from URI
+  const extractVoiceNoteIdFromUri = (uri) => {
+    if (!uri) {
+      console.error('URI is undefined');
+      return null;
+    }
+    const parts = uri.split('/');
+    const filename = parts.pop();
+    return filename ? filename.split('.')[0] : null;
+  };
+
+  const sortNotesChronologically = (notes) => {
+    return notes.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
   };
 
   return (
@@ -111,7 +125,7 @@ export default function LibraryScreen() {
         <Text style={styles.title}>Voice Notes</Text>
       </View>
       <FlatList
-        data={voiceNotes.filter(note => note && note.uri)}
+        data={voiceNotes.filter(note => note && note.audioFileUri)}
         keyExtractor={(item) => item?.voiceNoteId || ''}
         renderItem={({ item }) => (
           item ? (
@@ -190,71 +204,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-
-
-
-
-
-  // const fetchVoiceNotes = async () => {
-  //   try {
-  //     const userId = auth.currentUser?.uid;
-  //     if (!userId) {
-  //       throw new Error('User not authenticated');
-  //     }
-
-  //     console.log('Fetching local notes...');
-  //     const localNotes = await getVoiceNotesFromLocal();
-  //     // console.log('Local notes:', localNotes);
-      
-  //     console.log('Fetching Firebase notes...');
-  //     // Updated path to match your database structure
-  //     const voiceNotesRef = ref(db, `/users/${userId}/voiceNotes`);
-  //     const snapshot = await get(voiceNotesRef);
-  //     let firebaseNotes = [];
-  //     if (snapshot.exists()) {
-  //       firebaseNotes = Object.values(snapshot.val());
-  //       // console.log('Firebase notes:', firebaseNotes);
-  //     } else {
-  //       console.log('No Firebase notes found');
-  //     }
-      
-  //     // Merge local and Firebase notes, preferring Firebase data
-  //     const mergedNotes = [...localNotes, ...firebaseNotes].reduce((acc, note) => {
-  //       const existingNote = acc.find(n => n.voiceNoteId === note.voiceNoteId);
-  //       if (!existingNote) {
-  //         acc.push(note);
-  //       } else if (new Date(note.createdDate) > new Date(existingNote.createdDate)) {
-  //         const index = acc.indexOf(existingNote);
-  //         acc[index] = note;
-  //       }
-  //       return acc;
-  //     }, []);
-
-
-  //     // Sort the notes by createdDate in descending order
-  //     const sortedNotes = mergedNotes.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
-      
-  //     await saveVoiceNotesToLocal(sortedNotes);
-      
-  //     setVoiceNotes(sortedNotes);
-  //   } catch (error) {
-  //     console.error('Failed to load voice notes:', error);
-  //     console.error('Error details:', error.message);
-  //     if (error.code) {
-  //       console.error('Firebase error code:', error.code);
-  //     }
-  //     Alert.alert(
-  //       'Error',
-  //       `Failed to load voice notes: ${error.message}. Please check your internet connection and try again.`,
-  //       [{ text: 'OK' }]
-  //     );
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     fetchVoiceNotes();
-  //   }, [])
-  // );

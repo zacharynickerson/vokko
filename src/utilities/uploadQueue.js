@@ -24,8 +24,14 @@ class UploadQueue {
 
       // Update the voiceNote object with the new URL
       const updatedVoiceNote = {
-        ...item.voiceNote,
-        uri: downloadUrl
+        type: 'solo', // or 'guided' based on your logic
+        createdDate: new Date().toISOString(), // Updated to match new structure
+        title: item.voiceNote.title,
+        location: item.voiceNote.location,
+        audioFileSize: item.voiceNote.audioFileSize, // Ensure this is set correctly
+        audioFileUri: downloadUrl, // Updated to match new structure
+        moduleId: null, // Only for guided sessions
+        coachId: null   // Only for guided sessions
       };
 
       await saveToFirebaseDatabase(item.userId, updatedVoiceNote);

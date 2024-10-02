@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { View, Platform } from 'react-native';
+import React, { useEffect } from 'react'
+import { View } from 'react-native';
 import { Entypo } from "@expo/vector-icons";
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -31,6 +31,8 @@ const screenOptions = {
     }
 };
 
+const tabBarStyle = { backgroundColor: "#1F222A" };
+
 function LibraryStack() {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -44,54 +46,25 @@ function LibraryStack() {
 
 function TabNavigator() {
     return (
-        <Tab.Navigator screenOptions={screenOptions} initialRouteName='RecordScreen'>
-            <Tab.Screen
-                name="Library"
-                component={LibraryStack}
-                options={{
-                    tabBarIcon: ({ focused }) => (
-                        <View style={{ alignItems: "center", justifyContent: "center" }}>
-                            <Entypo name="list" size={24} color={focused ? "#FFF" : "#8B8B8B"} />
-                        </View>
-                    ),
-                    tabBarStyle: { backgroundColor: "#1F222A" },
-                }}
-            />
-            <Tab.Screen
-                name="Record"
-                component={RecordScreen}
-                options={{
-                    tabBarIcon: ({ focused }) => (
-                        <View
-                            style={{
-                                top: Platform.OS === "ios" ? 0 : 0,
-                                width: Platform.OS === "ios" ? 60 : 50,
-                                height: Platform.OS === "ios" ? 60 : 50,
-                                borderRadius: Platform.OS === "ios" ? 25 : 30,
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: "#FFF",
-                            }}
-                        >
-                            <Entypo name="plus" size={24} color={focused ? "#1F222A" : "#8B8B8B"} />
-                        </View>
-                    ),
-                    tabBarStyle: { backgroundColor: "#1F222A" },
-                }}
-            />
-             <Tab.Screen
-                name="GuidedSession"
-                component={GuidedSession}
-                options={{
-                    tabBarIcon: ({ focused }) => (
-                        <View style={{ alignItems: "center", justifyContent: "center" }}>
-                            <Entypo name="chat" size={24} color={focused ? "#FFF" : "#8B8B8B"} />
-                        </View>
-                    ),
-                    tabBarStyle: { backgroundColor: "#1F222A" },
-                }}
-            />
-
+        <Tab.Navigator screenOptions={{ ...screenOptions, tabBarStyle }}>
+            {[
+                { name: "Library", component: LibraryStack, icon: "list" },
+                { name: "Record", component: RecordScreen, icon: "plus" },
+                { name: "GuidedSession", component: GuidedSession, icon: "chat" },
+            ].map(({ name, component, icon }) => (
+                <Tab.Screen
+                    key={name}
+                    name={name}
+                    component={component}
+                    options={{
+                        tabBarIcon: ({ focused }) => (
+                            <View style={{ alignItems: "center", justifyContent: "center" }}>
+                                <Entypo name={icon} size={24} color={focused ? "#FFF" : "#8B8B8B"} />
+                            </View>
+                        ),
+                    }}
+                />
+            ))}
         </Tab.Navigator>
     );
 }
@@ -99,11 +72,7 @@ function TabNavigator() {
 export default function AppNavigation() {
     const { user } = useAuth();
 
-    // console.log("Current user in AppNavigation:", user.email); // Add this line
-
-
     useEffect(() => {
-        // console.log("AppNavigation re-rendered. User:", user);
     }, [user]);
 
     
@@ -139,17 +108,3 @@ export default function AppNavigation() {
         </NavigationContainer>
     );
 }
-
-
-            /* <Tab.Screen
-                name="Settings"
-                component={SettingsScreen}
-                options={{
-                    tabBarIcon: ({ focused }) => (
-                        <View style={{ alignItems: "center", justifyContent: "center" }}>
-                            <Entypo name="cog" size={24} color={focused ? "#FFF" : "#8B8B8B"} />
-                        </View>
-                    ),
-                    tabBarStyle: { backgroundColor: "#1F222A" },
-                }}
-            /> */

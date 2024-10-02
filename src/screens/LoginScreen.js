@@ -9,17 +9,16 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail, OAuthProvider } from 'firebase/auth';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
-const { width } = Dimensions.get('window');
-
 export default function LoginScreen() {
     const navigation = useNavigation();
+    const { signIn } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [passwordVisible, setPasswordVisible] = useState(false);
-    const { updateUser } = useAuth();
     const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
+    // const { updateUser } = useAuth();
 
     useEffect(() => {
         AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
@@ -49,9 +48,9 @@ export default function LoginScreen() {
         }
         setLoading(true);
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            await signIn(email, password);
             console.log("User signed in successfully");
-            updateUser(userCredential.user);  // Update the user state
+            navigation.navigate('LibraryScreen');
         } catch (err) {
             console.error("Login error:", err);
             if (err.code === 'auth/user-not-found') {
@@ -68,55 +67,14 @@ export default function LoginScreen() {
         }
     };
 
-    const handleInputChange = (field, value) => {
-        setErrors(prevErrors => ({ ...prevErrors, [field]: '' }));
-        if (field === 'email') {
-            setEmail(value);
-        } else if (field === 'password') {
-            setPassword(value);
-        }
-    };
-
-    const loginWithApple = async () => {
-        try {
-            const credential = await AppleAuthentication.signInAsync({
-                requestedScopes: [
-                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
-                ],
-            });
-            // signed in
-            console.log(credential);
-
-            // Here, you would typically send the credential to your server or use it to sign in to Firebase
-            // For Firebase, you might do something like this:
-            const { identityToken, nonce } = credential;
-            const appleCredential = new OAuthProvider('apple.com').credential({
-                idToken: identityToken,
-                rawNonce: nonce,
-            });
-            const userCredential = await signInWithCredential(auth, appleCredential);
-            updateUser(userCredential.user);
-
-        } catch (e) {
-            if (e.code === 'ERR_CANCELED') {
-                // handle that the user canceled the sign-in flow
-                console.log('User cancelled Apple Sign-In');
-            } else {
-                // handle other errors
-                console.error('Error during Apple Sign-In:', e);
-            }
-        }
-    };
-
     const handleGoogleSignIn = async () => {
         try {
             await GoogleSignin.hasPlayServices();
             const { idToken } = await GoogleSignin.signIn();
             const googleCredential = GoogleAuthProvider.credential(idToken);
-            const userCredential = await signInWithCredential(auth, googleCredential);
-            console.log("User signed in successfully");
-            updateUser(userCredential.user);  // Update the user state
+            await signInWithCredential(auth, googleCredential);
+            console.log("User signed in successfully with Google");
+            navigation.navigate('LibraryScreen');
         } catch (error) {
             if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                 // user cancelled the login flow
@@ -126,8 +84,44 @@ export default function LoginScreen() {
                 // play services not available or outdated
             } else {
                 // some other error happened
-                console.error(error);
+                console.error("Google Sign-In error:", error);
+                showCustomAlert('Google Sign-In Error', 'An error occurred during Google sign-in. Please try again.');
             }
+        }
+    };
+
+
+    const handleAppleSignIn = async () => {
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            // Here, you would typically send the credential to your server or use it to sign in to Firebase
+            // For this example, we'll assume you have a function to handle Apple sign-in with Firebase
+            // await signInWithApple(credential);
+            console.log("User signed in successfully with Apple");
+            navigation.navigate('LibraryScreen');
+        } catch (e) {
+            if (e.code === 'ERR_CANCELED') {
+                // handle that the user canceled the sign-in flow
+                console.log('User cancelled Apple Sign-In');
+            } else {
+                // handle other errors
+                console.error('Error during Apple Sign-In:', e);
+                showCustomAlert('Apple Sign-In Error', 'An error occurred during Apple sign-in. Please try again.');
+            }
+        }
+    };
+
+    const handleInputChange = (field, value) => {
+        setErrors(prevErrors => ({ ...prevErrors, [field]: '' }));
+        if (field === 'email') {
+            setEmail(value);
+        } else if (field === 'password') {
+            setPassword(value);
         }
     };
 
@@ -242,7 +236,7 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                         {isAppleSignInAvailable && (
                             <TouchableOpacity 
-                                onPress={loginWithApple}
+                                onPress={handleAppleSignIn}
                                 style={{ 
                                     backgroundColor: 'rgba(255,255,255,0.1)', 
                                     padding: 10, 

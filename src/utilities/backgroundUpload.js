@@ -1,6 +1,6 @@
-// import * as BackgroundFetch from 'expo-background-fetch';
-// import { defineTask } from 'expo-task-manager';
-import { saveToFirebaseStorage, saveToFirebaseDatabase } from '../../config/firebase';
+import { saveToFirebaseStorage, updateVoiceNote, createVoiceNoteDetails } from '../../config/firebase';
+import * as BackgroundFetch from 'expo-background-fetch';
+import { defineTask } from 'expo-task-manager';
 
 export const BACKGROUND_UPLOAD_TASK = 'BACKGROUND_UPLOAD_TASK';
 
@@ -11,15 +11,24 @@ defineTask(BACKGROUND_UPLOAD_TASK, async ({ data, error }) => {
   }
   
   if (data) {
-    const { uri, filename, userId, voiceNote } = data;
+    const { uri, voiceNoteId, userId, voiceNote } = data;
     try {
       console.log('Starting background upload...');
-      const downloadUrl = await saveToFirebaseStorage(uri, filename);
+      const downloadUrl = await saveToFirebaseStorage(uri, voiceNoteId);
       console.log('Audio file uploaded, URL:', downloadUrl);
 
-      voiceNote.uri = downloadUrl;
-      await saveToFirebaseDatabase(userId, voiceNote);
-      console.log('Voice note metadata saved to database');
+      // Update voice note with download URL
+      await updateVoiceNote(userId, voiceNoteId, {
+        audioFileUri: downloadUrl, // Updated to match new structure
+      });
+      
+      // Create voice note details (if needed)
+      await createVoiceNoteDetails(voiceNoteId, {
+        transcript: 'Transcription pending',
+        actionItems: [],
+      });
+
+      console.log('Voice note updated in database');
 
       return BackgroundFetch.Result.NewData;
     } catch (error) {
@@ -30,17 +39,17 @@ defineTask(BACKGROUND_UPLOAD_TASK, async ({ data, error }) => {
   return BackgroundFetch.Result.NoData;
 });
 
-export const startBackgroundUpload = async (uri, filename, userId, voiceNote) => {
+export const startBackgroundUpload = async (uri, voiceNoteId, userId, voiceNote) => {
   try {
     await BackgroundFetch.registerTaskAsync(BACKGROUND_UPLOAD_TASK, {
-      minimumInterval: 60, // task will run at most once per minute
-      stopOnTerminate: false, // android only,
-      startOnBoot: true, // android only
+      minimumInterval: 60,
+      stopOnTerminate: false,
+      startOnBoot: true,
     });
 
     await BackgroundFetch.scheduleTaskAsync(BACKGROUND_UPLOAD_TASK, {
-      minimumInterval: 60, // run once immediately
-      data: { uri, filename, userId, voiceNote },
+      minimumInterval: 60,
+      data: { uri, voiceNoteId, userId, voiceNote },
     });
 
     console.log('Background upload scheduled');

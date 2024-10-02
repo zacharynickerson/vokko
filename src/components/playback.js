@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, forwardRef } from 'react';
 import { StyleSheet, Text, View, PanResponder } from 'react-native';
 import { Audio } from 'expo-av';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { FontAwesome5 } from '@expo/vector-icons';
 
-const Playback = ({ uri }) => {
+const Playback = forwardRef(({ uri }, ref) => {
   const [sound, setSound] = useState();
   const [status, setStatus] = useState();
   const [duration, setDuration] = useState(1);
@@ -23,7 +23,7 @@ const Playback = ({ uri }) => {
         );
         setSound(sound);
       } catch (error) {
-        console.error('Error loading sound:', error);
+        // console.error('Error loading sound:', error);
       }
     };
 
@@ -132,7 +132,7 @@ const Playback = ({ uri }) => {
       </Text>
     </View>
   );
-};
+});
 
 
 const styles = StyleSheet.create({

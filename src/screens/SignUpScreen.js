@@ -3,17 +3,16 @@ import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicato
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeftIcon } from 'react-native-heroicons/solid';
 import { useNavigation } from '@react-navigation/native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { ref, set } from 'firebase/database';
-import { auth, db } from '../../config/firebase';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { ref, set } from 'firebase/database';
+import useAuth from '../../hooks/useAuth';
+import { auth, createUser, db, functions, storage} from '../../config/firebase';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
-
-const { width } = Dimensions.get('window');
 
 export default function SignUpScreen() {
     const navigation = useNavigation();
+    const { signUp } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -22,17 +21,26 @@ export default function SignUpScreen() {
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
 
-    useEffect(() => {
-        AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
-    }, []);
-
-    const validate = () => {
-        const errors = {};
-        if (!name) errors.name = 'Name is required';
-        if (!email) errors.email = 'Email is required';
-        if (!password) errors.password = 'Password is required';
-        if (password && password.length < 6) errors.password = 'Password must be at least 6 characters';
-        return errors;
+    const handleSubmit = async () => {
+        // const validationErrors = validate();
+        // if (Object.keys(validationErrors).length > 0) {
+        //     setErrors(validationErrors);
+        //     return;
+        // }
+        setLoading(true);
+        try {
+            await signUp(email, password, name);
+            navigation.navigate('LibraryScreen');
+        } catch (err) {
+            console.error("Signup error:", err);
+            if (err.code === 'auth/email-already-in-use') {
+                showCustomAlert('Signup Error', 'This email is already in use. Please login.');
+            } else {
+                showCustomAlert('Signup Error', err.message);
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     const showCustomAlert = (title, message) => {
@@ -44,43 +52,6 @@ export default function SignUpScreen() {
         );
     };
 
-    const handleSubmit = async () => {
-        const validationErrors = validate();
-        if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
-            return;
-        }
-        setLoading(true);
-        try {
-            const response = await createUserWithEmailAndPassword(auth, email, password);
-            if (response.user) {
-                const userData = {
-                    name: name,
-                    email: response.user.email,
-                };
-                await set(ref(db, `users/${response.user.uid}`), userData);
-                console.log('Data written to the database successfully!');
-                navigation.navigate('LibraryScreen');
-            }
-        } catch (err) {
-            console.error("Signup error:", err);
-            showCustomAlert('Signup Error', err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleInputChange = (field, value) => {
-        setErrors(prevErrors => ({ ...prevErrors, [field]: '' }));
-        if (field === 'name') {
-            setName(value);
-        } else if (field === 'email') {
-            setEmail(value);
-        } else if (field === 'password') {
-            setPassword(value);
-        }
-    };
-
     const handleGoogleSignUp = async () => {
         try {
             await GoogleSignin.hasPlayServices();
@@ -88,11 +59,10 @@ export default function SignUpScreen() {
             const googleCredential = GoogleAuthProvider.credential(idToken);
             const userCredential = await signInWithCredential(auth, googleCredential);
             
-            const userData = {
+            await createUser(userCredential.user.uid, {
                 name: user.name,
                 email: user.email,
-            };
-            await set(ref(db, `users/${userCredential.user.uid}`), userData);
+            });
             
             console.log("User signed up successfully with Google");
             navigation.navigate('LibraryScreen');
@@ -102,6 +72,7 @@ export default function SignUpScreen() {
         }
     };
 
+
     const handleAppleSignUp = async () => {
         try {
             const credential = await AppleAuthentication.signInAsync({
@@ -110,8 +81,15 @@ export default function SignUpScreen() {
                     AppleAuthentication.AppleAuthenticationScope.EMAIL,
                 ],
             });
-            
+
             // Here you would typically send the credential to your server or use it to sign in to Firebase
+            // For this example, we'll assume you have a function to handle Apple sign-in with Firebase
+            const userCredential = await signInWithApple(credential);
+            await createUser(userCredential.user.uid, {
+                name: credential.fullName.givenName + ' ' + credential.fullName.familyName,
+                email: credential.email,
+            });
+            
             console.log("User signed up successfully with Apple");
             navigation.navigate('LibraryScreen');
         } catch (error) {
@@ -121,6 +99,18 @@ export default function SignUpScreen() {
                 console.error("Apple Sign-Up error:", error);
                 showCustomAlert('Apple Sign-Up Error', 'An error occurred during Apple sign-up. Please try again.');
             }
+        }
+    };
+
+
+    const handleInputChange = (field, value) => {
+        setErrors(prevErrors => ({ ...prevErrors, [field]: '' }));
+        if (field === 'name') {
+            setName(value);
+        } else if (field === 'email') {
+            setEmail(value);
+        } else if (field === 'password') {
+            setPassword(value);
         }
     };
 
