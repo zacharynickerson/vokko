@@ -7,7 +7,6 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 const FormData = require('form-data');
 
-
 dotenv.config();
 
 admin.initializeApp();
@@ -16,93 +15,10 @@ const openai = new OpenAI({
   apiKey: functions.config().openai.key,
 });
 
-// exports.transcribeAudio = functions.https.onCall(async (data, context) => {
-//   // Check if the user is authenticated
-//   if (!context.auth) {
-//     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to use this function.');
-//   }
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
 
-//   const { audioUrl } = data;
-
-//   if (!audioUrl) {
-//     throw new functions.https.HttpsError('invalid-argument', 'Audio URL is required.');
-//   }
-
-//   try {
-//     console.log('Starting audio transcription process');
-
-//     // Download the audio file
-//     const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' });
-//     const audioBuffer = Buffer.from(audioResponse.data);
-//     console.log('Audio buffer size:', audioBuffer.length);
-
-//     // Prepare the form data for OpenAI API
-//     const formData = new FormData();
-//     formData.append('file', audioBuffer, { filename: 'audio.m4a', contentType: 'audio/m4a' });
-//     formData.append('model', 'whisper-1');
-
-//     console.log('Form data prepared, sending request to OpenAI API');
-
-//     // Make the request to OpenAI API
-//     const openaiResponse = await axios.post(
-//       'https://api.openai.com/v1/audio/transcriptions',
-//       formData,
-//       {
-//         headers: {
-//           ...formData.getHeaders(),
-//           'Authorization': `Bearer ${functions.config().openai.key}`,
-//         },
-//       }
-//     );
-
-//     console.log('Received response from OpenAI API');
-
-//     if (!openaiResponse.data || !openaiResponse.data.text) {
-//       console.error('Invalid response from OpenAI:', openaiResponse.data);
-//       throw new Error('Invalid response from OpenAI API');
-//     }
-
-//     console.log('Transcription successful');
-//     return { transcript: openaiResponse.data.text };
-
-//   } catch (error) {
-//     console.error('Error transcribing audio:', error);
-
-//     if (error.response) {
-//       console.error('OpenAI API Error Response:', {
-//         status: error.response.status,
-//         data: error.response.data,
-//       });
-//     } else if (error.request) {
-//       console.error('No response received from OpenAI API:', error.request);
-//     } else {
-//       console.error('Error setting up request:', error.message);
-//     }
-
-//     throw new functions.https.HttpsError('internal', `Error transcribing audio: ${error.message}`);
-//   }
-// });
-
-exports.transcribeAudio = functions.https.onCall(async (data, context) => {
-  // Check if the user is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to use this function.');
-  }
-
-  const { audioUrl } = data;
-
-  if (!audioUrl) {
-    throw new functions.https.HttpsError('invalid-argument', 'Audio URL is required.');
-  }
-
-  // Retrieve the OpenAI API key
-  const openaiApiKey = functions.config().openai.key;
-  
-  if (!openaiApiKey) {
-    console.error('OpenAI API key is not configured');
-    throw new functions.https.HttpsError('failed-precondition', 'OpenAI API key is not configured');
-  }
-
+async function transcribeAudioWithRetry(audioUrl, retries = 0) {
   try {
     console.log('Starting audio transcription process for URL:', audioUrl);
 
@@ -125,7 +41,7 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
       {
         headers: {
           ...formData.getHeaders(),
-          'Authorization': `Bearer ${openaiApiKey}`,
+          'Authorization': `Bearer ${functions.config().openai.key}`,
         },
       }
     );
@@ -141,6 +57,12 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
     return { transcript: openaiResponse.data.text };
 
   } catch (error) {
+    if (error.response && error.response.status === 429 && retries < MAX_RETRIES) {
+      console.warn(`Rate limit hit, retrying in ${RETRY_DELAY_MS}ms...`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      return transcribeAudioWithRetry(audioUrl, retries + 1);
+    }
+
     console.error('Error transcribing audio:', error);
 
     if (error.response) {
@@ -156,14 +78,35 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
 
     throw new functions.https.HttpsError('internal', `Error transcribing audio: ${error.message}`);
   }
+}
+
+exports.transcribeAudio = functions.https.onCall(async (data, context) => {
+  // Check if the user is authenticated
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to use this function.');
+  }
+
+  const { audioUrl } = data;
+
+  if (!audioUrl) {
+    throw new functions.https.HttpsError('invalid-argument', 'Audio URL is required.');
+  }
+
+  // Retrieve the OpenAI API key
+  const openaiApiKey = functions.config().openai.key;
+
+  if (!openaiApiKey) {
+    console.error('OpenAI API key is not configured');
+    throw new functions.https.HttpsError('failed-precondition', 'OpenAI API key is not configured');
+  }
+
+  return transcribeAudioWithRetry(audioUrl);
 });
 
-
 exports.processTranscript = functions.database
-  .ref('/users/{userId}/voiceNotes/{voiceNoteId}/transcript')
+  .ref('/voiceNotes/{userId}/{voiceNoteId}/transcript')
   .onWrite(async (change, context) => {
-    const userId = context.params.userId;
-    const voiceNoteId = context.params.voiceNoteId;
+    const { userId, voiceNoteId } = context.params;
     const transcript = change.after.val();
 
     if (!transcript) {
@@ -223,10 +166,10 @@ exports.processTranscript = functions.database
         console.log('Tasks:', tasks);
 
         // Update Firebase with title, summary, and tasks
-        await admin.database().ref(`/users/${userId}/voiceNotes/${voiceNoteId}`).update({
+        await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
           title: title || 'Untitled Note',
           summary: summary || 'No summary available',
-          taskArray: tasks.length > 0 ? tasks : ['No tasks identified'],
+          actionItems: tasks.length > 0 ? tasks : ['No tasks identified'],
         });
 
         console.log(`Voice note processed successfully: ${voiceNoteId}`);
@@ -239,46 +182,3 @@ exports.processTranscript = functions.database
 
     return null;
   });
-
-
-
-// exports.updateTranscription = functions.storage.object().onFinalize(async (object) => {
-//   // Exit if this is not a transcription file
-//   if (!object.name.startsWith("transcriptions/users/")) {
-//     return null;
-//   }
-
-//   // Extract userId from the object name
-//   const pathParts = object.name.split("/");
-//   const userId = pathParts[2];
-
-//   try {
-//     // Download the transcription text file
-//     const file = storage.bucket(object.bucket).file(object.name);
-//     const transcriptionBuffer = await file.download();
-//     const transcriptionText = transcriptionBuffer.toString("utf8").trim();
-
-//     // Parse the transcription text as JSON
-//     const transcriptionJson = JSON.parse(transcriptionText);
-//     const transcript = transcriptionJson.results[0].alternatives[0].transcript;
-
-//     // Extract the voiceNoteId from the filename
-//     const filename = pathParts[4];
-//     const voiceNoteId = filename.split(".m4a.wav_transcription.txt")[0];
-
-//     // Get a reference to the specific voice note for the user
-//     const voiceNoteRef = admin.database().ref(`users/${userId}/voiceNotes/${voiceNoteId}`);
-
-//     // Check if the voice note exists
-//     const snapshot = await voiceNoteRef.once("value");
-//     if (snapshot.exists()) {
-//       // Update the transcript for the specified voice note
-//       await voiceNoteRef.child('transcript').set(transcript);
-//       console.log("Transcript updated for voiceNote with ID:", voiceNoteId);
-//     } else {
-//       console.error("Voice note not found for ID:", voiceNoteId);
-//     }
-//   } catch (error) {
-//     console.error("Error updating transcript:", error);
-//   }
-// });

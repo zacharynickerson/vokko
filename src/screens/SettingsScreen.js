@@ -2,17 +2,18 @@ import React from 'react';
 import { Alert, ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
+import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import useAuth from '../../hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons'; // Assuming you're using Expo
 
 export default function SettingsScreen() {
     const navigation = useNavigation();
-    const { user, ready } = useAuth();
+    const { user, ready, logOut } = useAuth();
 
     const onLogout = async () => {
         try {
-            await auth.signOut();
+            await logOut();
             console.log("User signed out successfully");
         } catch (e) {
             console.log(e);

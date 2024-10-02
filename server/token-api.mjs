@@ -11,10 +11,19 @@ app.use(cors());
 
 app.get('/api/token', async (req, res) => {
   console.log('Received token request');
-  const roomName = req.query.roomName || Math.random().toString(36).substring(7);
+  const { roomName, userId } = req.query;
+  
+  if (!userId || !roomName) {
+    return res.status(400).json({ error: 'userId and roomName are required' });
+  }
+
+  console.log('Room Name:', roomName); // Add this log
+
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_SECRET;
-  const at = new AccessToken(apiKey, apiSecret, { identity: "human_user" });
+
+  const at = new AccessToken(apiKey, apiSecret, { identity: userId });
+  
   at.addGrant({
     room: roomName,
     roomJoin: true,
@@ -22,9 +31,15 @@ app.get('/api/token', async (req, res) => {
     canPublishData: true,
     canSubscribe: true,
   });
-  const token = await at.toJwt();
-  console.log('Sending response:', { accessToken: token, url: process.env.LIVEKIT_URL, roomName });
-  res.json({ accessToken: token, url: process.env.LIVEKIT_URL, roomName });
+
+  try {
+    const token = await at.toJwt();
+    console.log('Sending response:', { accessToken: token, url: process.env.LIVEKIT_URL, roomName });
+    res.json({ accessToken: token, url: process.env.LIVEKIT_URL, roomName });
+  } catch (error) {
+    console.error('Error generating token:', error);
+    res.status(500).json({ error: 'Failed to generate token' });
+  }
 });
 
 app.listen(3000, () => console.log('Token server running on port 3000'));

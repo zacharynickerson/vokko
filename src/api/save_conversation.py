@@ -19,20 +19,20 @@ firebase_admin.initialize_app(cred, {
 def handler(request):
     if request.method == 'POST':
         data = request.json
-        room_name = data.get('roomName')
-        messages = data.get('messages')
+        voice_note_id = data.get('roomName')
+        transcript = data.get('messages')
 
-        if room_name and messages:
+        if voice_note_id and transcript:
             # Save to Firebase logic
             try:
                 # Create a reference to the conversations node
-                ref = db.reference(f'conversations/{room_name}')
+                ref = db.reference(f'voiceNoteDetails/{voice_note_id}')
                 
                 # Prepare the conversation data
                 conversation_data = {
-                    'roomName': room_name,
-                    'messages': messages,
-                    'timestamp': firebase_admin.firestore.SERVER_TIMESTAMP  # Use server timestamp
+                    'transcript': transcript,
+                    'summary': "",
+                    'actionItems': "",
                 }
                 
                 # Save the conversation data

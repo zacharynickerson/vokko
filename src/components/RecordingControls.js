@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import { useAnimatedStyle } from 'react-native-reanimated';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
 export const RecordingControls = ({ 

@@ -8,12 +8,14 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { voiceNoteSync } from './src/utilities/VoiceNoteSync';
 import { auth } from './config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { registerGlobals } from '@livekit/react-native';
 
 registerGlobals();
 
 export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -27,10 +29,16 @@ export default function App() {
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-    syncIfAuthenticated();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        syncIfAuthenticated();
+      }
+    });
 
     return () => {
       subscription.remove();
+      unsubscribe();
     };
   }, []);
 
@@ -41,7 +49,6 @@ export default function App() {
   };
 
   const syncIfAuthenticated = async () => {
-    const user = auth.currentUser;
     if (user && !isSyncing) {
       setIsSyncing(true);
       try {
