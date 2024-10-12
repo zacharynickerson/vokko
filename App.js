@@ -10,14 +10,25 @@ import { voiceNoteSync } from './src/utilities/VoiceNoteSync';
 import { auth } from './config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { registerGlobals } from '@livekit/react-native';
+import * as Font from 'expo-font';
 
 registerGlobals();
 
 export default function App() {
+  const [fontsLoaded, setFontsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    async function loadFonts() {
+      await Font.loadAsync({
+        'DMSans': require('/Users/zacharynickerson/Desktop/vokko/assets/fonts/DMSans-VariableFont_opsz,wght.ttf'),
+        'DMSans-Italic': require('/Users/zacharynickerson/Desktop/vokko/assets/fonts/DMSans-Italic-VariableFont_opsz,wght.ttf'),
+      });
+      setFontsLoaded(true);
+    }
+    loadFonts();
+
     GoogleSignin.configure({
       webClientId: '793156853153-4b0ji8gmd0hdkpb6tv1nto1mmfl945e4.apps.googleusercontent.com',
       iosClientId: '793156853153-eqkirerhagidvuc0ca5odags17v443os.apps.googleusercontent.com',
@@ -70,6 +81,10 @@ export default function App() {
       console.log('Sync skipped. User:', user ? 'Authenticated' : 'Not authenticated', 'isSyncing:', isSyncing);
     }
   };
+
+  if (!fontsLoaded) {
+    return null; // or a loading indicator
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
