@@ -52,6 +52,7 @@ def save_summary_to_firebase(summary, user_id, session_id):
         logger.error(f"Error saving summary to Firebase: {str(e)}")
 
 
+
 # ============================
 # Load Environment Variables
 # ============================
@@ -191,3 +192,24 @@ async def entrypoint(ctx: JobContext):
 # ============================
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+
+
+
+# Reference to the 'modules' node in the database
+# ref = db.reference('modules')
+
+# Auto-generate a new module with push() - this will create a unique key
+# new_module_ref = ref.push()
+
+# Set the new module data for "Zane, the Focused Achiever"
+# new_module_ref.set({
+#     'coachId': '-O83wlfCWno8uScxMm5C',
+#     'description': 'A compassionate guide for exploring emotions and fostering healing',
+#     'name': 'Emotional Healing and Self-Reflection',
+#     'questions': [
+#         'What emotions are you feeling right now, and why do you think that is?',
+#         'What do you wish you could change about this experience?',
+#         'What’s something you’ve been holding onto that you need to let go of?'
+#         'What’s one thing you can do to nurture yourself during this time?'
+#     ]
+# })
