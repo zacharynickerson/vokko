@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeftIcon } from 'react-native-heroicons/solid';
 import { useNavigation } from '@react-navigation/native';
 import { auth } from '../../config/firebase';
 import useAuth from '../../hooks/useAuth';
@@ -15,37 +14,15 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
-    // const { updateUser } = useAuth();
+    const [showEmailLogin, setShowEmailLogin] = useState(false);
 
     useEffect(() => {
         AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
     }, []);
 
-    const validate = () => {
-        const errors = {};
-        if (!email) errors.email = 'Email is required';
-        if (!password) errors.password = 'Password is required';
-        return errors;
-    };
-
-    const showCustomAlert = (title, message) => {
-        Alert.alert(
-            title,
-            message,
-            [{ text: 'OK', onPress: () => console.log('OK Pressed') }],
-            { cancelable: false }
-        );
-    };
-
     const handleSubmit = async () => {
-        const validationErrors = validate();
-        if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
-            return;
-        }
         setLoading(true);
         try {
             await signIn(email, password);
@@ -53,15 +30,7 @@ export default function LoginScreen() {
             navigation.navigate('LibraryScreen');
         } catch (err) {
             console.error("Login error:", err);
-            if (err.code === 'auth/user-not-found') {
-                showCustomAlert('Account Not Found', 'No user exists with this email. Please check your email or sign up for a new account.');
-            } else if (err.code === 'auth/wrong-password') {
-                showCustomAlert('Incorrect Password', 'The password you entered is incorrect. Please try again.');
-            } else if (err.code === 'auth/too-many-requests') {
-                showCustomAlert('Too Many Attempts', 'You have made too many login attempts. Please try again later or reset your password.');
-            } else {
-                showCustomAlert('Login Error', 'An unexpected error occurred. Please try again later.');
-            }
+            Alert.alert('Login Error', err.message);
         } finally {
             setLoading(false);
         }
@@ -76,20 +45,10 @@ export default function LoginScreen() {
             console.log("User signed in successfully with Google");
             navigation.navigate('LibraryScreen');
         } catch (error) {
-            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                // user cancelled the login flow
-            } else if (error.code === statusCodes.IN_PROGRESS) {
-                // operation (e.g. sign in) is in progress already
-            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-                // play services not available or outdated
-            } else {
-                // some other error happened
-                console.error("Google Sign-In error:", error);
-                showCustomAlert('Google Sign-In Error', 'An error occurred during Google sign-in. Please try again.');
-            }
+            console.error("Google Sign-In error:", error);
+            Alert.alert('Google Sign-In Error', 'An error occurred during Google sign-in. Please try again.');
         }
     };
-
 
     const handleAppleSignIn = async () => {
         try {
@@ -99,19 +58,14 @@ export default function LoginScreen() {
                     AppleAuthentication.AppleAuthenticationScope.EMAIL,
                 ],
             });
-            // Here, you would typically send the credential to your server or use it to sign in to Firebase
-            // For this example, we'll assume you have a function to handle Apple sign-in with Firebase
-            // await signInWithApple(credential);
             console.log("User signed in successfully with Apple");
             navigation.navigate('LibraryScreen');
         } catch (e) {
             if (e.code === 'ERR_CANCELED') {
-                // handle that the user canceled the sign-in flow
                 console.log('User cancelled Apple Sign-In');
             } else {
-                // handle other errors
                 console.error('Error during Apple Sign-In:', e);
-                showCustomAlert('Apple Sign-In Error', 'An error occurred during Apple sign-in. Please try again.');
+                Alert.alert('Apple Sign-In Error', 'An error occurred during Apple sign-in. Please try again.');
             }
         }
     };
@@ -125,137 +79,251 @@ export default function LoginScreen() {
         }
     };
 
-    const resetPassword = async () => {
-        try {
-            sendPasswordResetEmail(auth, email)
-            alert('Please check your email to reset your password')
-        } catch ({ message }) {
-            alert(message)
-        }
-    }
+    const navigateToForgotPassword = () => {
+        navigation.navigate('ForgotPasswordScreen');
+    };
 
     return (
-        <KeyboardAvoidingView 
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1, backgroundColor: '#191A23' }}
-        >
-            <SafeAreaView style={{ flex: 1, paddingTop: 50 }}> 
-                <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 20 }}
-                    >
-                        <ArrowLeftIcon size={20} color="white" />
-                    </TouchableOpacity>
-                    <Text style={{ color: 'white', fontSize: 18, fontWeight: '600' }}>Login</Text>
-                    <View style={{ width: 40 }} /> 
+        <SafeAreaView style={styles.container}>
+            <View style={styles.content}>
+                <View style={styles.headerContainer}>
+                    <Text style={styles.title}>Let's Log You In</Text>
+                    <Text style={styles.subtitle}>Welcome back, you've been missed!</Text>
                 </View>
 
-                <View style={{ paddingHorizontal: 30 }}>
-                    <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' }}>Welcome Back</Text>
-                    
-                    <View style={{ marginBottom: 20 }}>
-                        <TextInput
-                            style={{
-                                backgroundColor: 'rgba(255,255,255,0.1)',
-                                padding: 15,
-                                borderRadius: 10,
-                                color: 'white',
-                                fontSize: 16
-                            }}
-                            placeholder="Email"
-                            placeholderTextColor="rgba(255,255,255,0.6)"
-                            value={email}
-                            onChangeText={(value) => handleInputChange('email', value)}
-                            keyboardType="email-address"
-                        />
-                    </View>
-                    
-                    <View style={{ marginBottom: 20 }}>
-                        <TextInput
-                            style={{
-                                backgroundColor: 'rgba(255,255,255,0.1)',
-                                padding: 15,
-                                borderRadius: 10,
-                                color: 'white',
-                                fontSize: 16
-                            }}
-                            placeholder="Password"
-                            placeholderTextColor="rgba(255,255,255,0.6)"
-                            secureTextEntry={!passwordVisible}
-                            value={password}
-                            onChangeText={(value) => handleInputChange('password', value)}
-                        />
-                        <TouchableOpacity 
-                            onPress={() => setPasswordVisible(!passwordVisible)}
-                            style={{ position: 'absolute', right: 15, top: 15 }}
-                        >
-                            <Text style={{ color: 'rgba(255,255,255,0.6)' }}>{passwordVisible ? 'Hide' : 'Show'}</Text>
-                        </TouchableOpacity>
-                    </View>
-                    
-                    <TouchableOpacity onPress={resetPassword} style={{ alignSelf: 'flex-end', marginBottom: 30 }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Forgot Password?</Text>
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity style={[styles.button, { backgroundColor: '#E6F6FE' }]} onPress={handleGoogleSignIn}>
+                        <Image source={require('../../assets/images/google.png')} style={styles.buttonIcon} />
+                        <Text style={styles.buttonText}>Connect with Google</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                        onPress={handleSubmit}
-                        style={{
-                            backgroundColor: 'white',
-                            padding: 15,
-                            borderRadius: 10,
-                            alignItems: 'center',
-                            marginBottom: 30
-                        }}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#191A23" />
-                        ) : (
-                            <Text style={{ color: '#191A23', fontSize: 18, fontWeight: 'bold' }}>Login</Text>
-                        )}
+
+                    {isAppleSignInAvailable && (
+                        <TouchableOpacity style={[styles.button, { backgroundColor: '#F3F8FE' }]} onPress={handleAppleSignIn}>
+                            <Image source={require('../../assets/images/apple-logo-transparent.png')} style={styles.buttonIcon} />
+                            <Text style={styles.buttonText}>Connect with Apple</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity style={[styles.button, { backgroundColor: '#F9FAFA' }]} onPress={() => setShowEmailLogin(true)}>
+                        <View style={styles.emailIcon}>
+                            <Text style={styles.emailIconText}>✉️</Text>
+                        </View>
+                        <Text style={styles.buttonText}>Connect with Email</Text>
                     </TouchableOpacity>
-                    
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 30 }}>
-                        <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.3)' }} />
-                        <Text style={{ color: 'rgba(255,255,255,0.6)', paddingHorizontal: 10 }}>Or continue with</Text>
-                        <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.3)' }} />
-                    </View>
-                    
-                    <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 30 }}>
-                        <TouchableOpacity 
-                            onPress={handleGoogleSignIn} 
-                            style={{ 
-                                marginRight: 20, 
-                                backgroundColor: 'rgba(255,255,255,0.1)', 
-                                padding: 10, 
-                                borderRadius: 10 
-                            }}
-                        >
-                            <Image source={require('../../assets/images/google.png')} style={{ width: 30, height: 30 }} />
-                        </TouchableOpacity>
-                        {isAppleSignInAvailable && (
-                            <TouchableOpacity 
-                                onPress={handleAppleSignIn}
-                                style={{ 
-                                    backgroundColor: 'rgba(255,255,255,0.1)', 
-                                    padding: 10, 
-                                    borderRadius: 10 
-                                }}
-                            >
-                                <Image source={require('../../assets/images/apple-logo-transparent.png')} style={{ width: 30, height: 30 }} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                    
-                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Don't have an account? </Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('SignUpScreen')}>
-                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Sign Up</Text>
-                        </TouchableOpacity>
-                    </View>
                 </View>
-            </SafeAreaView>
-        </KeyboardAvoidingView>
+
+                {showEmailLogin && (
+                    <View style={styles.emailLoginContainer}>
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Email Address</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="hannah.turin@email.com"
+                                placeholderTextColor="#999"
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                            />
+                        </View>
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Password</Text>
+                            <View style={styles.passwordInputContainer}>
+                                <TextInput
+                                    style={styles.passwordInput}
+                                    placeholder="••••••"
+                                    placeholderTextColor="#999"
+                                    secureTextEntry={!passwordVisible}
+                                    value={password}
+                                    onChangeText={setPassword}
+                                />
+                                <TouchableOpacity 
+                                    onPress={() => setPasswordVisible(!passwordVisible)}
+                                    style={styles.passwordVisibilityButton}
+                                >
+                                    <Text style={styles.showButtonText}>
+                                        {passwordVisible ? 'Hide' : 'Show'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                        <View style={styles.rememberForgotContainer}>
+                            <TouchableOpacity onPress={navigateToForgotPassword}>
+                                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity 
+                            style={[styles.button, styles.loginButton]} 
+                            onPress={handleSubmit}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+            <View style={styles.signUpPromptContainer}>
+                <Text style={styles.signUpPromptText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('SignUpScreen')}>
+                    <Text style={styles.signUpLink}>Sign Up</Text>
+                </TouchableOpacity>
+            </View>
+        </SafeAreaView>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#FFF',
+    },
+    content: {
+        flex: 1,
+        padding: 20,
+        justifyContent: 'flex-start',
+    },
+    headerContainer: {
+        marginTop: 40,
+        marginBottom: 30,
+        marginHorizontal: 20,
+    },
+    title: {
+        fontFamily: 'DM Sans',
+        fontSize: 36,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    subtitle: {
+        fontFamily: 'DM Sans',
+        fontSize: 20,
+        color: '#666',
+    },
+    buttonContainer: {
+        marginHorizontal: 20,
+    },
+    button: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 15,
+        borderRadius: 10,
+        marginBottom: 15,
+    },
+    buttonIcon: {
+        width: 24,
+        height: 24,
+        marginRight: 10,
+    },
+    emailIcon: {
+        width: 24,
+        height: 24,
+        marginRight: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emailIconText: {
+        fontSize: 20,
+    },
+    buttonText: {
+        fontFamily: 'DM Sans',
+        fontWeight: 'bold',
+        marginLeft: 10,
+        fontSize: 16,
+        color: '#333',
+    },
+    emailLoginContainer: {
+        marginTop: 20,
+        marginHorizontal: 20,
+    },
+    inputContainer: {
+        marginBottom: 15,
+    },
+    inputLabel: {
+        fontFamily: 'DM Sans',
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 5,
+    },
+    input: {
+        fontFamily: 'DM Sans',
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        borderRadius: 10,
+        padding: 15,
+        fontSize: 16,
+    },
+    passwordInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        borderRadius: 10,
+    },
+    passwordInput: {
+        flex: 1,
+        fontFamily: 'DM Sans',
+        backgroundColor: 'transparent',
+        padding: 15,
+        fontSize: 16,
+    },
+    passwordVisibilityButton: {
+        padding: 15,
+    },
+    showButtonText: {
+        fontFamily: 'DM Sans',
+        color: '#666',
+        fontSize: 14,
+    },
+    rememberForgotContainer: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        marginBottom: 20,
+        marginHorizontal: 10,
+    },
+    
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        borderRadius: 5,
+        marginRight: 10,
+    },
+    forgotPasswordText: {
+        fontFamily: 'DM Sans',
+        color: '#4FBF67',
+    },
+    loginButton: {
+        backgroundColor: '#4FBF67',
+        justifyContent: 'center',
+        marginHorizontal: 0,
+    },
+    loginButtonText: {
+        fontFamily: 'DM Sans',
+        color: '#FFF',
+        fontWeight: 'bold',
+    },
+    signUpPromptContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    signUpPromptText: {
+        fontFamily: 'DM Sans',
+        color: '#666',
+    },
+    signUpLink: {
+        fontFamily: 'DM Sans',
+        color: '#4FBF67',
+        fontWeight: 'bold',
+    },
+});
