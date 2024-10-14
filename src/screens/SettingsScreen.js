@@ -1,15 +1,16 @@
 import React from 'react';
-import { Alert, ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Linking } from 'react-native';
+import { Alert, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Image, Switch } from 'react-native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../config/firebase';
 import useAuth from '../../hooks/useAuth';
-import { Ionicons } from '@expo/vector-icons'; // Assuming you're using Expo
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function SettingsScreen() {
     const navigation = useNavigation();
-    const { user, ready, logOut } = useAuth();
+    const { user, logOut } = useAuth();
+
+    const [pushNotifications, setPushNotifications] = React.useState(true);
+    const [promotionalNotifications, setPromotionalNotifications] = React.useState(true);
 
     const onLogout = async () => {
         try {
@@ -36,74 +37,110 @@ export default function SettingsScreen() {
         );
     };
 
-    const openURL = (url) => {
-        Linking.openURL(url).catch((err) => {
-            console.error("Failed to open URL:", err);
-            Alert.alert("Failed to open URL. Please try again later.");
-        });
-    };
-
-    if (!ready) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.loadingText}>Loading...</Text>
+    const SettingsItem = ({ icon, title, subtitle, onPress, showArrow = true, isLast = false }) => (
+        <TouchableOpacity style={[styles.settingsItem, isLast && styles.lastSettingsItem]} onPress={onPress}>
+            <Ionicons name={icon} size={24} color="black" style={styles.settingsIcon} />
+            <View style={styles.settingsTextContainer}>
+                <Text style={styles.settingsTitle}>{title}</Text>
+                {subtitle && <Text style={styles.settingsSubtitle}>{subtitle}</Text>}
             </View>
-        );
-    }
-
-    const showComingSoonAlert = () => {
-        Alert.alert(
-            "Coming Soon",
-            "This section is coming soon!",
-            [{ text: "OK", onPress: () => console.log("OK Pressed") }]
-        );
-    };
-
-    const SettingsItem = ({ icon, title, onPress }) => (
-        <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
-            <Ionicons name={icon} size={24} color="#fff" style={styles.settingsIcon} />
-            <Text style={styles.settingsText}>{title}</Text>
-            <Ionicons name="chevron-forward" size={24} color="#777" />
+            {showArrow && <Ionicons name="chevron-forward" size={24} color="#777" />}
         </TouchableOpacity>
     );
 
     return (
         <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity style={styles.headerIcon}>
+                    <MaterialCommunityIcons name="view-grid" size={24} color="black" />
+                </TouchableOpacity>
+                <Text style={styles.title}>Profile</Text>
+                <TouchableOpacity style={styles.headerIcon}>
+                    <Ionicons name="notifications-outline" size={24} color="black" />
+                </TouchableOpacity>
+            </View>
+
             <ScrollView contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.headerText}>Settings</Text>
+                <View style={styles.profileSection}>
+                    <Image
+                        source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 1.png')}
+                        style={styles.profileImage}
+                    />
+                    <Text style={styles.profileName}>{user?.displayName || 'Zachary Nickerson'}</Text>
+                    <Text style={styles.profileEmail}>{user?.email || 'zacharynickerson96@gmail.com'}</Text>
+                    <TouchableOpacity style={styles.editButton}>
+                        <Text style={styles.editButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Account</Text>
-                    <SettingsItem 
-                        icon="person-outline" 
-                        title="Account Details" 
-                        onPress={showComingSoonAlert} // Updated to show the alert
+                <Text style={styles.sectionTitle}>GENERAL</Text>
+
+                <SettingsItem 
+                    icon="card-outline" 
+                    title="Subscription" 
+                    subtitle="Manage your plan"
+                    onPress={() => {}}
+                />
+                <SettingsItem 
+                    icon="add-circle-outline" 
+                    title="Add Integration" 
+                    subtitle="Connect Notion to send notes"
+                    onPress={() => {}}
+                />
+                <SettingsItem 
+                    icon="share-outline" 
+                    title="Refer Your Friends" 
+                    subtitle="Get more sessions for referring friends"
+                    onPress={() => {}}
+                />
+
+                <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
+
+                <View style={styles.settingsItem}>
+                    <Ionicons name="notifications-outline" size={24} color="black" style={styles.settingsIcon} />
+                    <View style={styles.settingsTextContainer}>
+                        <Text style={styles.settingsTitle}>Push Notifications</Text>
+                        <Text style={styles.settingsSubtitle}>For daily update and others.</Text>
+                    </View>
+                    <Switch
+                        value={pushNotifications}
+                        onValueChange={setPushNotifications}
+                        trackColor={{ false: "#767577", true: "#4FBF67" }}
+                        thumbColor={pushNotifications ? "#f4f3f4" : "#f4f3f4"}
+                        style={styles.switch}
                     />
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Support</Text>
-                    <SettingsItem 
-                        icon="mail-outline" 
-                        title="Contact Support" 
-                        onPress={() => openURL("https://vokko.io/contact/")}
+                <View style={styles.settingsItem}>
+                    <Ionicons name="megaphone-outline" size={24} color="black" style={styles.settingsIcon} />
+                    <View style={styles.settingsTextContainer}>
+                        <Text style={styles.settingsTitle}>Promotional Notifications</Text>
+                        <Text style={styles.settingsSubtitle}>New Campaign & Offers</Text>
+                    </View>
+                    <Switch
+                        value={promotionalNotifications}
+                        onValueChange={setPromotionalNotifications}
+                        trackColor={{ false: "#767577", true: "#4FBF67" }}
+                        thumbColor={promotionalNotifications ? "#f4f3f4" : "#f4f3f4"}
+                        style={styles.switch}
                     />
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Security and Privacy</Text>
-                    <SettingsItem 
-                        icon="document-text-outline" 
-                        title="Terms of Service" 
-                        onPress={() => openURL("https://vokko.io/")}
-                    />
-                    <SettingsItem 
-                        icon="log-out-outline" 
-                        title={ready ? (user ? "Logout" : "Not Logged In") : "Loading..."}
-                        onPress={confirmLogout}
-                    />
-                </View>
+                <Text style={styles.sectionTitle}>MORE</Text>
+
+                <SettingsItem 
+                    icon="call-outline" 
+                    title="Contact Us" 
+                    subtitle="For more information"
+                    onPress={() => {}}
+                />
+                <SettingsItem 
+                    icon="log-out-outline" 
+                    title="Logout" 
+                    onPress={onLogout}
+                    showArrow={false}
+                    isLast={true}
+                />
             </ScrollView>
         </SafeAreaView>
     );
@@ -112,51 +149,102 @@ export default function SettingsScreen() {
 const styles = {
     container: {
         flex: 1,
-        backgroundColor: '#191A23',
+        backgroundColor: '#FFFFFF',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+    },
+    headerIcon: {
+        width: 24,
+    },
+    title: {
+        fontFamily: 'DMSans-Bold',
+        fontSize: wp(5),
+        fontWeight: 'bold',
+        textAlign: 'center',
+        flex: 1,
     },
     scrollContent: {
         padding: 20,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
+    profileSection: {
         alignItems: 'center',
-        backgroundColor: '#191A23',
+        // marginBottom: 30,
+
     },
-    loadingText: {
-        fontSize: wp(4),
-        color: '#fff',
-        marginTop: 10,
+    profileImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        marginBottom: 10,
     },
-    headerText: {
-        fontSize: wp(6),
+    profileName: {
+        fontFamily: 'DMSans-Bold',
+        fontSize: wp(4.5),
         fontWeight: 'bold',
-        color: '#fff',
+        marginBottom: 10,
+    },
+    profileEmail: {
+        fontFamily: 'DMSans-Regular',
+        fontSize: wp(3.5),
+        color: '#4FBF67',
         marginBottom: 20,
     },
-    section: {
-        marginBottom: 30,
+    editButton: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 20,
+        borderWidth: 1.2,
+        borderColor: '#4FBF67',
+    },
+    editButtonText: {
+        fontFamily: 'DMSans',
+        color: '#1B1D21',
+        fontWeight: 'bold',
     },
     sectionTitle: {
-        fontSize: wp(3.5),
-        color: '#777',
+        fontFamily: 'DMSans-Bold',
+        fontSize: wp(4),
+        color: '#8CD69C',
+        fontWeight: 'bold',
+
+        marginTop: 20,
         marginBottom: 10,
+
     },
     settingsItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#242830',
-        padding: 15,
-        borderRadius: 10,
-        marginBottom: 10,
+        paddingVertical: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F4F4F7',
+    },
+    lastSettingsItem: {
+        borderBottomWidth: 0,
     },
     settingsIcon: {
         marginRight: 15,
     },
-    settingsText: {
+    settingsTextContainer: {
         flex: 1,
-        fontSize: wp(4.3),
-        color: '#fff',
-        fontWeight: 'bold',
+        justifyContent: 'center',
+    },
+    settingsTitle: {
+        fontFamily: 'DMSans-Medium',
+        fontSize: wp(4.5),
+        fontWeight: '500',
+        marginBottom: 6,
+    },
+    settingsSubtitle: {
+        fontFamily: 'DMSans-Regular',
+        fontSize: wp(4),
+        color: '#777',
+        marginTop: 2,
+    },
+    switch: {
+        transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
     },
 };

@@ -7,7 +7,9 @@ import { auth, db } from '../../config/firebase';
 import { ref, onValue, off } from 'firebase/database';
 // import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage'; // Commented out
 import { formatDateForDisplay } from '../utilities/helpers';
-import { Entypo } from '@expo/vector-icons'; // Add this import
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import SoloVoiceNoteItem from '../components/SoloSessionItem';
+import GuidedSessionItem from '../components/GuidedSessionItem'; // Import the GuidedSessionItem
 
 export default function LibraryScreen() {
   const [voiceNotes, setVoiceNotes] = useState([]);
@@ -27,7 +29,7 @@ export default function LibraryScreen() {
       return;
     }
 
-    const voiceNotesRef = ref(db, `/voiceNotes/${userId}`); // Updated path
+    const voiceNotesRef = ref(db, `/voiceNotes/${userId}`);
 
     const onDataChange = async (snapshot) => {
       try {
@@ -42,10 +44,8 @@ export default function LibraryScreen() {
           }).filter(note => note !== null);
         }
 
-        // Sort notes chronologically
         const sortedNotes = sortNotesChronologically(firebaseNotes);
-
-        setVoiceNotes(sortedNotes); // Use sortedNotes directly
+        setVoiceNotes(sortedNotes);
       } catch (error) {
         console.error('Error processing voice notes:', error);
         Alert.alert('Error', 'Failed to load voice notes. Please try again.');
@@ -59,7 +59,6 @@ export default function LibraryScreen() {
       setLoading(false);
     });
 
-    // Cleanup function
     return () => off(voiceNotesRef);
   }, []);
 
@@ -67,7 +66,6 @@ export default function LibraryScreen() {
     useCallback(() => {
       if (route.params?.refresh) {
         fetchVoiceNotes();
-        // Reset the refresh parameter
         navigation.setParams({ refresh: undefined });
       }
     }, [route.params?.refresh, fetchVoiceNotes, navigation])
@@ -77,28 +75,6 @@ export default function LibraryScreen() {
     fetchVoiceNotes();
   }, [fetchVoiceNotes]);
 
-  // const mergeAndSortNotes = (localNotes, firebaseNotes) => { // Commented out
-  //   const mergedNotes = [...localNotes, ...firebaseNotes].reduce((acc, note) => {
-  //     const existingNote = acc.find(n => n.voiceNoteId === note.voiceNoteId);
-  //     if (!existingNote) {
-  //       acc.push(note);
-  //     } else {
-  //       const mergedNote = {
-  //         ...existingNote,
-  //         ...note,
-  //         localUri: existingNote.localUri || note.localUri
-  //       };
-  //       const index = acc.indexOf(existingNote);
-  //       acc[index] = mergedNote;
-  //     }
-  //     return acc;
-  //   }, []);
-  
-  //   // Sort notes by createdDate in descending order (most recent first)
-  //   return mergedNotes.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
-  // };
-
-  // Helper function to extract voiceNoteId from URI
   const extractVoiceNoteIdFromUri = (uri) => {
     if (!uri) {
       console.error('URI is undefined');
@@ -113,40 +89,57 @@ export default function LibraryScreen() {
     return notes.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
   };
 
+  const renderVoiceNoteItem = ({ item }) => (
+    <TouchableOpacity onPress={() => navigation.navigate('VoiceNoteDetails', { voiceNote: item })}>
+      <SoloVoiceNoteItem item={item} />
+    </TouchableOpacity>
+  );
+
+  // Sample guided session data for testing
+  const sampleGuidedSession = {
+    image: '/Users/zacharynickerson/Desktop/vokko/assets/images/default-note-image.png', // Replace with a valid image URL
+    title: 'How to Master React Native',
+    createdDate: '2023-10-01',
+    guideImage: '/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 6.png', // Replace with a valid image URL
+    guideName: 'John Doe',
+    moduleName: 'React Native Basics',
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>       
-       <View style={styles.titleContainer}>
-       <Text style={styles.greeting}>{userName ? `Hello ${userName}` : 'Hello'} </Text>
-        <TouchableOpacity onPress={navigateToSettings}>
-          <Entypo name="cog" size={24} color="#FFF" />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerIcon} onPress={navigateToSettings}>
+          <MaterialCommunityIcons name="view-grid" size={24} color="black" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Session Library</Text>
+        <TouchableOpacity style={styles.headerIcon}>
+          <Ionicons name="notifications-outline" size={24} color="black" />
         </TouchableOpacity>
       </View>
-        <Text style={styles.title}>Voice Notes</Text>
+      
+      <View style={styles.subHeader}>
+        <Text style={styles.subHeaderText}>Your Sessions</Text>
+        <View style={styles.viewOptions}>
+          <TouchableOpacity style={styles.viewOptionButton}>
+            <MaterialCommunityIcons name="view-list" size={24} color="black" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.viewOptionButton}>
+            <MaterialCommunityIcons name="view-grid" size={24} color="black" />
+          </TouchableOpacity>
+        </View>
       </View>
+
       <FlatList
-        data={voiceNotes.filter(note => note && note.audioFileUri)}
-        keyExtractor={(item) => item?.voiceNoteId || ''}
-        renderItem={({ item }) => (
-          item ? (
-            <TouchableOpacity onPress={() => navigation.navigate('VoiceNoteDetails', { voiceNote: item })}>
-              <View style={styles.itemContainer}>
-                <View style={styles.iconContainer}>
-                  <Text style={{ fontSize: 24 }}>{item.emoji || '🎙️'}</Text>
-                </View>
-                <View style={styles.textContainer}>
-                  <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                    {item.title}
-                  </Text>
-                  <Text style={styles.dateLocation} numberOfLines={1}>
-                    {formatDateForDisplay(item.createdDate)} • {item.location}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ) : null
-        )}
+        data={voiceNotes.filter(note => note && note.audioFileUri).concat([sampleGuidedSession])}
+        keyExtractor={(item) => item?.voiceNoteId || item?.title}
+        renderItem={({ item }) => {
+          if (item.guideName) {
+            return <GuidedSessionItem item={item} />;
+          }
+          return renderVoiceNoteItem({ item });
+        }}
         contentContainerStyle={styles.listContent}
+        style={styles.flatList}
       />
     </SafeAreaView>
   );
@@ -155,52 +148,56 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#191A23',
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  greeting: {
-    fontSize: wp(3.7),
-    color: '#888',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: wp(5),
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  listContent: {
-    paddingHorizontal: 16,
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  iconContainer: {
-    marginRight: 12,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: wp(4),
-    color: '#fff',
-    fontWeight: '500',
-  },
-  dateLocation: {
-    fontSize: wp(3.5),
-    color: '#888',
-    marginTop: 4,
-  },
-  titleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 16,
+  },
+  headerIcon: {
+    width: 24,
+  },
+  title: {
+    fontSize: wp(5),
+    fontWeight: 'bold',
+    textAlign: 'center',
+    flex: 1,
+  },
+  subHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  subHeaderText: {
+    fontSize: wp(4),
+    fontWeight: 'bold',
+  },
+  viewOptions: {
+    flexDirection: 'row',
+  },
+  viewOptionButton: {
+    marginLeft: 16,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  flatList: {
+    backgroundColor: '#F9F9F9',
+  },
+  itemContainer: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  itemTitle: {
+    fontSize: wp(4),
+    fontWeight: '500',
   },
 });

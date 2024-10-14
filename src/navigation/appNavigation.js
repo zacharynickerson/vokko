@@ -11,6 +11,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import VoiceNoteDetails from '../screens/VoiceNoteDetails';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import useAuth from '../../hooks/useAuth';
 import GuidedSession from '../screens/GuidedSession';
 
@@ -100,6 +101,11 @@ export default function AppNavigation() {
                         <Stack.Screen
                             name="SignUpScreen"
                             component={SignUpScreen}
+                            options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                            name="ForgotPasswordScreen"
+                            component={ForgotPasswordScreen}
                             options={{ headerShown: false }}
                         />
                     </>
