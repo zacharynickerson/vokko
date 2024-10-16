@@ -137,7 +137,7 @@ export default function SettingsScreen() {
                 <SettingsItem 
                     icon="log-out-outline" 
                     title="Logout" 
-                    onPress={onLogout}
+                    onPress={confirmLogout}
                     showArrow={false}
                     isLast={true}
                 />

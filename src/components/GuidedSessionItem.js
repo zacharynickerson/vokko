@@ -40,6 +40,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     marginBottom: 16,
+    borderColor: '#F9F9F9',
+    borderWidth: 1,
   },
   imageContainer: {
     position: 'relative',

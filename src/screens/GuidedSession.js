@@ -1,372 +1,727 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList } from 'react-native';
-import { Audio } from 'expo-av';
-import { FontAwesome } from '@expo/vector-icons';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, Image, SafeAreaView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import {
-  AudioSession,
-  LiveKitRoom,
-  useLocalParticipant,
-  useRoomContext,
-  RoomProvider,
-  registerGlobals,
-} from '@livekit/react-native';
-import { API_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
-import { getModules, getModuleWithCoach } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
-import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
-
-registerGlobals();
+import Modal from 'react-native-modal';
+import moment from 'moment';
+import CustomDatePicker from '/Users/zacharynickerson/Desktop/vokko/src/components/CustomDatePicker.js';
 
 const GuidedSession = () => {
-  const [token, setToken] = useState(null);
-  const [url, setUrl] = useState(null);
-  const [roomName, setRoomName] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
-  const [modules, setModules] = useState([]);
+  const [step, setStep] = useState(1);
   const [selectedModule, setSelectedModule] = useState(null);
-  const { user } = useAuth();
+  const [selectedGuide, setSelectedGuide] = useState(null);
+  const [startNow, setStartNow] = useState(true);
+  const [startOption, setStartOption] = useState('now');
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState(new Date());
+  const navigation = useNavigation();
 
-  useEffect(() => {
-    const fetchModules = async () => {
-      try {
-        const fetchedModules = await getModules();
-        setModules(Object.values(fetchedModules || {}));
-      } catch (error) {
-        console.error('Error fetching modules:', error);
-      }
-    };
-
-    fetchModules();
-  }, []);
-
-  const handleModuleSelect = (module) => {
-    setSelectedModule(prevSelected => 
-      prevSelected && prevSelected.id === module.id ? null : module
-    );
+  const navigateToSettings = () => {
+    navigation.navigate('SettingsScreen');
   };
 
-  const ModuleItem = ({ module, onSelect, isSelected }) => (
-    <TouchableOpacity
-      style={[styles.item, isSelected && styles.selectedItem]}
-      onPress={() => onSelect(module)}
-    >
-      <Text style={styles.itemText}>{module.name}</Text>
-      <Text style={styles.itemSubText}>{module.description}</Text>
-    </TouchableOpacity>
-  );
-
-  useEffect(() => {
-    const start = async () => {
-      await AudioSession.startAudioSession();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        interruptionModeIOS: 1,
-        shouldDuckAndroid: true,
-        interruptionModeAndroid: 1,
-        playThroughEarpieceAndroid: false,
-      });
-    };
-    start();
-    return () => {
-      AudioSession.stopAudioSession();
-    };
-  }, []);
-
-  useEffect(() => {
-    let interval;
-    if (isConnected) {
-      interval = setInterval(() => {
-        setCallDuration((prev) => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isConnected]);
-
-  const fetchToken = async () => {
-    if (!selectedModule || !user) {
-      console.error('No module selected or no authenticated user');
-      return;
-    }
-  
-    try {
-      console.log('Selected module:', selectedModule);
-      const moduleWithCoach = await getModuleWithCoach(selectedModule.id);
-      console.log('Module with coach:', moduleWithCoach);
-  
-      if (!moduleWithCoach || !moduleWithCoach.coach) {
-        throw new Error('Module or coach not found');
-      }
-  
-      const sessionId = Date.now().toString(); // Generate a unique session ID
-      const roomName = `${user.uid}_${selectedModule.id}_${moduleWithCoach.coach.id}_${sessionId}`;
-  
-      const response = await fetch(`${API_URL}/api/token?roomName=${roomName}&userId=${user.uid}`, {
-        timeout: 5000
-      });
-  
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-  
-      const data = await response.json();
-      setToken(data.accessToken);
-      setUrl(data.url);
-      setRoomName(roomName);
-      setIsConnected(true);
-    } catch (error) {
-      console.error('Error fetching token:', error);
-    }
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleDisconnect = useCallback(async () => {
-    setIsConnected(false);
-    setToken(null);
-    setUrl(null);
-    setRoomName('');
-    setCallDuration(0);
-  }, [roomName]);
-
-
-
-
-  if (!isConnected) {
-    return (
-      <View style={styles.gradientContainer}>
-        <View style={styles.centeredContent}>
-          <Text style={styles.title}>AI Life Coach</Text>
-          
-          <Text style={styles.sectionTitle}>Select a Module:</Text>
-          <FlatList
-            style={styles.moduleList}
-            data={modules}
-            renderItem={({ item }) => (
-              <ModuleItem
-                module={item}
-                onSelect={handleModuleSelect}
-                isSelected={selectedModule && selectedModule.id === item.id}
-              />
-            )}
-            keyExtractor={(item, index) => {
-              if (item.id) {
-                return item.id.toString();
-              }
-              return index.toString();
-            }}
-          />
-
-          <TouchableOpacity
-            style={[
-              styles.connectButton, 
-              (!selectedModule || !user) && styles.disabledButton
-            ]}
-            onPress={fetchToken}
-            disabled={!selectedModule || !user}
-          >
-            <Text style={styles.connectButtonText}>
-              {user ? 'Start Session' : 'Please log in to start a session'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+  const renderHeader = useCallback(() => (
+    <View style={styles.headerContainer}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Session Setup</Text>
+        <TouchableOpacity onPress={navigateToSettings}>
+          <Ionicons name="notifications-outline" size={24} color="white" />
+        </TouchableOpacity>
       </View>
-    );
-  }
+      <View style={styles.headerCurve} />
+    </View>
+  ), [navigation]);
 
-  return (
-    <View style={styles.gradientContainer}>
-      {token && url ? (
-        <LiveKitRoom
-          serverUrl={url}
-          token={token}
-          connect={true}
-          options={{
-            adaptiveStream: { pixelDensity: 'screen' },
-          }}
-          audio={true}
-          video={false}
-        >
-          <CallInterface
-            callDuration={callDuration}
-            formatTime={formatTime}
-            onDisconnect={handleDisconnect}
+  const renderStep1 = () => (
+    <View style={styles.stepContainer}>
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <View style={styles.stepContentWrapper}>
+          <Text style={styles.stepTitle}>Session Topic</Text>
+          <TouchableOpacity style={styles.customButton}>
+            <Text style={styles.customButtonText}>+ Custom</Text>
+          </TouchableOpacity>
+          <View style={styles.selectedModuleContainer}>
+            <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
+            <Text style={styles.selectedModuleText}>
+              {selectedModule 
+                ? `${selectedModule.name} (${moduleData[selectedModule.id].questions.length} Questions)`
+                : "Select a topic to explore with your guide"}
+            </Text>
+          </View>
+          <FlatList
+            horizontal
+            data={[
+              { id: '1', name: 'Daily Standup', icon: '🏠', color: '#FFD700' },
+              { id: '2', name: 'Goal Setting', icon: '🎯', color: '#87CEEB' },
+              { id: '3', name: 'Explore A New Idea', icon: '💡', color: '#FFA07A' },
+            ]}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.moduleItem, selectedModule?.id === item.id && styles.selectedModuleItem]}
+                onPress={() => setSelectedModule({...item, ...moduleData[item.id]})}
+              >
+                {selectedModule?.id === item.id && (
+                  <View style={styles.lightningIconContainer}>
+                    <MaterialCommunityIcons name="lightning-bolt" size={16} color="white" />
+                  </View>
+                )}
+                <Text style={styles.moduleIcon}>{item.icon}</Text>
+                <Text style={styles.moduleText}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
           />
-        </LiveKitRoom>
-      ) : null}
+          {selectedModule && (
+            <View style={styles.overviewSection}>
+              <Text style={styles.sectionTitle}>Overview</Text>
+              {moduleData[selectedModule.id].questions.map((question, index) => (
+                <View key={index} style={styles.questionItem}>
+                  <Text style={styles.questionText}>{question}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+      <View style={styles.proceedButtonContainer}>
+        <TouchableOpacity
+          style={[styles.proceedButton, !selectedModule && styles.disabledButton]}
+          onPress={() => setStep(2)}
+          disabled={!selectedModule}
+        >
+          <Text style={styles.proceedButtonText}>Proceed</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
-};
 
-const CallInterface = ({ callDuration, formatTime, onDisconnect }) => {
-  const { isMicrophoneEnabled, setIsMicrophoneEnabled } = useLocalParticipant();
-  const navigation = useNavigation();
-  const room = useRoomContext();
+  const guides = [
+    {
+      id: '1',
+      name: 'Coach Carter',
+      photo: require('../../assets/images/bg-Avatar Male 2.png'),
+      description: 'Tough, sarcastic, masculine',
+      color: '#FFD700', // Yellow background
+    },
+    {
+      id: '2',
+      name: 'Guide Jaja',
+      photo: require('../../assets/images/bg-Avatar Female 6.png'),
+      description: 'Mysterious, empathic, feminine',
+      color: '#DDA0DD', // Plum background
+    },
+    {
+      id: '3',
+      name: 'The Vanguard',
+      photo: require('../../assets/images/bg-Avatar Male 11.png'),
+      description: 'Fatherly, prestigious, grand',
+      color: '#20B2AA', // Light Sea Green background
+    },
+  ];
 
-  useEffect(() => {
-    const handleDataReceived = (payload, participant) => {
-      try {
-        const message = JSON.parse(payload);
-      } catch (error) {
-        console.error('Error parsing received data:', error);
-      }
-    };
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <View style={styles.stepContentWrapper}>
+          <Text style={styles.stepTitle}>Session Guide</Text>
+          <View style={styles.selectedModuleContainer}>
+            <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
+            <Text style={styles.selectedModuleText}>
+              {selectedModule.name} ({moduleData[selectedModule.id].questions.length} Questions)
+            </Text>
+            <TouchableOpacity onPress={() => setStep(1)}>
+              <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dottedLine} />
+          <View style={styles.chooseGuideContainer}>
+            <MaterialCommunityIcons name="heart-outline" size={24} color="#4CAF50" />
+            <Text style={styles.selectedModuleText}>
+              {selectedGuide 
+                ? `${selectedGuide.name}`
+                : "Select a guide for your session"}
+            </Text>
+          </View>
+          <FlatList
+            horizontal
+            data={guides}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.guideItem,
+                  selectedGuide?.id === item.id ? styles.selectedGuideItem : styles.unselectedGuideItem
+                ]}
+                onPress={() => setSelectedGuide(item)}
+              >
+                {selectedGuide?.id === item.id && (
+                  <View style={styles.lightningIconContainer}>
+                    <MaterialCommunityIcons name="lightning-bolt" size={16} color="white" />
+                  </View>
+                )}
+                <View style={[styles.guidePhotoBackground, { backgroundColor: item.color }]}>
+                  <Image source={item.photo} style={styles.guidePhoto} />
+                </View>
+                <View style={[
+                  styles.guideDivider,
+                  selectedGuide?.id === item.id ? styles.selectedGuideDivider : styles.unselectedGuideDivider
+                ]} />
+                <Text style={[
+                  styles.guideName,
+                  selectedGuide?.id === item.id ? styles.selectedGuideText : styles.unselectedGuidePrimaryText
+                ]}>
+                  {item.name}
+                </Text>
+                <Text style={[
+                  styles.guideDescription,
+                  selectedGuide?.id === item.id ? styles.selectedGuideText : styles.unselectedGuideSecondaryText
+                ]}>
+                  {item.description}
+                </Text>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+      </ScrollView>
+      <View style={styles.proceedButtonContainer}>
+        <TouchableOpacity
+          style={[styles.proceedButton, !selectedGuide && styles.disabledButton]}
+          onPress={() => setStep(3)}
+          disabled={!selectedGuide}
+        >
+          <Text style={styles.proceedButtonText}>Proceed</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
-    if (room) {
-      room.on('dataReceived', handleDataReceived);
-    }
+  const renderDatePicker = () => (
+    <Modal
+      isVisible={isDatePickerVisible}
+      onBackdropPress={() => setDatePickerVisibility(false)}
+      style={styles.modal}
+    >
+      <View style={styles.datePickerContainer}>
+        <CustomDatePicker
+          onDateSelect={(date, time) => {
+            setScheduledDate(moment(`${date} ${time}`, 'YYYY-MM-DD HH:mm A').toDate());
+            setDatePickerVisibility(false);
+          }}
+        />
+      </View>
+    </Modal>
+  );
 
-    return () => {
-      if (room) {
-        room.off('dataReceived', handleDataReceived);
-      }
-    };
-  }, [room]);
+  const renderStep3 = () => (
+    <View style={styles.stepContainer}>
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <View style={styles.stepContentWrapper}>
+          <Text style={styles.stepTitle}>Session Start</Text>
+          <View style={styles.selectedModuleContainer}>
+            <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
+            <Text style={styles.selectedModuleText}>{selectedModule.name} (5 Questions)</Text>
+            <TouchableOpacity onPress={() => setStep(1)}>
+              <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dottedLine} />
+          <View style={styles.selectedModuleContainer}>
+            <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
+            <Text style={styles.selectedModuleText}>{selectedGuide.name}</Text>
+            <TouchableOpacity onPress={() => setStep(2)}>
+              <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dottedLine} />
+          <View style={styles.chooseGuideContainer}>
+            <MaterialCommunityIcons name="heart-outline" size={24} color="#4CAF50" />
+            <Text style={styles.subtitle}>Choose when</Text>
+          </View>
+          <View style={styles.startOptionsContainer}>
+            <TouchableOpacity
+              style={[styles.startOption, startOption === 'now' && styles.selectedStartOption]}
+              onPress={() => setStartOption('now')}
+            >
+              <MaterialCommunityIcons
+                name={startOption === 'now' ? "circle-slice-8" : "circle-outline"}
+                size={24}
+                color={startOption === 'now' ? "#4CAF50" : "#1B1D21"}
+              />
+              <Text style={styles.startOptionText}>Start now</Text>
+            </TouchableOpacity>
+            <View style={styles.optionDivider} />
+            <TouchableOpacity
+              style={[styles.startOption, startOption === 'schedule' && styles.selectedStartOption]}
+              onPress={() => setStartOption('schedule')}
+            >
+              <MaterialCommunityIcons
+                name={startOption === 'schedule' ? "circle-slice-8" : "circle-outline"}
+                size={24}
+                color={startOption === 'schedule' ? "#4CAF50" : "#1B1D21"}
+              />
+              <Text style={styles.startOptionText}>Schedule a time</Text>
+            </TouchableOpacity>
+          </View>
+          {startOption === 'schedule' && (
+            <View style={styles.datePickerWrapper}>
+              <CustomDatePicker
+                onDateSelect={(date, time) => {
+                  setScheduledDate(moment(`${date} ${time}`, 'YYYY-MM-DD HH:mm A').toDate());
+                }}
+              />
+            </View>
+          )}
+        </View>
+      </ScrollView>
+      {startOption === 'now' && (
+        <View style={styles.proceedButtonContainer}>
+          <TouchableOpacity
+            style={[styles.proceedButton, { backgroundColor: '#1B1D21' }]}
+            onPress={() => {
+              // Handle begin session logic here
+            }}
+          >
+            <View style={styles.proceedButtonContent}>
+              <MaterialCommunityIcons
+                name="phone"
+                size={24}
+                color="white"
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.proceedButtonText}>Begin Session</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+      {startOption === 'schedule' && (
+        <View style={styles.proceedButtonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.proceedButton,
+              { backgroundColor: '#1B1D21' },
+              !scheduledDate && styles.disabledButton
+            ]}
+            onPress={() => {
+              // Handle schedule session logic here
+            }}
+            disabled={!scheduledDate}
+          >
+            <View style={styles.proceedButtonContent}>
+              <MaterialCommunityIcons
+                name="calendar"
+                size={24}
+                color={scheduledDate ? "white" : "rgba(255, 255, 255, 0.5)"}
+                style={styles.buttonIcon}
+              />
+              <Text style={[
+                styles.proceedButtonText,
+                !scheduledDate && styles.disabledButtonText
+              ]}>
+                Schedule Session
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
 
-  const toggleMicrophone = () => {
-    if (setIsMicrophoneEnabled) {
-      setIsMicrophoneEnabled(!isMicrophoneEnabled);
+  const moduleData = {
+    '1': {
+      name: 'Daily Standup',
+      questions: [
+        "What are your priorities today?",
+        "Let's walk through the highest priority",
+        "What would success look like today?"
+      ]
+    },
+    '2': {
+      name: 'Goal Setting',
+      questions: [
+        "What's your main goal for this week?",
+        "What steps can you take to achieve this goal?",
+        "What potential obstacles do you foresee?",
+        "How will you measure your progress?"
+      ]
+    },
+    '3': {
+      name: 'Explore A New Idea',
+      questions: [
+        "What new idea are you considering?",
+        "How does this idea align with your current goals or projects?",
+        "What resources would you need to implement this idea?"
+      ]
     }
   };
 
-  const handleEndCall = useCallback(async () => {
-    try {
-      if (room) {
-        await room.disconnect();
-      }
-      onDisconnect();
-    } catch (error) {
-      console.error('Error disconnecting:', error);
-    }
-  }, [room, onDisconnect]);
-
   return (
-    <View style={styles.callContainer}>
-      <View style={styles.callContent}>
-        <Text style={styles.coachName}>Coach Johnson</Text>
-        <Text style={styles.callDuration}>{formatTime(callDuration)}</Text>
-        <View style={styles.controlsContainer}>
-          <TouchableOpacity style={styles.controlButton} onPress={toggleMicrophone}>
-            <FontAwesome name={isMicrophoneEnabled ? 'microphone' : 'microphone-slash'} size={24} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.controlButton, styles.endCallButton]} onPress={handleEndCall}>
-            <FontAwesome name="phone" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      {renderHeader()}
+      <View style={styles.content}>
+        {step === 1 && renderStep1()}
+        {step === 2 && renderStep2()}
+        {step === 3 && renderStep3()}
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  item: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: 15,
-    marginVertical: 5,
-    borderRadius: 5,
-    width: '90%',
-    alignSelf: 'center',
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
   },
-  selectedItem: {
-    backgroundColor: 'rgba(255,255,255,0.4)',
+  headerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
-  itemText: {
-    color: '#fff',
-    fontSize: wp(4),
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 70 : 20,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    backgroundColor: '#1B1D21',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerTitle: {
+    color: 'white',
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  itemSubText: {
-    color: '#ddd',
+  // headerCurve: {
+  //   height: 15,
+  //   backgroundColor: '#1B1D21',
+  //   borderBottomLeftRadius: 100,
+  //   borderBottomRightRadius: 100,
+  // },
+  content: {
+    flex: 1,
+    marginTop: Platform.OS === 'ios' ? 130 : 80, // Adjust based on header height
+  },
+  stepContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  stepTitle: {
+    fontSize: wp(7),
+    fontWeight: 'bold',
+    color: '#1B1D21',
+    marginBottom: hp(2),
+  },
+  customButton: {
+    position: 'absolute',
+    top: hp(2), // Adjust this value to align with stepTitle
+    right: wp(15),
+    backgroundColor: '#F3F4F5',
+    paddingHorizontal: wp(3),
+    paddingVertical: hp(1),
+    borderRadius: 15,
+  },
+  customButtonText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  subtitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hp(2),
+  },
+  subtitle: {
+    fontSize: wp(4),
+    color: '#8A8B8D',
+    marginLeft: wp(2),
+  },
+  moduleItem: {
+    width: wp(25),
+    height: wp(25),
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 10,
+    marginRight: wp(3),
+    position: 'relative',
+  },
+  selectedModuleItem: {
+    backgroundColor: 'rgba(76,175,80,0.3)',
+  },
+  lightningIconContainer: {
+    position: 'absolute',
+    top: 11,
+    right: 11,
+    backgroundColor: '#4CAF50',
+    borderRadius: 10,
+    padding: 2,
+  },
+  moduleIcon: {
+    fontSize: wp(10),
+    marginBottom: hp(1),
+  },
+  moduleText: {
+    color: '#1B1D21',
+    textAlign: 'center',
     fontSize: wp(3),
-    marginTop: 5,
+  },
+  overviewSection: {
+    marginTop: hp(4),
+    marginBottom: hp(3),
+  },
+  sectionTitle: {
+    fontSize: wp(5),
+    fontWeight: 'bold',
+    color: '#4FBF67',
+    marginBottom: hp(1),
+  },
+  questionItem: {
+    paddingVertical: hp(1.5),
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  questionText: {
+    fontSize: wp(3.5),
+    color: '#1B1D21',
+  },
+  proceedButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: hp(2),
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: hp(3),
+    marginBottom: hp(4), // Add this line
+  },
+  proceedButtonText: {
+    color: 'white',
+    fontSize: wp(4),
+    fontWeight: 'bold',
   },
   disabledButton: {
     opacity: 0.5,
   },
-  gradientContainer: {
-    flex: 1,
-    backgroundColor: '#191A23',
-  },
-  centeredContent: {
-    flex: 1,
-    width: '90%',
-    alignSelf: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
-  title: {
-    fontSize: wp(6),
-    color: '#fff',
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: wp(5),
-    color: '#fff',
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  moduleList: {
-    maxHeight: hp(40), // Limit the height of the list
-    marginBottom: 20,
-  },
-  connectButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 25,
-    alignSelf: 'center',
-  },
-  connectButtonText: {
-    color: 'white',
-    fontSize: wp(4),
-  },
-  callContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  selectedModuleContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  callContent: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 20,
-    borderRadius: 10,
-  },
-  coachName: {
-    fontSize: wp(6),
-    fontWeight: 'bold',
-    color: 'white',
     marginBottom: hp(2),
   },
-  callDuration: {
-    fontSize: wp(5),
-    color: 'white',
-    marginBottom: hp(4),
+  selectedModuleText: {
+    fontSize: wp(4),
+    color: '#1B1D21',
+    marginLeft: wp(2),
+    marginRight: 'auto',
   },
-  controlsContainer: {
+  dottedLine: {
+    height: hp(4),
+    width: 1,
+    borderStyle: 'dotted',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    marginLeft: wp(3),
+    marginBottom: hp(2),
+  },
+  chooseGuideContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp(2),
   },
-  controlButton: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    width: wp(15),
-    height: wp(15),
-    borderRadius: wp(7.5),
+  guideItem: {
+    width: wp(35),
+    height: wp(50), // Increased height to accommodate the divider
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: wp(2),
+    borderRadius: 24, // Updated to 24px
+    marginRight: wp(3),
+    padding: wp(2),
+    position: 'relative',
   },
-  endCallButton: {
-    backgroundColor: '#FF3B30',
+  selectedGuideItem: {
+    backgroundColor: '#1B1D21',
+  },
+  unselectedGuideItem: {
+    backgroundColor: 'transparent',
+    borderColor: '#C4C4C4',
+    borderWidth: 1,
+  },
+  guidePhoto: {
+    width: wp(20),
+    height: wp(20),
+    borderRadius: wp(10),
+    marginBottom: hp(1),
+  },
+  guideDivider: {
+    width: '113%',
+    height: 1,
+    marginVertical: hp(1),
+  },
+  selectedGuideDivider: {
+    backgroundColor: 'white',
+  },
+  unselectedGuideDivider: {
+    backgroundColor: '#C4C4C4',
+  },
+  guideName: {
+    fontSize: wp(4),
+    fontWeight: 'bold',
+    marginBottom: hp(0.5),
+  },
+  guideDescription: {
+    fontSize: wp(3),
+    textAlign: 'center',
+  },
+  selectedGuideText: {
+    color: 'white',
+  },
+  unselectedGuidePrimaryText: {
+    color: '#1B1D21',
+  },
+  unselectedGuideSecondaryText: {
+    color: '#808080',
+  },
+  guidePhotoBackground: {
+    width: wp(19),
+    height: wp(17),
+    borderRadius: wp(10),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp(1),
+  },
+  startOptionsContainer: {
+    marginTop: hp(2),
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  startOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp(3),
+    paddingHorizontal: wp(4),
+  },
+  selectedStartOption: {
+    backgroundColor: 'white',
+  },
+  startOptionText: {
+    marginLeft: wp(2),
+    fontSize: wp(4),
+    color: '#1B1D21',
+  },
+  buttonIcon: {
+    marginRight: wp(2),
+  },
+  modal: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+  datePickerContainer: {
+    backgroundColor: 'white',
+    padding: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 17,
+    borderTopRightRadius: 17,
+    backgroundColor: 'red',
+
+  },
+  datePickerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  datePickerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
+  datePickerButtonText: {
+    fontSize: 18,
+    color: '#007AFF',
+  },
+  datePickerContent: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  datePickerWrapper: {
+    marginTop: hp(2),
+  },
+  proceedButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepContentWrapper: {
+    paddingTop: hp(4),
+    paddingBottom: hp(6),
+  },
+  proceedButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: wp(4),
+    backgroundColor: 'white',
+  },
+  proceedButton: {
+    backgroundColor: '#1B1D21',
+    paddingVertical: hp(2),
+    borderRadius: 25,
+    alignItems: 'center',
+  },
+  proceedButtonText: {
+    color: 'white',
+    fontSize: wp(4),
+    fontWeight: 'bold',
+    marginLeft: wp(2),
+  },
+  buttonIcon: {
+    marginRight: wp(2),
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  disabledButtonText: {
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: hp(10), // Add padding to account for the button
+  },
+  stepContentWrapper: {
+    padding: wp(4),
+  },
+  proceedButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: wp(4),
+    backgroundColor: 'white', // To ensure the button has a solid background
+  },
+  proceedButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: hp(2),
+    borderRadius: 25,
+    alignItems: 'center',
+  },
+  proceedButtonText: {
+    color: 'white',
+    fontSize: wp(4),
+    fontWeight: 'bold',
+  },
+  optionDivider: {
+    height: 1,  // This ensures the divider is thin and horizontal
+    backgroundColor: '#E0E0E0',
+    width: '100%',  // This makes the divider span the full width
   },
 });
 
