@@ -4,6 +4,7 @@ import { Entypo } from "@expo/vector-icons";
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from '../screens/HomeScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RecordScreen from '../screens/RecordScreen';
@@ -14,6 +15,7 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import useAuth from '../../hooks/useAuth';
 import GuidedSession from '../screens/GuidedSession';
+import ExploreScreen from '../screens/ExploreScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -34,6 +36,16 @@ const screenOptions = {
 
 const tabBarStyle = { backgroundColor: "#1F222A" };
 
+function HomeStack() {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="HomeScreen" component={HomeScreen} />
+            <Stack.Screen name="GuidedSession" component={GuidedSession} />
+            <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+        </Stack.Navigator>
+    );
+}
+
 function LibraryStack() {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -45,13 +57,24 @@ function LibraryStack() {
     );
 }
 
+function ExploreStack() {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="ExploreScreen" component={ExploreScreen} />
+            <Stack.Screen name="GuidedSession" component={GuidedSession} />
+            <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+        </Stack.Navigator>
+    );
+}
+
 function TabNavigator() {
     return (
         <Tab.Navigator screenOptions={{ ...screenOptions, tabBarStyle }}>
             {[
+                { name: "Home", component: HomeStack, icon: "home" },
                 { name: "Library", component: LibraryStack, icon: "list" },
-                { name: "Record", component: RecordScreen, icon: "plus" },
-                { name: "GuidedSession", component: GuidedSession, icon: "chat" },
+                { name: "Explore", component: ExploreStack, icon: "compass" },
+                { name: "Settings", component: SettingsScreen, icon: "user" },
             ].map(({ name, component, icon }) => (
                 <Tab.Screen
                     key={name}
@@ -76,7 +99,6 @@ export default function AppNavigation() {
     useEffect(() => {
     }, [user]);
 
-    
     return (
         <NavigationContainer>
             <Stack.Navigator>
