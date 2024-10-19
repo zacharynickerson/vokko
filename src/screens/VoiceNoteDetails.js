@@ -7,15 +7,38 @@ import SoloVoiceNoteItem from '../components/SoloSessionItem';
 import GuidedSessionItem from '../components/GuidedSessionItem';
 import { formatDateForDisplay } from '../utilities/helpers';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import RenderHtml from 'react-native-render-html';
+import { useWindowDimensions } from 'react-native';
 
 export default function VoiceNoteDetails({ route, navigation }) {
   const { voiceNote } = route.params;
   const { voiceNoteId } = voiceNote;
 
   const [noteTitle, setNoteTitle] = useState('');
-  const [transcript, setTranscript] = useState('');
+  const [formattedNote, setFormattedNote] = useState('');
   const [audioUri, setAudioUri] = useState(null);
+  const [showOptions, setShowOptions] = useState(false);
   const playbackRef = useRef(null);
+
+  const { width } = useWindowDimensions();
+
+  const formatNoteContent = (content) => {
+    // Convert **text** to <strong>text</strong>
+    let formattedContent = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Convert newlines to <br> tags
+    formattedContent = formattedContent.replace(/\n/g, '<br>');
+
+    return formattedContent;
+  };
+
+  const tagsStyles = {
+    strong: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: '#4FBF67',
+    },
+  };
 
   useEffect(() => {
     const noteRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteId}`);
@@ -23,9 +46,9 @@ export default function VoiceNoteDetails({ route, navigation }) {
     const unsubscribe = onValue(noteRef, (snapshot) => {
       if (snapshot.exists()) {
         const noteData = snapshot.val();
-        setTranscript(noteData.transcript || '');
+        setFormattedNote(noteData.transcript || ''); // Use transcript for formatted note
         setNoteTitle(noteData.title || '');
-        setAudioUri(noteData.audioUri || null);
+        setAudioUri(noteData.chunks[0]?.url || null); // Access the first chunk's URL
       }
     }, (error) => {
       console.error('Error fetching note details:', error);
@@ -38,31 +61,61 @@ export default function VoiceNoteDetails({ route, navigation }) {
     navigation.goBack();
   };
 
-  const handleDelete = async () => {
-    try {
-      const voiceNoteDbRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteId}`);
-      await remove(voiceNoteDbRef);
-      navigation.navigate('LibraryScreen', { refresh: true });
-    } catch (error) {
-      console.error('Error deleting voice note:', error);
-      Alert.alert('Error', 'Failed to delete the voice note. Please try again.');
-    }
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Note",
+      "Are you sure you want to delete this note?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        { 
+          text: "Yes", 
+          onPress: async () => {
+            try {
+              const voiceNoteDbRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteId}`);
+              await remove(voiceNoteDbRef);
+              navigation.navigate('LibraryScreen', { refresh: true });
+            } catch (error) {
+              console.error('Error deleting voice note:', error);
+              Alert.alert('Error', 'Failed to delete the voice note. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const toggleOptions = () => {
+    setShowOptions(!showOptions);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerIcon} onPress={handleBack}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="black" />
-        </TouchableOpacity>
-        <View style={styles.headerRightIcons}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="paper-plane-outline" size={24} color="black" />
+      <View style={styles.headerContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.headerIcon} onPress={handleBack}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color="black" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="ellipsis-vertical" size={24} color="black" />
-          </TouchableOpacity>
+          <View style={styles.headerRightIcons}>
+            <TouchableOpacity style={styles.headerIcon}>
+              <Ionicons name="paper-plane-outline" size={24} color="black" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIcon} onPress={toggleOptions}>
+              <Ionicons name="ellipsis-vertical" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {showOptions && (
+          <View style={styles.optionsMenu}>
+            <TouchableOpacity style={styles.optionItem} onPress={handleDelete}>
+              <Text style={styles.optionText}>Delete Note</Text>
+            </TouchableOpacity>
+            {/* Add more options here if needed */}
+          </View>
+        )}
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -77,15 +130,12 @@ export default function VoiceNoteDetails({ route, navigation }) {
         <View style={styles.divider} />
 
         <View style={styles.contentContainer}>
-          <Text style={styles.transcriptHeader}>Transcript</Text>
-          <Text style={styles.transcriptText}>
-            {transcript.split('\n\n').map((paragraph, index) => (
-              <Text key={index}>
-                {paragraph}
-                {'\n\n'}
-              </Text>
-            ))}
-          </Text>
+          <RenderHtml
+            contentWidth={width}
+            source={{ html: formatNoteContent(formattedNote) || 'No formatted note available' }}
+            tagsStyles={tagsStyles}
+            baseStyle={styles.formattedNoteText}
+          />
         </View>
       </ScrollView>
 
@@ -101,12 +151,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  headerContainer: {
+    zIndex: 1000, // Ensure this container is above other elements
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    
   },
   headerIcon: {
     width: 24,
@@ -135,13 +187,13 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
   },
-  transcriptHeader: {
+  formattedNoteHeader: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4FBF67',
     marginBottom: 8,
   },
-  transcriptText: {
+  formattedNoteText: {
     fontSize: 16,
     color: '#808080',
     lineHeight: 24,
@@ -156,5 +208,27 @@ const styles = StyleSheet.create({
     elevation: 5,
     borderWidth: 2,
     borderColor: '#4FBF67',
+  },
+  optionsMenu: {
+    position: 'absolute',
+    top: '100%', // Position it right below the header
+    right: 10,
+    backgroundColor: 'white',
+    borderRadius: 5,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  optionItem: {
+    padding: 10,
+  },
+  optionText: {
+    fontSize: 16,
   },
 });

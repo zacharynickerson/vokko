@@ -18,11 +18,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialize services
 export const db = getDatabase(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
-
-// Initialize Firebase Authentication
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
@@ -59,7 +59,7 @@ export const createVoiceNote = async (userId, voiceNoteData) => {
 
   await set(newVoiceNoteRef, {
     ...voiceNoteData,
-    voiceNoteId, // Ensure voiceNoteId is stored
+    voiceNoteId,
     createdDate: new Date().toISOString(),
   });
 
@@ -126,21 +126,36 @@ export const getModuleWithCoach = async (moduleId) => {
 };
 
 // Function to upload audio file to Firebase Storage
-export const saveToFirebaseStorage = async (uri, voiceNoteId) => {
+export const saveToFirebaseStorage = async (base64Data, filePath) => {
   try {
     const user = auth.currentUser;
     if (!user) throw new Error('User is not authenticated');
     
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    console.log('Creating blob from base64 data...');
+    const blob = await fetch(`data:audio/m4a;base64,${base64Data}`).then(r => r.blob());
+    console.log('Blob created. Size:', blob.size);
     
-    const filename = `${voiceNoteId}.m4a`; // Ensure filename matches voiceNoteId
-    const audioStorageRef = storageRef(storage, `users/${user.uid}/voiceNotes/${filename}`);
+    // Ensure the path is constructed correctly
+    const audioStorageRef = storageRef(storage, filePath);
+    console.log('Storage reference created:', audioStorageRef.fullPath);
 
-    await uploadBytes(audioStorageRef, blob);
-    return await getDownloadURL(audioStorageRef);
+    console.log('Starting upload to Firebase Storage...');
+    const snapshot = await uploadBytes(audioStorageRef, blob);
+    console.log('Upload successful. Bytes transferred:', snapshot.bytesTransferred);
+
+    console.log('Getting download URL...');
+    const downloadUrl = await getDownloadURL(audioStorageRef);
+    console.log('Download URL obtained:', downloadUrl);
+
+    return downloadUrl;
   } catch (error) {
-    console.error('Error uploading audio file:', error);
+    console.error('Error in saveToFirebaseStorage:', error);
+    if (error.code) {
+      console.error('Firebase error code:', error.code);
+    }
+    if (error.serverResponse) {
+      console.error('Server response:', error.serverResponse);
+    }
     throw error;
   }
 };

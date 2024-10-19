@@ -1,15 +1,22 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const fs = require('fs');
+const FormData = require('form-data');
+const axios = require('axios');
+
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+  databaseURL: functions.config().database.url,
+  storageBucket: 'vokko-f8f6a.appspot.com'
+});
+
 const { Storage } = require("@google-cloud/storage");
 const storage = new Storage();
 const OpenAI = require("openai");
-const axios = require('axios');
 const dotenv = require('dotenv');
-const FormData = require('form-data');
 
 dotenv.config();
 
-admin.initializeApp();
 
 const openai = new OpenAI({
   apiKey: functions.config().openai.key,
@@ -18,14 +25,9 @@ const openai = new OpenAI({
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
-async function transcribeAudioWithRetry(audioUrl, retries = 0) {
+async function transcribeAudioWithRetry(audioBuffer, retries = 0) {
   try {
-    console.log('Starting audio transcription process for URL:', audioUrl);
-
-    // Download the audio file
-    const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' });
-    const audioBuffer = Buffer.from(audioResponse.data);
-    console.log('Audio buffer size:', audioBuffer.length);
+    console.log('Starting audio transcription process');
 
     // Prepare the form data for OpenAI API
     const formData = new FormData();
@@ -60,7 +62,7 @@ async function transcribeAudioWithRetry(audioUrl, retries = 0) {
     if (error.response && error.response.status === 429 && retries < MAX_RETRIES) {
       console.warn(`Rate limit hit, retrying in ${RETRY_DELAY_MS}ms...`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-      return transcribeAudioWithRetry(audioUrl, retries + 1);
+      return transcribeAudioWithRetry(audioBuffer, retries + 1);
     }
 
     console.error('Error transcribing audio:', error);
@@ -100,8 +102,18 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('failed-precondition', 'OpenAI API key is not configured');
   }
 
-  return transcribeAudioWithRetry(audioUrl);
+  try {
+    // Download the audio file
+    const response = await axios.get(audioUrl, { responseType: 'arraybuffer' });
+    const audioBuffer = Buffer.from(response.data);
+
+    return transcribeAudioWithRetry(audioBuffer);
+  } catch (error) {
+    console.error('Error downloading audio:', error);
+    throw new functions.https.HttpsError('internal', `Error downloading audio: ${error.message}`);
+  }
 });
+
 
 exports.processTranscript = functions.database
   .ref('/voiceNotes/{userId}/{voiceNoteId}/transcript')
@@ -119,7 +131,7 @@ exports.processTranscript = functions.database
     const prompt = {
       model: "gpt-3.5-turbo-0125",
       messages: [
-        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title, summary, and list of action items based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A cleaned up version of the original transcript that maintains as much of the original transcript text as possible while cleaning up the grammar, grouping text into logical paragraphs, and assigning plain text section headers when appropriate.]\n\nACTION ITEMS:\n- [Action item 1]\n- [Action item 2]\n- [Action item 3]\n...\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:, ACTION ITEMS:) and that the action items are presented as a bulleted list. Detect the language that is used in the transcript and output all answers within each section using that same language" },
+        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title and summary based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A cleaned up version of the original transcript that maintains as much of the original transcript text as possible while cleaning up the grammar and grouping text into logical paragraphs.]\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:). Detect the language that is used in the transcript and output all answers within each section using that same language." },
         { "role": "user", "content": `Please process the following voice note transcript:\n\n${transcript}` }
       ],
       max_tokens: 3000,
@@ -142,34 +154,26 @@ exports.processTranscript = functions.database
         const resultText = response.choices[0].message.content.trim();
 
         // Split the response into sections
-        const sections = resultText.split(/\n(?=TITLE:|SUMMARY:|ACTION ITEMS:)/);
+        const sections = resultText.split(/\n(?=TITLE:|SUMMARY:)/);
 
         let title = '';
         let summary = '';
-        let tasks = [];
 
         sections.forEach(section => {
           if (section.startsWith('TITLE:')) {
             title = section.replace('TITLE:', '').trim();
           } else if (section.startsWith('SUMMARY:')) {
             summary = section.replace('SUMMARY:', '').trim();
-          } else if (section.startsWith('ACTION ITEMS:')) {
-            tasks = section.replace('ACTION ITEMS:', '')
-              .split('\n')
-              .map(task => task.trim().replace(/^-\s*/, ''))
-              .filter(task => task.length > 0);
           }
         });
 
         console.log('Title:', title);
         console.log('Summary:', summary);
-        console.log('Tasks:', tasks);
 
-        // Update Firebase with title, summary, and tasks
+        // Update Firebase with title and summary
         await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
           title: title || 'Untitled Note',
           summary: summary || 'No summary available',
-          actionItems: tasks.length > 0 ? tasks : ['No tasks identified'],
         });
 
         console.log(`Voice note processed successfully: ${voiceNoteId}`);
@@ -182,3 +186,118 @@ exports.processTranscript = functions.database
 
     return null;
   });
+
+  exports.processVoiceNoteBackground = functions.database
+  .ref('/voiceNotes/{userId}/{voiceNoteId}')
+  .onUpdate(async (change, context) => {
+    const voiceNoteData = change.after.val();
+    const { userId, voiceNoteId } = context.params;
+
+    if (voiceNoteData.status !== 'processing') {
+      return null;
+    }
+
+    try {
+      let fullTranscript = '';
+      const bucket = admin.storage().bucket();
+
+      for (let i = 0; i < voiceNoteData.totalChunks; i++) {
+        const chunkPath = `users/${userId}/voiceNotes/${voiceNoteId}/chunks/${i}.m4a`;
+        const transcriptionPath = `users/${userId}/voiceNotes/${voiceNoteId}/transcriptions/${i}.txt`;
+
+        // Download the file to a temporary location
+        const tempFilePath = `/tmp/${voiceNoteId}_${i}.m4a`;
+        await bucket.file(chunkPath).download({destination: tempFilePath});
+
+        console.log(`Processing chunk ${i}, path: ${tempFilePath}`);
+
+        // Read the file as a buffer
+        const audioBuffer = await fs.promises.readFile(tempFilePath);
+
+        // Use the buffer directly with your transcription function
+        const { transcript } = await transcribeAudioWithRetry(audioBuffer);
+        
+        // Save individual chunk transcription
+        await bucket.file(transcriptionPath).save(transcript);
+
+        fullTranscript += transcript + ' ';
+
+        // Clean up the temporary file
+        await fs.promises.unlink(tempFilePath);
+      }
+
+      console.log('Full transcript:', fullTranscript);
+
+      // Update the voice note with the full transcript
+      await admin.database().ref(`voiceNotes/${userId}/${voiceNoteId}`).update({
+        transcript: fullTranscript,
+        status: 'transcribed',
+      });
+
+      // Process the transcript for title and summary
+      await processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, fullTranscript);
+
+    } catch (error) {
+      console.error('Error processing voice note:', error);
+      await admin.database().ref(`voiceNotes/${userId}/${voiceNoteId}`).update({
+        status: 'error',
+        error: error.message,
+      });
+    }
+  });
+
+async function processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, transcript) {
+  console.log(`Processing voice note: userId=${userId}, voiceNoteId=${voiceNoteId}, transcript=${transcript}`);
+
+  const prompt = {
+    model: "gpt-3.5-turbo-0125",
+    messages: [
+      { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title and summary based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A cleaned up version of the original transcript that maintains the speaker's voice and perspective, formats paragraphs, and includes section headers where necessary.]\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:). Detect the language that is used in the transcript and output all answers within each section using that same language." },
+      { "role": "user", "content": `Please process the following voice note transcript:\n\n${transcript}` }
+    ],
+    max_tokens: 3000,
+    temperature: 0.7,
+  };
+
+  try {
+    const response = await openai.chat.completions.create(prompt);
+
+    console.log('API response:', response);
+
+    if (response.choices && response.choices.length > 0) {
+      const resultText = response.choices[0].message.content.trim();
+
+      // Split the response into sections
+      const sections = resultText.split(/\n(?=TITLE:|SUMMARY:)/);
+
+      let title = '';
+      let summary = '';
+
+      sections.forEach(section => {
+        if (section.startsWith('TITLE:')) {
+          title = section.replace('TITLE:', '').trim();
+        } else if (section.startsWith('SUMMARY:')) {
+          summary = section.replace('SUMMARY:', '').trim();
+        }
+      });
+
+      console.log('Title:', title);
+      console.log('Summary:', summary);
+
+      // Update Firebase with title and summary
+      await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
+        title: title || 'Untitled Note',
+        summary: summary || 'No summary available',
+        status: 'completed',
+      });
+
+      console.log(`Voice note processed successfully: ${voiceNoteId}`);
+    } else {
+      console.error('API returned no choices in the response');
+      throw new Error('API returned no choices in the response');
+    }
+  } catch (error) {
+    console.error('Error processing voice note:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+}
