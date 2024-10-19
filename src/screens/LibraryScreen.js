@@ -16,7 +16,6 @@ export default function LibraryScreen() {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
   const route = useRoute();
-  const [userName, setUserName] = useState('');
 
   const navigateToSettings = () => {
     navigation.navigate('SettingsScreen');
@@ -36,12 +35,11 @@ export default function LibraryScreen() {
         setLoading(true);
         let firebaseNotes = [];
         if (snapshot.exists()) {
-          firebaseNotes = Object.values(snapshot.val()).map(note => {
-            return {
-              ...note,
-              voiceNoteId: note.voiceNoteId || extractVoiceNoteIdFromUri(note.audioFileUri)
-            };
-          }).filter(note => note !== null);
+          firebaseNotes = Object.values(snapshot.val()).map(note => ({
+            voiceNoteId: note.voiceNoteId || note.id, // Use voiceNoteId or fallback to id
+            createdDate: note.createdDate || new Date().toISOString(), // Access createdDate
+            title: note.title || 'Untitled Note', // Access title
+          }));
         }
 
         const sortedNotes = sortNotesChronologically(firebaseNotes);
@@ -75,16 +73,6 @@ export default function LibraryScreen() {
     fetchVoiceNotes();
   }, [fetchVoiceNotes]);
 
-  const extractVoiceNoteIdFromUri = (uri) => {
-    if (!uri) {
-      console.error('URI is undefined');
-      return null;
-    }
-    const parts = uri.split('/');
-    const filename = parts.pop();
-    return filename ? filename.split('.')[0] : null;
-  };
-
   const sortNotesChronologically = (notes) => {
     return notes.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
   };
@@ -94,16 +82,6 @@ export default function LibraryScreen() {
       <SoloVoiceNoteItem item={item} />
     </TouchableOpacity>
   );
-
-  // Sample guided session data for testing
-  const sampleGuidedSession = {
-    image: '/Users/zacharynickerson/Desktop/vokko/assets/images/default-note-image.png', // Replace with a valid image URL
-    title: 'How to Master React Native',
-    createdDate: '2023-10-01',
-    guideImage: '/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 6.png', // Replace with a valid image URL
-    guideName: 'John Doe',
-    moduleName: 'React Native Basics',
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -130,14 +108,9 @@ export default function LibraryScreen() {
       </View>
 
       <FlatList
-        data={voiceNotes.filter(note => note && note.audioFileUri).concat([sampleGuidedSession])}
-        keyExtractor={(item) => item?.voiceNoteId || item?.title}
-        renderItem={({ item }) => {
-          if (item.guideName) {
-            return <GuidedSessionItem item={item} />;
-          }
-          return renderVoiceNoteItem({ item });
-        }}
+        data={voiceNotes}
+        keyExtractor={(item) => item.voiceNoteId}
+        renderItem={renderVoiceNoteItem}
         contentContainerStyle={styles.listContent}
         style={styles.flatList}
       />

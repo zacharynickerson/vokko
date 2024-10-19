@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, FlatList, Image, SafeAreaView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,24 @@ import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-nat
 import Modal from 'react-native-modal';
 import moment from 'moment';
 import CustomDatePicker from '/Users/zacharynickerson/Desktop/vokko/src/components/CustomDatePicker.js';
+import SessionConfirmation from '../components/SessionConfirmation';
+import { getModules, getModuleWithCoach, getGuides } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
+import { auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+
+const images = {
+  'Avatar Female 6.png': require('../../assets/images/Avatar Female 6.png'),
+  'Avatar Male 9.png': require('../../assets/images/Avatar Male 9.png'),
+  'Avatar Female 13.png': require('../../assets/images/Avatar Female 13.png'),
+  'Avatar Male 14.png': require('../../assets/images/Avatar Male 14.png'),
+  'Avatar Female 1.png': require('../../assets/images/Avatar Female 1.png'),
+  'Avatar Male 2.png': require('../../assets/images/Avatar Male 2.png'),
+  // Add all other image filenames here
+};
+
+const getImageSource = (imageName) => {
+  return images[imageName] || require('../../assets/images/user-photo.png');
+};
 
 const GuidedSession = () => {
   const [step, setStep] = useState(1);
@@ -15,7 +33,37 @@ const GuidedSession = () => {
   const [startOption, setStartOption] = useState('now');
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(new Date());
+  const [isSessionScheduled, setIsSessionScheduled] = useState(false);
+  const [modules, setModules] = useState([]);
+  const [guides, setGuides] = useState([]);
   const navigation = useNavigation();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        const fetchedModules = await getModules();
+        setModules(Object.values(fetchedModules || {}));
+      } catch (error) {
+        console.error('Error fetching modules:', error);
+      }
+    };
+
+    fetchModules();
+  }, []);
+
+  useEffect(() => {
+    const fetchGuides = async () => {
+      try {
+        const fetchedGuides = await getGuides();
+        setGuides(Object.values(fetchedGuides || {}));
+      } catch (error) {
+        console.error('Error fetching guides:', error);
+      }
+    };
+
+    fetchGuides();
+  }, []);
 
   const navigateToSettings = () => {
     navigation.navigate('SettingsScreen');
@@ -48,21 +96,17 @@ const GuidedSession = () => {
             <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
             <Text style={styles.selectedModuleText}>
               {selectedModule 
-                ? `${selectedModule.name} (${moduleData[selectedModule.id].questions.length} Questions)`
+                ? `${selectedModule.name} (${selectedModule.questions.length} Questions)`
                 : "Select a topic to explore with your guide"}
             </Text>
           </View>
           <FlatList
             horizontal
-            data={[
-              { id: '1', name: 'Daily Standup', icon: '🏠', color: '#FFD700' },
-              { id: '2', name: 'Goal Setting', icon: '🎯', color: '#87CEEB' },
-              { id: '3', name: 'Explore A New Idea', icon: '💡', color: '#FFA07A' },
-            ]}
+            data={modules}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[styles.moduleItem, selectedModule?.id === item.id && styles.selectedModuleItem]}
-                onPress={() => setSelectedModule({...item, ...moduleData[item.id]})}
+                onPress={() => setSelectedModule(item)}
               >
                 {selectedModule?.id === item.id && (
                   <View style={styles.lightningIconContainer}>
@@ -79,7 +123,7 @@ const GuidedSession = () => {
           {selectedModule && (
             <View style={styles.overviewSection}>
               <Text style={styles.sectionTitle}>Overview</Text>
-              {moduleData[selectedModule.id].questions.map((question, index) => (
+              {selectedModule.questions.map((question, index) => (
                 <View key={index} style={styles.questionItem}>
                   <Text style={styles.questionText}>{question}</Text>
                 </View>
@@ -100,30 +144,6 @@ const GuidedSession = () => {
     </View>
   );
 
-  const guides = [
-    {
-      id: '1',
-      name: 'Coach Carter',
-      photo: require('../../assets/images/bg-Avatar Male 2.png'),
-      description: 'Tough, sarcastic, masculine',
-      color: '#FFD700', // Yellow background
-    },
-    {
-      id: '2',
-      name: 'Guide Jaja',
-      photo: require('../../assets/images/bg-Avatar Female 6.png'),
-      description: 'Mysterious, empathic, feminine',
-      color: '#DDA0DD', // Plum background
-    },
-    {
-      id: '3',
-      name: 'The Vanguard',
-      photo: require('../../assets/images/bg-Avatar Male 11.png'),
-      description: 'Fatherly, prestigious, grand',
-      color: '#20B2AA', // Light Sea Green background
-    },
-  ];
-
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
@@ -132,7 +152,7 @@ const GuidedSession = () => {
           <View style={styles.selectedModuleContainer}>
             <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
             <Text style={styles.selectedModuleText}>
-              {selectedModule.name} ({moduleData[selectedModule.id].questions.length} Questions)
+              {selectedModule.name} ({selectedModule.questions.length} Questions)
             </Text>
             <TouchableOpacity onPress={() => setStep(1)}>
               <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
@@ -163,9 +183,10 @@ const GuidedSession = () => {
                     <MaterialCommunityIcons name="lightning-bolt" size={16} color="white" />
                   </View>
                 )}
-                <View style={[styles.guidePhotoBackground, { backgroundColor: item.color }]}>
-                  <Image source={item.photo} style={styles.guidePhoto} />
-                </View>
+                <Image 
+                  source={getImageSource(item.mainPhoto)}
+                  style={styles.guidePhoto}
+                />
                 <View style={[
                   styles.guideDivider,
                   selectedGuide?.id === item.id ? styles.selectedGuideDivider : styles.unselectedGuideDivider
@@ -283,9 +304,7 @@ const GuidedSession = () => {
         <View style={styles.proceedButtonContainer}>
           <TouchableOpacity
             style={[styles.proceedButton, { backgroundColor: '#1B1D21' }]}
-            onPress={() => {
-              // Handle begin session logic here
-            }}
+            onPress={handleBeginSession}
           >
             <View style={styles.proceedButtonContent}>
               <MaterialCommunityIcons
@@ -307,9 +326,7 @@ const GuidedSession = () => {
               { backgroundColor: '#1B1D21' },
               !scheduledDate && styles.disabledButton
             ]}
-            onPress={() => {
-              // Handle schedule session logic here
-            }}
+            onPress={handleScheduleSession}
             disabled={!scheduledDate}
           >
             <View style={styles.proceedButtonContent}>
@@ -331,6 +348,47 @@ const GuidedSession = () => {
       )}
     </View>
   );
+
+  const handleScheduleSession = () => {
+    // Here you would typically call your API to set up the cron job
+    // For now, we'll just set the state to show the confirmation screen
+    setIsSessionScheduled(true);
+  };
+
+  const handleAddToCalendar = () => {
+    // Implement the logic to add the session to the user's calendar
+    console.log('Adding to calendar');
+  };
+
+  const handleGoToHomepage = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'HomeScreen' }],
+    });
+  };
+
+  const handleBeginSession = async () => {
+    if (!selectedModule || !selectedGuide || !user) {
+      console.error('No module or guide selected, or no authenticated user');
+      return;
+    }
+
+    try {
+      navigation.navigate('CallStack', {
+        screen: 'GuidedSessionCall',
+        params: {
+          guide: {
+            ...selectedGuide,
+            mainPhoto: selectedGuide.mainPhoto.split('/').pop(), // Ensure we're only passing the filename
+          },
+          module: selectedModule,
+          userId: user.uid
+        }
+      });
+    } catch (error) {
+      console.error('Error preparing session:', error);
+    }
+  };
 
   const moduleData = {
     '1': {
@@ -360,6 +418,18 @@ const GuidedSession = () => {
     }
   };
 
+  if (isSessionScheduled) {
+    return (
+      <SessionConfirmation
+        scheduledDate={moment(scheduledDate)}
+        coachName={selectedGuide.name}
+        onAddToCalendar={handleAddToCalendar}
+        onGoToHomepage={handleGoToHomepage}
+        navigation={navigation}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       {renderHeader()}
@@ -368,6 +438,7 @@ const GuidedSession = () => {
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
       </View>
+      {renderDatePicker()}
     </View>
   );
 };
@@ -555,7 +626,7 @@ const styles = StyleSheet.create({
     width: wp(20),
     height: wp(20),
     borderRadius: wp(10),
-    marginBottom: hp(1),
+    resizeMode: 'cover', // This ensures the image covers the entire space
   },
   guideDivider: {
     width: '113%',

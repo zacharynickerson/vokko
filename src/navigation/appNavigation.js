@@ -7,18 +7,21 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import LoginScreen from '../screens/LoginScreen';
-import RecordScreen from '../screens/RecordScreen';
+import RecordScreen from '../screens/SoloSessionCall';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import VoiceNoteDetails from '../screens/VoiceNoteDetails';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import useAuth from '../../hooks/useAuth';
-import GuidedSession from '../screens/GuidedSession';
+import GuidedSession from '../screens/GuidedSessionSetup';
 import ExploreScreen from '../screens/ExploreScreen';
+import SoloSessionSetup from '../screens/SoloSessionSetup';
+import GuidedSessionCall from '../screens/GuidedSessionCall';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const CallStack = createNativeStackNavigator();
 
 const screenOptions = {
     tabBarShowLabel: false,
@@ -41,6 +44,8 @@ function HomeStack() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
             <Stack.Screen name="GuidedSession" component={GuidedSession} />
+            <Stack.Screen name="SoloSessionSetup" component={SoloSessionSetup} />
+            <Stack.Screen name="SoloSessionCall" component={RecordScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         </Stack.Navigator>
     );
@@ -52,6 +57,8 @@ function LibraryStack() {
             <Stack.Screen name="LibraryScreen" component={LibraryScreen} />
             <Stack.Screen name="VoiceNoteDetails" component={VoiceNoteDetails} />
             <Stack.Screen name="GuidedSession" component={GuidedSession} />
+            <Stack.Screen name="SoloSessionSetup" component={SoloSessionSetup} />
+            <Stack.Screen name="SoloSessionCall" component={RecordScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         </Stack.Navigator>
     );
@@ -62,6 +69,8 @@ function ExploreStack() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="ExploreScreen" component={ExploreScreen} />
             <Stack.Screen name="GuidedSession" component={GuidedSession} />
+            <Stack.Screen name="SoloSessionSetup" component={SoloSessionSetup} />
+            <Stack.Screen name="SoloSessionCall" component={RecordScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         </Stack.Navigator>
     );
@@ -93,43 +102,32 @@ function TabNavigator() {
     );
 }
 
+function CallStackNavigator() {
+    return (
+        <CallStack.Navigator screenOptions={{ headerShown: false }}>
+            <CallStack.Screen name="SoloSessionCall" component={RecordScreen} />
+            <CallStack.Screen name="GuidedSessionCall" component={GuidedSessionCall} />
+        </CallStack.Navigator>
+    );
+}
+
 export default function AppNavigation() {
     const { user } = useAuth();
 
-    useEffect(() => {
-    }, [user]);
-
     return (
         <NavigationContainer>
-            <Stack.Navigator>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {user ? (
-                    <Stack.Screen
-                        name="App"
-                        component={TabNavigator}
-                        options={{ headerShown: false }}
-                    />
+                    <>
+                        <Stack.Screen name="App" component={TabNavigator} />
+                        <Stack.Screen name="CallStack" component={CallStackNavigator} />
+                    </>
                 ) : (
                     <>
-                        <Stack.Screen
-                            name="WelcomeScreen"
-                            component={WelcomeScreen}
-                            options={{ headerShown: false }}
-                        />
-                        <Stack.Screen
-                            name="LoginScreen"
-                            component={LoginScreen}
-                            options={{ headerShown: false }}
-                        />
-                        <Stack.Screen
-                            name="SignUpScreen"
-                            component={SignUpScreen}
-                            options={{ headerShown: false }}
-                        />
-                        <Stack.Screen
-                            name="ForgotPasswordScreen"
-                            component={ForgotPasswordScreen}
-                            options={{ headerShown: false }}
-                        />
+                        <Stack.Screen name="WelcomeScreen" component={WelcomeScreen} />
+                        <Stack.Screen name="LoginScreen" component={LoginScreen} />
+                        <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
+                        <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
                     </>
                 )}
             </Stack.Navigator>

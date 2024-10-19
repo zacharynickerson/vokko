@@ -22,6 +22,10 @@ export default function HomeScreen() {
     navigation.navigate('GuidedSession');
   };
 
+  const navigateToSoloSession = () => {
+    navigation.navigate('SoloSessionSetup');
+  };
+
   const filters = ['Trending', 'New Idea', 'Reflection', 'Goal Setting', 'Productivity'];
 
   const fetchRecentSession = useCallback(async () => {
@@ -35,7 +39,7 @@ export default function HomeScreen() {
         const firebaseNotes = Object.values(snapshot.val())
           .map(note => ({
             ...note,
-            voiceNoteId: note.voiceNoteId || extractVoiceNoteIdFromUri(note.audioFileUri)
+            voiceNoteId: note.voiceNoteId || note.id // Use voiceNoteId if available, fallback to id
           }))
           .filter(note => note !== null);
 
@@ -46,9 +50,7 @@ export default function HomeScreen() {
       }
     };
 
-    onValue(voiceNotesRef, onDataChange, (error) => {
-      console.error('Firebase onValue error:', error);
-    });
+    onValue(voiceNotesRef, onDataChange);
 
     return () => off(voiceNotesRef);
   }, []);
@@ -121,12 +123,20 @@ export default function HomeScreen() {
     const SessionComponent = recentSession.guideName ? GuidedSessionItem : SoloVoiceNoteItem;
 
     return (
-      <TouchableOpacity 
-        style={styles.recentSessionContainer}
-        onPress={() => navigation.navigate('VoiceNoteDetails', { voiceNote: recentSession })}
-      >
-        <SessionComponent item={recentSession} />
-      </TouchableOpacity>
+      <View style={styles.recentSessionContainer}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('Library', {
+            screen: 'VoiceNoteDetails',
+            params: { voiceNote: recentSession }
+          })}
+        >
+          <SessionComponent item={recentSession} />
+        </TouchableOpacity>
+        {recentSession.formattedNote && (
+          <Text style={styles.formattedNotePreview} numberOfLines={3}>
+          </Text>
+        )}
+      </View>
     );
   };
 
@@ -159,7 +169,7 @@ export default function HomeScreen() {
 
         <View style={styles.buttonCardsContainer}>
           {renderSessionTypeButton("Guided Session", "robot", "#FDB921", navigateToGuidedSession)}
-          {renderSessionTypeButton("Solo Session", "microphone", "#71D7F4", () => {/* Handle Solo Session */})}
+          {renderSessionTypeButton("Solo Session", "microphone", "#71D7F4", navigateToSoloSession)}
           {renderSessionTypeButton("Scheduled Sessions", "calendar-clock", "#BA59FE", () => {/* Handle Scheduled Sessions */})}
         </View>
 
@@ -348,5 +358,10 @@ const styles = StyleSheet.create({
   recentSessionContainer: {
     paddingHorizontal: 20,
     width: '100%',
+  },
+  formattedNotePreview: {
+    fontSize: wp(3.5),
+    color: '#666',
+    marginTop: 8,
   },
 });
