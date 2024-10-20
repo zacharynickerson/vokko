@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, SafeAreaView, Pressable, StyleSheet } from 'react-native';
+import { View, SafeAreaView, Pressable, StyleSheet, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -12,6 +12,9 @@ import CallLayout from '../components/CallLayout';
 import { generateUUID, getFileSize, getLocation, getCurrentDate } from '../utilities/helpers';
 import * as FileSystem from 'expo-file-system';
 import { increment } from 'firebase/database'; // Import increment from Firebase client SDK
+import { ref as dbRef, remove } from 'firebase/database';
+import { db } from '../../config/firebase'; // Ensure this path is correct
+import { CommonActions } from '@react-navigation/native'; // Ensure this is imported
 
 const CHUNK_DURATION = 60000; // 1 minute chunks
 const MAX_RECORDING_DURATION = 1200000; // 20 minutes
@@ -106,6 +109,14 @@ export default function SoloSessionCall() {
   async function startRecording() {
     try {
       console.log('Starting recording...');
+      
+      // Ensure any existing recording is stopped and unloaded
+      if (recordingRef.current) {
+        console.log('Stopping and unloading existing recording');
+        await recordingRef.current.stopAndUnloadAsync();
+        recordingRef.current = null;
+      }
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -113,6 +124,8 @@ export default function SoloSessionCall() {
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false
       });
+
+      console.log('Creating new recording');
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
@@ -196,12 +209,15 @@ export default function SoloSessionCall() {
       clearInterval(timerRef.current);
       if (recordingRef.current) {
         await processChunk(); // Process the final chunk
+        await recordingRef.current.stopAndUnloadAsync();
+        recordingRef.current = null;
       }
       setRecording(null);
       await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
         status: 'processing',
       });
-      // The Cloud Function will handle the transcription and processing
+      // Navigate to LibraryScreen after stopping the recording
+      navigation.navigate('Library', { screen: 'LibraryScreen' });
     } catch (error) {
       console.error('Error stopping recording:', error);
     }
@@ -222,37 +238,56 @@ export default function SoloSessionCall() {
   }
 
   async function cancelRecording() {
-    if (recording) {
-      await recording.stopAndUnloadAsync();
-      setRecording(null);
-      setIsPaused(false);
-    }
-    
-    // Navigate back to the home screen and reset the navigation state
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [
-          { 
-            name: 'App',
-            state: {
-              routes: [{ name: 'Home' }],
-              index: 0,
+    Alert.alert(
+      "Cancel Recording",
+      "Are you sure you want to cancel the recording? This action cannot be undone.",
+      [
+        {
+          text: "No",
+          onPress: () => console.log("Cancel Pressed"),
+          style: "cancel"
+        },
+        {
+          text: "Yes",
+          onPress: async () => {
+            if (recordingRef.current) {
+              console.log('Stopping and unloading recording');
+              await recordingRef.current.stopAndUnloadAsync();
+              recordingRef.current = null;
+              setRecording(null);
+              setIsPaused(false);
             }
-          },
-        ],
-      })
+
+            // Delete the session from the database
+            try {
+              const voiceNoteDbRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteIdRef.current}`);
+              await remove(voiceNoteDbRef);
+              console.log('Session deleted successfully');
+            } catch (error) {
+              console.error('Error deleting session:', error);
+            }
+
+            // Reset the audio mode
+            await Audio.setAudioModeAsync({
+              allowsRecordingIOS: false,
+              playsInSilentModeIOS: true,
+              staysActiveInBackground: false,
+            });
+
+            // Debugging: Log before navigation
+            console.log('Attempting to navigate to Home');
+
+            // Simplified navigation logic
+            navigation.navigate('Home');
+
+            // Debugging: Log after navigation
+            console.log('Navigation dispatched');
+          }
+        }
+      ],
+      { cancelable: false }
     );
   }
-
-  const handleCancel = () => {
-    navigation.navigate('App', {
-      screen: 'Home',
-      params: {
-        screen: 'HomeScreen'
-      }
-    });
-  };
 
   // Add this function to compress the audio
   async function compressAudioFile(uri) {
