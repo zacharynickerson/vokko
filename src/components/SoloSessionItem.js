@@ -1,10 +1,20 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { formatDateForDisplay } from '../utilities/helpers';
 
-const SoloVoiceNoteItem = ({ item }) => {
+const SoloVoiceNoteItem = ({ item, onPress, isLoading }) => {
+  const isClickable = item.status === 'completed' || item.status === 'error';
+
   return (
-    <View style={styles.container}>
+    <TouchableOpacity 
+      style={[
+        styles.container, 
+        isLoading && styles.loadingContainer,
+        !isClickable && styles.disabledContainer
+      ]}
+      onPress={isClickable ? onPress : null}
+      disabled={!isClickable}
+    >
       <View style={styles.imageContainer}>
         <Image 
           source={item.image ? { uri: item.image } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/default-note-image.png')} 
@@ -15,10 +25,13 @@ const SoloVoiceNoteItem = ({ item }) => {
         </View>
       </View>
       <View style={styles.contentContainer}>
-        <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.title} numberOfLines={2}>
+          {isLoading ? 'Processing...' : item.title}
+        </Text>
         <Text style={styles.date}>{formatDateForDisplay(item.createdDate)}</Text>
+        {item.status === 'error' && <Text style={styles.errorText}>Error occurred</Text>}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -70,6 +83,17 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 14,
     color: '#666',
+  },
+  loadingContainer: {
+    opacity: 0.5,
+  },
+  disabledContainer: {
+    opacity: 0.5,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

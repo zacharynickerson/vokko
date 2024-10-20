@@ -115,77 +115,7 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
 });
 
 
-exports.processTranscript = functions.database
-  .ref('/voiceNotes/{userId}/{voiceNoteId}/transcript')
-  .onWrite(async (change, context) => {
-    const { userId, voiceNoteId } = context.params;
-    const transcript = change.after.val();
 
-    if (!transcript) {
-      console.error('Transcript is empty or missing');
-      return null;
-    }
-
-    console.log(`Processing voice note: userId=${userId}, voiceNoteId=${voiceNoteId}, transcript=${transcript}`);
-
-    const prompt = {
-      model: "gpt-3.5-turbo-0125",
-      messages: [
-        { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title and summary based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A cleaned up version of the original transcript that maintains as much of the original transcript text as possible while cleaning up the grammar and grouping text into logical paragraphs.]\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:). Detect the language that is used in the transcript and output all answers within each section using that same language." },
-        { "role": "user", "content": `Please process the following voice note transcript:\n\n${transcript}` }
-      ],
-      max_tokens: 3000,
-      temperature: 0.7,
-    };
-
-    const apiKey = functions.config().openai.key;
-
-    if (!apiKey) {
-      console.error('API key is missing. Make sure to set OPENAI_API_KEY in your environment variables.');
-      return null;
-    }
-
-    try {
-      const response = await openai.chat.completions.create(prompt);
-
-      console.log('API response:', response);
-
-      if (response.choices && response.choices.length > 0) {
-        const resultText = response.choices[0].message.content.trim();
-
-        // Split the response into sections
-        const sections = resultText.split(/\n(?=TITLE:|SUMMARY:)/);
-
-        let title = '';
-        let summary = '';
-
-        sections.forEach(section => {
-          if (section.startsWith('TITLE:')) {
-            title = section.replace('TITLE:', '').trim();
-          } else if (section.startsWith('SUMMARY:')) {
-            summary = section.replace('SUMMARY:', '').trim();
-          }
-        });
-
-        console.log('Title:', title);
-        console.log('Summary:', summary);
-
-        // Update Firebase with title and summary
-        await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
-          title: title || 'Untitled Note',
-          summary: summary || 'No summary available',
-        });
-
-        console.log(`Voice note processed successfully: ${voiceNoteId}`);
-      } else {
-        console.error('API returned no choices in the response');
-      }
-    } catch (error) {
-      console.error('Error processing voice note:', error.response ? error.response.data : error.message);
-    }
-
-    return null;
-  });
 
   exports.processVoiceNoteBackground = functions.database
   .ref('/voiceNotes/{userId}/{voiceNoteId}')
@@ -252,8 +182,14 @@ async function processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, transcri
   const prompt = {
     model: "gpt-3.5-turbo-0125",
     messages: [
-      { "role": "system", "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title and summary based on the given transcript. Please format your response exactly as follows:\n\nTITLE: [A concise and descriptive title for the voice note]\n\nSUMMARY: [A cleaned up version of the original transcript that maintains the speaker's voice and perspective, formats paragraphs, and includes section headers where necessary.]\n\nEnsure that each section starts with its respective header (TITLE:, SUMMARY:). Detect the language that is used in the transcript and output all answers within each section using that same language." },
-      { "role": "user", "content": `Please process the following voice note transcript:\n\n${transcript}` }
+      { 
+        "role": "system", 
+        "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title and a beautifully formatted version of the transcript. The output should maintain the original voice and content, but improve readability with formatting and styling. Use HTML tags for styling, such as <strong>, <em>, and <u>. Format section headers as <h3 style='color: #4FBF67;'>[Header Text]</h3>. Use headers sparingly, only for major topic changes, typically every 2-3 paragraphs. Avoid using terms like 'overview' or 'the speaker'. Wrap paragraphs in <p> tags without extra line breaks between them. Your response should be in the following format:\n\nTITLE: [Generated Title]\n\nFORMATTEDNOTE: [Formatted transcript with HTML styling]"
+      },
+      { 
+        "role": "user", 
+        "content": `Please process the following voice note transcript:\n\n${transcript}` 
+      }
     ],
     max_tokens: 3000,
     temperature: 0.7,
@@ -268,7 +204,7 @@ async function processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, transcri
       const resultText = response.choices[0].message.content.trim();
 
       // Split the response into sections
-      const sections = resultText.split(/\n(?=TITLE:|SUMMARY:)/);
+      const sections = resultText.split(/\n(?=TITLE:|FORMATTEDNOTE:)/);
 
       let title = '';
       let summary = '';
@@ -276,18 +212,21 @@ async function processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, transcri
       sections.forEach(section => {
         if (section.startsWith('TITLE:')) {
           title = section.replace('TITLE:', '').trim();
-        } else if (section.startsWith('SUMMARY:')) {
-          summary = section.replace('SUMMARY:', '').trim();
+        } else if (section.startsWith('FORMATTEDNOTE:')) {
+          summary = section.replace('FORMATTEDNOTE:', '').trim();
         }
       });
 
+      // Remove any remaining newlines between HTML tags
+      summary = summary.replace(/>\s+</g, '><');
+
       console.log('Title:', title);
-      console.log('Summary:', summary);
+      console.log('Formatted Note:', summary);
 
       // Update Firebase with title and summary
       await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
         title: title || 'Untitled Note',
-        summary: summary || 'No summary available',
+        summary: summary || transcript,
         status: 'completed',
       });
 

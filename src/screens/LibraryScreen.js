@@ -9,12 +9,11 @@ import { ref, onValue, off } from 'firebase/database';
 import { formatDateForDisplay } from '../utilities/helpers';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SoloVoiceNoteItem from '../components/SoloSessionItem';
-import GuidedSessionItem from '../components/GuidedSessionItem'; // Import the GuidedSessionItem
+import GuidedSessionItem from '../components/GuidedSessionItem';
 
-export default function LibraryScreen() {
+export default function LibraryScreen({ navigation }) {
   const [voiceNotes, setVoiceNotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigation = useNavigation();
   const route = useRoute();
 
   const navigateToSettings = () => {
@@ -36,9 +35,10 @@ export default function LibraryScreen() {
         let firebaseNotes = [];
         if (snapshot.exists()) {
           firebaseNotes = Object.values(snapshot.val()).map(note => ({
-            voiceNoteId: note.voiceNoteId || note.id, // Use voiceNoteId or fallback to id
-            createdDate: note.createdDate || new Date().toISOString(), // Access createdDate
-            title: note.title || 'Untitled Note', // Access title
+            voiceNoteId: note.voiceNoteId || note.id,
+            createdDate: note.createdDate || new Date().toISOString(),
+            title: note.title || 'Untitled Note',
+            status: note.status, // Add this line to include the status
           }));
         }
 
@@ -77,11 +77,22 @@ export default function LibraryScreen() {
     return notes.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
   };
 
-  const renderVoiceNoteItem = ({ item }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('VoiceNoteDetails', { voiceNote: item })}>
-      <SoloVoiceNoteItem item={item} />
-    </TouchableOpacity>
-  );
+  const renderItem = ({ item }) => {
+    const isLoading = item.status === 'recording' || item.status === 'processing';
+    const onPress = () => {
+      if (item.status === 'completed' || item.status === 'error') {
+        navigation.navigate('VoiceNoteDetails', { voiceNote: item });
+      }
+    };
+
+    return (
+      <SoloVoiceNoteItem
+        item={item}
+        onPress={onPress}
+        isLoading={isLoading}
+      />
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -109,8 +120,8 @@ export default function LibraryScreen() {
 
       <FlatList
         data={voiceNotes}
-        keyExtractor={(item) => item.voiceNoteId}
-        renderItem={renderVoiceNoteItem}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         style={styles.flatList}
       />

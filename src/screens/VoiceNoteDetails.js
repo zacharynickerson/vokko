@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, TextInput, Alert, ScrollView, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth, db } from '../../config/firebase';
@@ -32,13 +32,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
     return formattedContent;
   };
 
-  const tagsStyles = {
-    strong: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      color: '#4FBF67',
-    },
-  };
+
 
   useEffect(() => {
     const noteRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteId}`);
@@ -46,7 +40,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
     const unsubscribe = onValue(noteRef, (snapshot) => {
       if (snapshot.exists()) {
         const noteData = snapshot.val();
-        setFormattedNote(noteData.transcript || ''); // Use transcript for formatted note
+        setFormattedNote(noteData.summary || 'Note unavailable'); // Use summary for formatted note
         setNoteTitle(noteData.title || '');
         setAudioUri(noteData.chunks[0]?.url || null); // Access the first chunk's URL
       }
@@ -91,6 +85,8 @@ export default function VoiceNoteDetails({ route, navigation }) {
     setShowOptions(!showOptions);
   };
 
+  const formattedHtml = useMemo(() => formatNoteContent(formattedNote), [formattedNote]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
@@ -132,8 +128,8 @@ export default function VoiceNoteDetails({ route, navigation }) {
         <View style={styles.contentContainer}>
           <RenderHtml
             contentWidth={width}
-            source={{ html: formatNoteContent(formattedNote) || 'No formatted note available' }}
-            tagsStyles={tagsStyles}
+            source={{ html: formattedHtml || 'Note unavailable' }}
+            tagsStyles={styles.tagsStyles}
             baseStyle={styles.formattedNoteText}
           />
         </View>
@@ -152,7 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   headerContainer: {
-    zIndex: 1000, // Ensure this container is above other elements
+    zIndex: 1000,
   },
   header: {
     flexDirection: 'row',
@@ -169,14 +165,10 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    
   },
   sessionItemContainer: {
     paddingHorizontal: 10,
     marginBottom: -10,
-    // backgroundColor: 'red',
-
-
   },
   divider: {
     height: 1,
@@ -211,7 +203,7 @@ const styles = StyleSheet.create({
   },
   optionsMenu: {
     position: 'absolute',
-    top: '100%', // Position it right below the header
+    top: '100%',
     right: 10,
     backgroundColor: 'white',
     borderRadius: 5,
@@ -231,4 +223,33 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
   },
+  tagsStyles: {
+    strong: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: '#4FBF67',
+    },
+  },
 });
+
+const tagsStyles = {
+  body: {
+    fontSize: 16,
+    color: '#808080',
+    lineHeight: 24,
+  },
+  p: {
+    marginBottom: 10, // Add space between paragraphs
+  },
+  h3: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4FBF67',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  strong: {
+    fontWeight: 'bold',
+    color: '#4FBF67',
+  },
+};
