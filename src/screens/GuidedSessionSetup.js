@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, FlatList, Image, SafeAreaView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import Modal from 'react-native-modal';
 import moment from 'moment';
@@ -46,15 +46,18 @@ const GuidedSessionSetup = () => {
       try {
         const modulesData = await getModules();
         if (modulesData) {
-          // Convert the object to an array and ensure the structure is correct
           const modulesArray = Object.keys(modulesData).map(key => {
             const module = modulesData[key];
             return {
               id: key,
               name: module.name,
               description: module.description,
-              base_questions: module.base_questions || [],
-              follow_up_prompts: module.follow_up_prompts || {},
+              ui: module.ui || {
+                // Default UI properties if none exist
+                icon: 'circle',
+                color: '#4CAF50',
+                bgColor: 'rgba(76, 175, 80, 0.1)'
+              },
               session_approach: module.session_approach || {},
               ...module
             };
@@ -125,38 +128,59 @@ const GuidedSessionSetup = () => {
             <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
             <Text style={styles.selectedModuleText}>
               {selectedModule 
-                ? `${selectedModule.name} (${selectedModule.base_questions?.length || 0} Questions)`
+                ? `${selectedModule.name}`
                 : "Select a topic to explore with your guide"}
             </Text>
           </View>
-          <FlatList
-            horizontal
-            data={modules}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.moduleItem, selectedModule?.id === item.id && styles.selectedModuleItem]}
-                onPress={() => setSelectedModule(item)}
-              >
-                {selectedModule?.id === item.id && (
-                  <View style={styles.lightningIconContainer}>
-                    <MaterialCommunityIcons name="lightning-bolt" size={16} color="white" />
-                  </View>
-                )}
-                <Text style={styles.moduleIcon}>{item.icon}</Text>
-                <Text style={styles.moduleText}>{item.name}</Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-          />
+          <View style={styles.selectorContainer}>
+            <FlatList
+              data={modules}
+              horizontal={false} // Change to vertical list
+              renderItem={({ item, index }) => {
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.selectorOption,
+                      index === 0 && styles.firstOption,
+                      index === modules.length - 1 && styles.lastOption,
+                    ]}
+                    onPress={() => setSelectedModule(item)}
+                  >
+                    <View style={styles.selectorRow}>
+                      <View style={styles.iconContainer}>
+                        <FontAwesome5 
+                          name={item.ui?.icon || 'circle'} 
+                          size={24} 
+                          color={item.ui?.color || '#4CAF50'} 
+                        />
+                      </View>
+                      <View style={styles.textContainer}>
+                        <Text style={styles.selectorTitle} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.selectorDescription} numberOfLines={2}>{item.description}</Text>
+                      </View>
+                      <View style={styles.checkboxContainer}>
+                        <MaterialCommunityIcons 
+                          name={selectedModule?.id === item.id ? "circle" : "circle-outline"} 
+                          size={24} 
+                          color="#4CAF50" 
+                        />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              keyExtractor={(item) => item.id}
+            />
+          </View>
           {selectedModule && (
             <View style={styles.overviewSection}>
-              <Text style={styles.sectionTitle}>Overview</Text>
+              {/* <Text style={styles.sectionTitle}>Overview</Text>
               {selectedModule.base_questions?.map((question, index) => (
                 <View key={index} style={styles.questionItem}>
                   <Text style={styles.questionText}>{question}</Text>
                 </View>
-              ))}
+              ))} */}
             </View>
           )}
         </View>
@@ -181,9 +205,12 @@ const GuidedSessionSetup = () => {
           <View style={styles.selectedModuleContainer}>
             <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
             <Text style={styles.selectedModuleText}>
-              {selectedModule.name} ({selectedModule.base_questions?.length || 0} Questions)
+              {selectedModule.name}
             </Text>
-            <TouchableOpacity onPress={() => setStep(1)}>
+            <TouchableOpacity onPress={() => {
+              setSelectedModule(null);
+              setStep(1);
+            }}>
               <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
             </TouchableOpacity>
           </View>
@@ -196,47 +223,44 @@ const GuidedSessionSetup = () => {
                 : "Select a guide for your session"}
             </Text>
           </View>
-          <FlatList
-            horizontal
-            data={guides}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.guideItem,
-                  selectedGuide?.id === item.id ? styles.selectedGuideItem : styles.unselectedGuideItem
-                ]}
-                onPress={() => setSelectedGuide(item)}
-              >
-                {selectedGuide?.id === item.id && (
-                  <View style={styles.lightningIconContainer}>
-                    <MaterialCommunityIcons name="lightning-bolt" size={16} color="white" />
+          <View style={styles.selectorContainer}>
+            <FlatList
+              data={guides}
+              horizontal={false}
+              renderItem={({ item, index }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.selectorOption,
+                    index === 0 && styles.firstOption,
+                    index === guides.length - 1 && styles.lastOption,
+                  ]}
+                  onPress={() => setSelectedGuide(item)}
+                >
+                  <View style={styles.selectorRow}>
+                    <View style={styles.iconContainer}>
+                      <Image
+                        source={getImageSource(item.mainPhoto)}
+                        style={styles.guideImage}
+                      />
+                    </View>
+                    <View style={styles.textContainer}>
+                      <Text style={styles.selectorTitle} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.selectorDescription} numberOfLines={2}>{item.description}</Text>
+                    </View>
+                    <View style={styles.checkboxContainer}>
+                      <MaterialCommunityIcons 
+                        name={selectedGuide?.id === item.id ? "circle" : "circle-outline"} 
+                        size={24} 
+                        color="#4CAF50" 
+                      />
+                    </View>
                   </View>
-                )}
-                <Image 
-                  source={getImageSource(item.mainPhoto)}
-                  style={styles.guidePhoto}
-                />
-                <View style={[
-                  styles.guideDivider,
-                  selectedGuide?.id === item.id ? styles.selectedGuideDivider : styles.unselectedGuideDivider
-                ]} />
-                <Text style={[
-                  styles.guideName,
-                  selectedGuide?.id === item.id ? styles.selectedGuideText : styles.unselectedGuidePrimaryText
-                ]}>
-                  {item.name}
-                </Text>
-                <Text style={[
-                  styles.guideDescription,
-                  selectedGuide?.id === item.id ? styles.selectedGuideText : styles.unselectedGuideSecondaryText
-                ]}>
-                  {item.description}
-                </Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-          />
+                </TouchableOpacity>
+              )}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              keyExtractor={(item) => item.id}
+            />
+          </View>
         </View>
       </ScrollView>
       <View style={styles.proceedButtonContainer}>
@@ -273,22 +297,38 @@ const GuidedSessionSetup = () => {
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
         <View style={styles.stepContentWrapper}>
           <Text style={styles.stepTitle}>Session Start</Text>
-          <View style={styles.selectedModuleContainer}>
-            <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
-            <Text style={styles.selectedModuleText}>{selectedModule.name} ({selectedModule.base_questions?.length || 0} Questions)</Text>
-            <TouchableOpacity onPress={() => setStep(1)}>
-              <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
-            </TouchableOpacity>
+          <View style={styles.selectorContainer}>
+            <View style={styles.selectedItemRow}>
+              <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
+              <Text style={styles.selectedItemText}>
+                {selectedModule ? selectedModule.name : "Select a module"}
+              </Text>
+              {selectedModule && (
+                <TouchableOpacity onPress={() => {
+                  setSelectedModule(null);
+                  setStep(1);
+                }}>
+                  <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          <View style={styles.dottedLine} />
-          <View style={styles.selectedModuleContainer}>
-            <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
-            <Text style={styles.selectedModuleText}>{selectedGuide.name}</Text>
-            <TouchableOpacity onPress={() => setStep(2)}>
-              <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
-            </TouchableOpacity>
+          <View style={styles.selectorContainer}>
+            <View style={styles.selectedItemRow}>
+              <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
+              <Text style={styles.selectedItemText}>
+                {selectedGuide ? selectedGuide.name : "Select a guide"}
+              </Text>
+              {selectedGuide && (
+                <TouchableOpacity onPress={() => {
+                  setSelectedGuide(null);
+                  setStep(2);
+                }}>
+                  <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          <View style={styles.dottedLine} />
           <View style={styles.chooseGuideContainer}>
             <MaterialCommunityIcons name="heart-outline" size={24} color="#4CAF50" />
             <Text style={styles.subtitle}>Choose when</Text>
@@ -515,35 +555,64 @@ const styles = StyleSheet.create({
     color: '#8A8B8D',
     marginLeft: wp(2),
   },
-  moduleItem: {
-    width: wp(25),
-    height: wp(25),
+  selectorContainer: {
+    marginHorizontal: wp(4),
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: 'white',
+    overflow: 'hidden',
+  },
+  selectorOption: {
+    backgroundColor: 'white',
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(4),
+  },
+  firstOption: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  lastOption: {
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  selectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    width: wp(12),
+    height: wp(12),
+    borderRadius: wp(6),
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 10,
-    marginRight: wp(3),
-    position: 'relative',
+    marginRight: wp(4),
   },
-  selectedModuleItem: {
-    backgroundColor: 'rgba(76,175,80,0.3)',
+  guideImage: {
+    width: wp(12),
+    height: wp(12),
+    borderRadius: wp(6),
+    marginRight: wp(4),
   },
-  lightningIconContainer: {
-    position: 'absolute',
-    top: 11,
-    right: 11,
-    backgroundColor: '#4CAF50',
-    borderRadius: 10,
-    padding: 2,
+  selectorTextContainer: {
+    flex: 1,
   },
-  moduleIcon: {
-    fontSize: wp(10),
-    marginBottom: hp(1),
-  },
-  moduleText: {
+  selectorTitle: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: wp(4),
     color: '#1B1D21',
-    textAlign: 'center',
-    fontSize: wp(3),
+    marginBottom: hp(0.5),
+  },
+  selectorDescription: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: wp(3.5),
+    color: '#666',
   },
   overviewSection: {
     marginTop: hp(4),
@@ -604,30 +673,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: hp(2),
-  },
-  guideItem: {
-    width: wp(35),
-    height: wp(50), // Increased height to accommodate the divider
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 24, // Updated to 24px
-    marginRight: wp(3),
-    padding: wp(2),
-    position: 'relative',
-  },
-  selectedGuideItem: {
-    backgroundColor: '#1B1D21',
-  },
-  unselectedGuideItem: {
-    backgroundColor: 'transparent',
-    borderColor: '#C4C4C4',
-    borderWidth: 1,
-  },
-  guidePhoto: {
-    width: wp(20),
-    height: wp(20),
-    borderRadius: wp(10),
-    resizeMode: 'cover', // This ensures the image covers the entire space
   },
   guideDivider: {
     width: '113%',
@@ -791,9 +836,170 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   optionDivider: {
-    height: 1,  // This ensures the divider is thin and horizontal
+    height: 1,
     backgroundColor: '#E0E0E0',
-    width: '100%',  // This makes the divider span the full width
+    marginLeft: wp(16),
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: hp(2),
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
+  stepContentWrapper: {
+    padding: wp(4),
+  },
+  selectorOuterContainer: {
+    marginBottom: hp(3),
+    width: '100%',
+  },
+  selectorContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: 'white',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  selectorList: {
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(2),
+  },
+  selectorItem: {
+    width: wp(40),
+    marginRight: wp(3),
+    borderRadius: 16,
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  selectorContent: {
+    alignItems: 'center',
+    padding: wp(4),
+  },
+  iconContainer: {
+    width: wp(12),
+    height: wp(12),
+    borderRadius: wp(6),
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp(2),
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  guideImage: {
+    width: wp(12),
+    height: wp(12),
+    borderRadius: wp(6),
+    marginBottom: hp(2),
+  },
+  selectorDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    width: '100%',
+    marginVertical: hp(2),
+  },
+  textContainer: {
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: wp(2), // Add padding to prevent text from touching edges
+  },
+  titleText: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: wp(4),
+    marginBottom: hp(1),
+    color: '#1B1D21',
+    textAlign: 'center',
+  },
+  descriptionText: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: wp(3.2),
+    color: '#666',
+    lineHeight: wp(4.2),
+    textAlign: 'center',
+  },
+  selectedItem: {
+    borderColor: '#4CAF50',
+    borderWidth: 2,
+  },
+  selectorContainer: {
+    marginBottom: hp(3),
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: 'white',
+    overflow: 'hidden',
+  },
+  selectedItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: wp(4),
+  },
+  selectedItemText: {
+    flex: 1,
+    fontFamily: 'DMSans-Medium',
+    fontSize: wp(4),
+    color: '#1B1D21',
+    marginLeft: wp(3),
+  },
+  selectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: hp(8),
+  },
+  iconContainer: {
+    width: wp(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guideImage: {
+    width: wp(10),
+    height: wp(10),
+    borderRadius: wp(5),
+  },
+  textContainer: {
+    flex: 1,
+    paddingHorizontal: wp(3),
+  },
+  checkboxContainer: {
+    width: wp(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectorTitle: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: wp(3.8),
+    color: '#1B1D21',
+    marginBottom: hp(0.5),
+  },
+  selectorDescription: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: wp(3.2),
+    color: '#666',
+  },
+  optionDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginLeft: wp(16),
   },
 });
 
