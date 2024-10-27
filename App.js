@@ -6,17 +6,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MenuProvider } from 'react-native-popup-menu';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { voiceNoteSync } from './src/utilities/VoiceNoteSync';
 import { auth } from './config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { registerGlobals } from '@livekit/react-native';
+import { registerGlobals } from '@livekit/react-native-webrtc';
 import * as Font from 'expo-font';
+
 
 registerGlobals();
 
 export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -42,9 +41,6 @@ export default function App() {
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        syncIfAuthenticated();
-      }
     });
 
     return () => {
@@ -55,30 +51,7 @@ export default function App() {
 
   const handleAppStateChange = (nextAppState) => {
     if (nextAppState === 'active') {
-      syncIfAuthenticated();
-    }
-  };
-
-  const syncIfAuthenticated = async () => {
-    if (user && !isSyncing) {
-      setIsSyncing(true);
-      try {
-        console.log('Starting sync...');
-        await voiceNoteSync.syncVoiceNotes();
-        console.log('Sync completed successfully');
-      } catch (error) {
-        console.error('Sync failed:', error);
-        console.error('Error stack:', error.stack);
-        Alert.alert(
-          'Sync Error',
-          'Failed to sync voice notes. Please try again later.',
-          [{ text: 'OK' }]
-        );
-      } finally {
-        setIsSyncing(false);
-      }
-    } else {
-      console.log('Sync skipped. User:', user ? 'Authenticated' : 'Not authenticated', 'isSyncing:', isSyncing);
+      // Removed syncIfAuthenticated call
     }
   };
 

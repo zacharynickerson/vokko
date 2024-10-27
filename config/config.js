@@ -1,10 +1,13 @@
-import { Platform } from 'react-native';
+const DEV = false;  // Set to false for production
 
-const DEV_API_URL = Platform.select({
-  ios: 'http://localhost:3000',
-  android: 'http://10.0.2.2:3000', // This is the default IP for Android emulator
-});
+// Development URLs
+export const DEV_API_URL = 'ws://localhost:8080';
+export const DEV_DEPLOYMENT_URL = 'http://localhost:3000'; // Change this to 3000
 
-const PROD_API_URL = 'vokko-hnev3cfwq-zacharynickersons-projects.vercel.app'; // Replace with your actual production URL
+// Production URLs
+export const PROD_API_URL = 'https://token-server-793156853153.us-central1.run.app';
+export const PROD_DEPLOYMENT_URL = 'https://python-backend-793156853153.us-central1.run.app';
 
-export const API_URL = __DEV__ ? DEV_API_URL : PROD_API_URL;
+// Exported URLs based on environment
+export const API_URL = DEV ? DEV_API_URL : PROD_API_URL;
+export const DEPLOYMENT_URL = DEV ? DEV_DEPLOYMENT_URL : PROD_DEPLOYMENT_URL;

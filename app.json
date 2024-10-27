@@ -21,11 +21,11 @@
       "bundleIdentifier": "com.anonymous.VokkoApp",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app uses the microphone to record audio for transcription.",
+        "NSMicrophoneUsageDescription": "This app needs access to the microphone to record audio for guided sessions.",
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text.",
         "NSPhotoLibraryUsageDescription": "Vokko needs access to your photo library to allow file system operations and to choose and upload photos within the app.",
         "UIBackgroundModes": ["audio"],
-        "NSCameraUsageDescription": "Camera permission description",
+        "NSCameraUsageDescription": "This app requires access to the camera.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
@@ -38,7 +38,7 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "RECORD_AUDIO"
       ],
       "package": "com.anonymous.VokkoApp"
     },
@@ -46,7 +46,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",
       [
         "expo-build-properties",

@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView } from 'r
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
-const SessionConfirmation = ({ scheduledDate, coachName, onAddToCalendar, onGoToHomepage }) => {
+const SessionConfirmation = ({ scheduledDate, guideName, onAddToCalendar, onGoToHomepage }) => {
   return (
     <SafeAreaView style={styles.container}>
       
@@ -14,7 +14,7 @@ const SessionConfirmation = ({ scheduledDate, coachName, onAddToCalendar, onGoTo
         />
         <Text style={styles.title}>Session Scheduled</Text>
         <Text style={styles.description}>
-          Your session has been successfully scheduled. You'll receive a call from <Text style={styles.coachName}>{coachName}</Text> at your scheduled slot.
+          Your session has been successfully scheduled. You'll receive a call from <Text style={styles.guideName}>{guideName}</Text> at your scheduled slot.
         </Text>
         <View style={styles.divider} />
         <View style={styles.scheduleInfo}>
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     marginBottom: hp(4),
     paddingHorizontal: wp(6),
   },
-  coachName: {
+  guideName: {
     color: '#4FBF67',
     fontFamily: 'DMSans',
   },

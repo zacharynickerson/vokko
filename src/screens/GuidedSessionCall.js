@@ -1,127 +1,176 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, SafeAreaView, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
-import CallLayout from '../components/CallLayout';
+import React, { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
 import { Audio } from 'expo-av';
-import { AudioSession, LiveKitRoom, useLocalParticipant, useRoomContext } from '@livekit/react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import {
+  AudioSession,
+  LiveKitRoom,
+  useLocalParticipant,
+  useRoomContext,
+  registerGlobals,
+} from '@livekit/react-native';
 import { API_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js';
+import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
+import CallLayout from '../components/CallLayout';
+import { getDatabase, ref, push, set } from 'firebase/database';  // Update this line
+import { db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 
-const images = {
-  'Avatar Female 6.png': require('../../assets/images/Avatar Female 6.png'),
-  'Avatar Male 9.png': require('../../assets/images/Avatar Male 9.png'),
-  'Avatar Female 13.png': require('../../assets/images/Avatar Female 13.png'),
-  'Avatar Male 14.png': require('../../assets/images/Avatar Male 14.png'),
-  'Avatar Female 1.png': require('../../assets/images/Avatar Female 1.png'),
-  'Avatar Male 2.png': require('../../assets/images/Avatar Male 2.png'),
-  // Add all other image filenames here
-};
+registerGlobals();
 
-const getImageSource = (imageName) => {
-  return images[imageName] || require('../../assets/images/user-photo.png');
-};
-
-export default function GuidedSessionCall() {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const [sessionTime, setSessionTime] = useState(0);
+const GuidedSessionCall = ({ route, navigation }) => {
   const [token, setToken] = useState(null);
   const [url, setUrl] = useState(null);
   const [roomName, setRoomName] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [sessionStartTime, setSessionStartTime] = useState(null);
+  const [room, setRoom] = useState(null);  // Add this state
+  const { user } = useAuth();
+  
+  // Get the selected module and guide from route params
+  const { module: selectedModule, guide: selectedGuide } = route.params;
 
-  // Extract guide, module, and userId information from route params
-  const { guide, module, userId } = route.params;
-
+  // Add this effect to wait for user authentication
   useEffect(() => {
-    const setupAudioSession = async () => {
-      await AudioSession.startAudioSession();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        interruptionModeIOS: 1,
-        shouldDuckAndroid: true,
-        interruptionModeAndroid: 1,
-        playThroughEarpieceAndroid: false,
-      });
+    let mounted = true;
+
+    const initSession = async () => {
+      // Wait for user to be available
+      if (!user || !selectedModule || !selectedGuide) {
+        return;
+      }
+
+      try {
+        const sessionId = Date.now().toString();
+        const roomName = `${user.uid}_${selectedModule.id}_${selectedGuide.id}_${sessionId}`;
+        console.log('Creating room with name:', roomName);
+
+        const response = await fetch(`${API_URL}/api/token?roomName=${roomName}&userId=${user.uid}`, {
+          timeout: 5000
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Only update state if component is still mounted
+        if (mounted) {
+          setToken(data.accessToken);
+          setUrl(data.url);
+          setRoomName(roomName);
+          setIsConnected(true);
+        }
+      } catch (error) {
+        console.error('Error fetching token:', error);
+        if (mounted) {
+          Alert.alert(
+            'Connection Error',
+            'Failed to connect to the session. Please try again.'
+          );
+        }
+      }
     };
-    setupAudioSession();
+
+    initSession();
+
+    // Cleanup function
     return () => {
+      mounted = false;
       AudioSession.stopAudioSession();
     };
-  }, []);
+  }, [user, selectedModule, selectedGuide]); // Add user to dependency array
 
   useEffect(() => {
     let interval;
     if (isConnected) {
       interval = setInterval(() => {
-        setSessionTime((prev) => prev + 1);
+        setCallDuration((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
   }, [isConnected]);
 
   useEffect(() => {
-    fetchToken();
-  }, []);
-
-  const fetchToken = async () => {
-    if (!module || !userId) {
-      console.error('No module selected or no authenticated user');
-      return;
+    if (isConnected) {
+      setSessionStartTime(Date.now());
     }
-
-    try {
-      const sessionId = Date.now().toString();
-      const roomName = `${userId}_${module.id}_${guide.id}_${sessionId}`;
-
-      const response = await fetch(`${API_URL}/api/token?roomName=${roomName}&userId=${userId}`, {
-        timeout: 5000
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setToken(data.accessToken);
-      setUrl(data.url);
-      setRoomName(roomName);
-      setIsConnected(true);
-    } catch (error) {
-      console.error('Error fetching token:', error);
-    }
-  };
-
-  const handleCancel = useCallback(async () => {
-    setIsConnected(false);
-    setToken(null);
-    setUrl(null);
-    setRoomName('');
-    setSessionTime(0);
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [
-          { 
-            name: 'App',
-            state: {
-              routes: [{ name: 'Home' }],
-              index: 0,
-            }
-          },
-        ],
-      })
-    );
-  }, [navigation]);
+  }, [isConnected]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const formatSessionTime = (startTime) => {
+    if (!startTime) return '00:00';
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    return formatTime(elapsed);
+  };
+
+  // Add this function to handle room connection
+  const handleRoomConnected = useCallback((newRoom) => {
+    setRoom(newRoom);
+    setIsConnected(true);
+  }, []);
+
+  const handleDisconnect = useCallback(async () => {
+    try {
+      // Clean up the room connection
+      if (room) {
+        await room.disconnect();
+      }
+      
+      // Update states
+      setIsConnected(false);
+      setToken(null);
+      setUrl(null);
+      setRoomName('');
+      setCallDuration(0);
+      setRoom(null);  // Clear room state
+      
+      // Save session data to Firebase
+      if (user && selectedModule && selectedGuide) {
+        const sessionData = {
+          moduleId: selectedModule.id,
+          guideId: selectedGuide.id,
+          status: 'processing',
+          createdDate: new Date().toISOString(),
+          userId: user.uid
+        };
+        
+        try {
+          const database = getDatabase();
+          const sessionRef = ref(database, `guidedSessions/${user.uid}`);
+          const newSessionRef = push(sessionRef);
+          await set(newSessionRef, sessionData);
+          
+          // Updated navigation path to match your structure
+          navigation.navigate('App', {
+            screen: 'Library',
+            params: { refresh: true }
+          });
+        } catch (firebaseError) {
+          console.error('Firebase error:', firebaseError);
+          Alert.alert('Error', 'Failed to save session data.');
+        }
+      }
+    } catch (error) {
+      console.error('Error during disconnect:', error);
+      Alert.alert('Error', 'Failed to end the session properly.');
+    }
+  }, [room, navigation, user, selectedModule, selectedGuide]);
+
+  if (!user || !selectedModule || !selectedGuide) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Initializing session...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -135,126 +184,114 @@ export default function GuidedSessionCall() {
           }}
           audio={true}
           video={false}
+          onConnected={handleRoomConnected}
         >
           <CallLayout
             isGuidedSession={true}
-            guideName={guide.name}
-            moduleName={module.name}
-            guidePhoto={getImageSource(guide.mainPhoto)}
-            sessionTime={formatTime(sessionTime)}
-            gradientColor={guide.backgroundColor}
+            guideName={selectedGuide?.name}
+            moduleName={selectedModule?.name}
+            guidePhoto={selectedGuide?.photoURL}
+            sessionTime={formatSessionTime(sessionStartTime)}
+            gradientColor={selectedGuide?.gradientColor || '#4A90E2'}
           />
-          <CallControls onCancel={handleCancel} />
+          
+          <SafeAreaView style={styles.controlsContainer}>
+            <View style={styles.buttonContainer}>
+              <CallInterface
+                formatTime={formatTime}
+                onDisconnect={handleDisconnect}
+                room={room}
+                guideName={selectedGuide?.name}
+              />
+            </View>
+          </SafeAreaView>
         </LiveKitRoom>
       ) : (
-        <CallLayout
-          isGuidedSession={true}
-          guideName={guide.name}
-          moduleName={module.name}
-          guidePhoto={getImageSource(guide.mainPhoto)}
-          sessionTime="00:00"
-          gradientColor={guide.backgroundColor}
-        />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Connecting to session...</Text>
+        </View>
       )}
     </View>
   );
-}
+};
 
-const CallControls = ({ onCancel }) => {
+const CallInterface = ({ formatTime, onDisconnect, room, guideName }) => {
   const { isMicrophoneEnabled, setIsMicrophoneEnabled } = useLocalParticipant();
-  const room = useRoomContext();
 
-  useEffect(() => {
-    const handleDataReceived = (payload, participant) => {
-      try {
-        const message = JSON.parse(payload);
-        // Handle incoming messages here
-      } catch (error) {
-        console.error('Error parsing received data:', error);
-      }
-    };
-
-    if (room) {
-      room.on('dataReceived', handleDataReceived);
-    }
-
-    return () => {
-      if (room) {
-        room.off('dataReceived', handleDataReceived);
-      }
-    };
-  }, [room]);
-
-  const toggleMicrophone = () => {
-    if (setIsMicrophoneEnabled) {
-      setIsMicrophoneEnabled(!isMicrophoneEnabled);
-    }
-  };
-
-  const handleEndCall = useCallback(async () => {
+  const toggleMicrophone = useCallback(async () => {
     try {
-      if (room) {
-        await room.disconnect();
+      if (setIsMicrophoneEnabled) {
+        await setIsMicrophoneEnabled(!isMicrophoneEnabled);
       }
-      onCancel();
     } catch (error) {
-      console.error('Error disconnecting:', error);
+      console.error('Error toggling microphone:', error);
+      Alert.alert('Microphone Error', 'Failed to toggle microphone state.');
     }
-  }, [room, onCancel]);
+  }, [isMicrophoneEnabled, setIsMicrophoneEnabled]);
 
   return (
-    <SafeAreaView style={styles.controlsContainer}>
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={toggleMicrophone}
-        >
-          <Icon name={isMicrophoneEnabled ? "mic" : "mic-off"} size={30} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={handleEndCall}
-        >
-          <Icon name="close" size={30} color="white" />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    <View style={styles.callControls}>
+      <TouchableOpacity style={styles.controlButton} onPress={toggleMicrophone}>
+        <FontAwesome 
+          name={isMicrophoneEnabled ? 'microphone' : 'microphone-slash'} 
+          size={24} 
+          color="white" 
+        />
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={[styles.controlButton, styles.endCallButton]} 
+        onPress={onDisconnect}
+      >
+        <FontAwesome name="phone" size={24} color="white" />
+      </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#191A23',
+    backgroundColor: '#191A23',  // Match the background color
   },
   controlsContainer: {
     position: 'absolute',
-    bottom: hp(10),
+    bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: hp(5),
+    paddingBottom: 20,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: hp(2),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: 'white',
+    fontSize: wp(4),
+  },
+  callControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   controlButton: {
-    width: wp(15),
-    height: wp(15),
-    borderRadius: wp(7.5),
     backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: wp(4),
+    marginHorizontal: 10,
   },
-  cancelButton: {
-    width: wp(15),
-    height: wp(15),
-    borderRadius: wp(7.5),
-    backgroundColor: '#9D3033',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  endCallButton: {
+    backgroundColor: '#FF3B30',
+  }
 });
+
+export default GuidedSessionCall;

@@ -7,7 +7,7 @@ import Modal from 'react-native-modal';
 import moment from 'moment';
 import CustomDatePicker from '/Users/zacharynickerson/Desktop/vokko/src/components/CustomDatePicker.js';
 import SessionConfirmation from '../components/SessionConfirmation';
-import { getModules, getModuleWithCoach, getGuides } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+import { getModules, getModuleWithGuide, getGuides } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
 import { auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 
@@ -22,10 +22,12 @@ const images = {
 };
 
 const getImageSource = (imageName) => {
-  return images[imageName] || require('../../assets/images/user-photo.png');
+  if (!imageName) return require('../../assets/images/user-photo.png');
+  const key = imageName.split('/').pop(); // This will get just the filename
+  return images[key] || require('../../assets/images/user-photo.png');
 };
 
-const GuidedSession = () => {
+const GuidedSessionSetup = () => {
   const [step, setStep] = useState(1);
   const [selectedModule, setSelectedModule] = useState(null);
   const [selectedGuide, setSelectedGuide] = useState(null);
@@ -42,26 +44,53 @@ const GuidedSession = () => {
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        const fetchedModules = await getModules();
-        setModules(Object.values(fetchedModules || {}));
+        const modulesData = await getModules();
+        if (modulesData) {
+          // Convert the object to an array and ensure the structure is correct
+          const modulesArray = Object.keys(modulesData).map(key => {
+            const module = modulesData[key];
+            return {
+              id: key,
+              name: module.name,
+              description: module.description,
+              base_questions: module.base_questions || [],
+              follow_up_prompts: module.follow_up_prompts || {},
+              session_approach: module.session_approach || {},
+              ...module
+            };
+          });
+          setModules(modulesArray);
+        }
       } catch (error) {
         console.error('Error fetching modules:', error);
       }
     };
 
-    fetchModules();
-  }, []);
-
-  useEffect(() => {
     const fetchGuides = async () => {
       try {
-        const fetchedGuides = await getGuides();
-        setGuides(Object.values(fetchedGuides || {}));
+        const guidesData = await getGuides();
+        if (guidesData) {
+          // Convert the object to an array and ensure the structure is correct
+          const guidesArray = Object.keys(guidesData).map(key => {
+            const guide = guidesData[key];
+            return {
+              id: key,
+              name: guide.name,
+              description: guide.description,
+              mainPhoto: guide.mainPhoto,
+              personality: guide.personality || {},
+              expertise: guide.expertise || [],
+              ...guide
+            };
+          });
+          setGuides(guidesArray);
+        }
       } catch (error) {
         console.error('Error fetching guides:', error);
       }
     };
 
+    fetchModules();
     fetchGuides();
   }, []);
 
@@ -96,7 +125,7 @@ const GuidedSession = () => {
             <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
             <Text style={styles.selectedModuleText}>
               {selectedModule 
-                ? `${selectedModule.name} (${selectedModule.questions.length} Questions)`
+                ? `${selectedModule.name} (${selectedModule.base_questions?.length || 0} Questions)`
                 : "Select a topic to explore with your guide"}
             </Text>
           </View>
@@ -123,7 +152,7 @@ const GuidedSession = () => {
           {selectedModule && (
             <View style={styles.overviewSection}>
               <Text style={styles.sectionTitle}>Overview</Text>
-              {selectedModule.questions.map((question, index) => (
+              {selectedModule.base_questions?.map((question, index) => (
                 <View key={index} style={styles.questionItem}>
                   <Text style={styles.questionText}>{question}</Text>
                 </View>
@@ -152,7 +181,7 @@ const GuidedSession = () => {
           <View style={styles.selectedModuleContainer}>
             <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
             <Text style={styles.selectedModuleText}>
-              {selectedModule.name} ({selectedModule.questions.length} Questions)
+              {selectedModule.name} ({selectedModule.base_questions?.length || 0} Questions)
             </Text>
             <TouchableOpacity onPress={() => setStep(1)}>
               <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
@@ -246,7 +275,7 @@ const GuidedSession = () => {
           <Text style={styles.stepTitle}>Session Start</Text>
           <View style={styles.selectedModuleContainer}>
             <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
-            <Text style={styles.selectedModuleText}>{selectedModule.name} (5 Questions)</Text>
+            <Text style={styles.selectedModuleText}>{selectedModule.name} ({selectedModule.base_questions?.length || 0} Questions)</Text>
             <TouchableOpacity onPress={() => setStep(1)}>
               <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
             </TouchableOpacity>
@@ -369,7 +398,7 @@ const GuidedSession = () => {
 
   const handleBeginSession = async () => {
     if (!selectedModule || !selectedGuide || !user) {
-      console.error('No module or guide selected, or no authenticated user');
+      console.error('Missing required data:', { selectedModule, selectedGuide, user });
       return;
     }
 
@@ -379,7 +408,7 @@ const GuidedSession = () => {
         params: {
           guide: {
             ...selectedGuide,
-            mainPhoto: selectedGuide.mainPhoto.split('/').pop(), // Ensure we're only passing the filename
+            mainPhoto: selectedGuide.mainPhoto.split('/').pop(),
           },
           module: selectedModule,
           userId: user.uid
@@ -390,39 +419,11 @@ const GuidedSession = () => {
     }
   };
 
-  const moduleData = {
-    '1': {
-      name: 'Daily Standup',
-      questions: [
-        "What are your priorities today?",
-        "Let's walk through the highest priority",
-        "What would success look like today?"
-      ]
-    },
-    '2': {
-      name: 'Goal Setting',
-      questions: [
-        "What's your main goal for this week?",
-        "What steps can you take to achieve this goal?",
-        "What potential obstacles do you foresee?",
-        "How will you measure your progress?"
-      ]
-    },
-    '3': {
-      name: 'Explore A New Idea',
-      questions: [
-        "What new idea are you considering?",
-        "How does this idea align with your current goals or projects?",
-        "What resources would you need to implement this idea?"
-      ]
-    }
-  };
-
   if (isSessionScheduled) {
     return (
       <SessionConfirmation
         scheduledDate={moment(scheduledDate)}
-        coachName={selectedGuide.name}
+        guideName={selectedGuide.name}
         onAddToCalendar={handleAddToCalendar}
         onGoToHomepage={handleGoToHomepage}
         navigation={navigation}
@@ -796,4 +797,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GuidedSession;
+export default GuidedSessionSetup;

@@ -90,16 +90,16 @@ export default function HomeScreen() {
   const moduleData = [
     {
       id: '1',
-      coachName: 'Coach Carter',
-      coachPhoto: require('../../assets/images/bg-Avatar Male 2.png'),
+      guideName: 'Guide Carter',
+      guidePhoto: require('../../assets/images/bg-Avatar Male 2.png'),
       moduleName: 'Daily Standup',
       moduleDescription: 'Plan your day in 5 questions',
       backgroundColor: '#BA59FE',
     },
     {
       id: '2',
-      coachName: 'Guide Jaja',
-      coachPhoto: require('../../assets/images/bg-Avatar Female 6.png'),
+      guideName: 'Guide Jaja',
+      guidePhoto: require('../../assets/images/bg-Avatar Female 6.png'),
       moduleName: 'Gratitude',
       moduleDescription: 'Start your day saying thanks',
       backgroundColor: '#71D7F4',
@@ -108,8 +108,8 @@ export default function HomeScreen() {
 
   const renderModuleCard = ({ item }) => (
     <ModuleCard
-      coachName={item.coachName}
-      coachPhoto={item.coachPhoto}
+      guideName={item.guideName}
+      guidePhoto={item.guidePhoto}
       moduleName={item.moduleName}
       moduleDescription={item.moduleDescription}
       backgroundColor={item.backgroundColor}

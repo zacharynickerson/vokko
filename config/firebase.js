@@ -97,34 +97,6 @@ export const getModules = async () => {
   return modules;
 };
 
-// Coach operations
-export const getCoach = async (coachId) => {
-  const coachRef = ref(db, `coaches/${coachId}`);
-  const snapshot = await get(coachRef);
-  return snapshot.val();
-};
-
-export const getCoaches = async () => {
-  const coachesRef = ref(db, 'coaches');
-  const snapshot = await get(coachesRef);
-  return snapshot.val();
-};
-
-export const getModuleWithCoach = async (moduleId) => {
-  try {
-    const module = await getModule(moduleId);
-    if (module && module.coachId) {
-      const coach = await getCoach(module.coachId);
-      return { ...module, id: moduleId, coach: { ...coach, id: module.coachId } };
-    }
-    console.error('Module or coachId not found', { moduleId, module });
-    return null;
-  } catch (error) {
-    console.error('Error in getModuleWithCoach:', error);
-    return null;
-  }
-};
-
 // Function to upload audio file to Firebase Storage
 export const saveToFirebaseStorage = async (base64Data, filePath) => {
   try {
@@ -162,3 +134,31 @@ export const saveToFirebaseStorage = async (base64Data, filePath) => {
 
 // Export necessary Firebase instances and functions
 export { httpsCallable };
+
+// Replace these functions
+export const getGuide = async (guideId) => {
+  const guideRef = ref(db, `guides/${guideId}`);
+  const snapshot = await get(guideRef);
+  return snapshot.val();
+};
+
+export const getGuides = async () => {
+  const guidesRef = ref(db, 'guides');
+  const snapshot = await get(guidesRef);
+  return snapshot.val();
+};
+
+export const getModuleWithGuide = async (moduleId) => {
+  try {
+    const module = await getModule(moduleId);
+    if (module && module.guideId) {
+      const guide = await getGuide(module.guideId);
+      return { ...module, id: moduleId, guide: { ...guide, id: module.guideId } };
+    }
+    console.error('Module or guideId not found', { moduleId, module });
+    return null;
+  } catch (error) {
+    console.error('Error in getModuleWithGuide:', error);
+    return null;
+  }
+};

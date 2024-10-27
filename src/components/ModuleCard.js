@@ -4,7 +4,7 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 import LinearGradient from 'react-native-linear-gradient';
 
-const ModuleCard = ({ coachName, coachPhoto, moduleName, moduleDescription, backgroundColor, size = 'normal' }) => {
+const ModuleCard = ({ guideName, guidePhoto, moduleName, moduleDescription, backgroundColor, size = 'normal' }) => {
   const cardStyle = size === 'small' ? styles.smallCard : styles.normalCard;
   const textStyle = size === 'small' ? styles.smallText : styles.normalText;
   
@@ -18,11 +18,11 @@ const ModuleCard = ({ coachName, coachPhoto, moduleName, moduleDescription, back
         style={styles.gradient}
       />
       <View style={styles.foregroundContainer}>
-        <Image source={coachPhoto} style={styles.coachPhoto} />
+        <Image source={guidePhoto} style={styles.guidePhoto} />
         <View style={styles.contentContainer}>
-          <View style={styles.coachPill}>
-            <Ionicons name="flash" size={textStyle.coachNameIcon.fontSize} color="#FFFFFF" />
-            <Text style={[styles.coachName, textStyle.coachName]}>{coachName}</Text>
+          <View style={styles.guidePill}>
+            <Ionicons name="flash" size={textStyle.guideNameIcon.fontSize} color="#FFFFFF" />
+            <Text style={[styles.guideName, textStyle.guideName]}>{guideName}</Text>
           </View>
           <View style={styles.moduleInfo}>
             <Text style={[styles.moduleName, textStyle.moduleName]}>{moduleName}</Text>
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
   },
-  coachPhoto: {
+  guidePhoto: {
     position: 'absolute',
     right: 0,
     bottom: 0,
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
     flex: 1,
   },
-  coachPill: {
+  guidePill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     borderRadius: wp(4),
     alignSelf: 'flex-start',
   },
-  coachName: {
+  guideName: {
     fontFamily: 'DMSans-Bold',
     color: '#FFFFFF',
     fontWeight: '500',
@@ -132,10 +132,10 @@ const styles = StyleSheet.create({
 
   },
   normalText: {
-    coachName: {
+    guideName: {
       fontSize: wp(3.5),
     },
-    coachNameIcon: {
+    guideNameIcon: {
       fontSize: wp(3.5),
     },
     moduleName: {
@@ -146,10 +146,10 @@ const styles = StyleSheet.create({
     },
   },
   smallText: {
-    coachName: {
+    guideName: {
       fontSize: wp(2.625), // 75% of normal size
     },
-    coachNameIcon: {
+    guideNameIcon: {
       fontSize: wp(2.625), // 75% of normal size
     },
     moduleName: {

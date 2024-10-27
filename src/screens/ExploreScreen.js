@@ -35,32 +35,32 @@ export default function ExploreScreen() {
   const moduleData = [
     {
       id: '1',
-      coachName: 'Coach Carter',
-      coachPhoto: require('../../assets/images/bg-Avatar Male 2.png'),
+      guideName: 'Guide Carter',
+      guidePhoto: require('../../assets/images/bg-Avatar Male 2.png'),
       moduleName: 'Daily Standup',
       moduleDescription: 'Plan your day in 5 questions',
       backgroundColor: '#C52528', // Red
     },
     {
       id: '2',
-      coachName: 'Guide Jaja',
-      coachPhoto: require('../../assets/images/bg-Avatar Female 6.png'),
+      guideName: 'Guide Jaja',
+      guidePhoto: require('../../assets/images/bg-Avatar Female 6.png'),
       moduleName: 'Gratitude',
       moduleDescription: 'Start your day saying thanks',
       backgroundColor: '#D4AF37', // Gold
     },
     {
       id: '3',
-      coachName: 'The Vanguard',
-      coachPhoto: require('../../assets/images/bg-Avatar Male 9.png'),
+      guideName: 'The Vanguard',
+      guidePhoto: require('../../assets/images/bg-Avatar Male 9.png'),
       moduleName: 'New Idea',
       moduleDescription: 'Develop a novel concept',
       backgroundColor: '#2E8B57', // Sea Green
     },
     {
       id: '4',
-      coachName: 'PM Benji',
-      coachPhoto: require('../../assets/images/bg-Avatar Male 5.png'),
+      guideName: 'PM Benji',
+      guidePhoto: require('../../assets/images/bg-Avatar Male 5.png'),
       moduleName: 'Product Requirements',
       moduleDescription: 'Talk our your PRD',
       backgroundColor: '#FF7F50', // Coral
@@ -70,8 +70,8 @@ export default function ExploreScreen() {
 
   const renderModuleCard = ({ item }) => (
     <ModuleCard
-      coachName={item.coachName}
-      coachPhoto={item.coachPhoto}
+      guideName={item.guideName}
+      guidePhoto={item.guidePhoto}
       moduleName={item.moduleName}
       moduleDescription={item.moduleDescription}
       backgroundColor={item.backgroundColor}
