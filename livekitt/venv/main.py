@@ -59,19 +59,22 @@ def get_coach(coach_id):
         coach['voice'] = coach['voice'] if coach['voice'] in openai_voices else 'alloy'
     return coach
 
-def save_conversation_to_firebase(conversation_entry, user_id, session_id, question_index):
-    try:
-        # Update the path to save conversation within the session object
-        session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}')
-        
-        # Update the conversation field using update() to maintain other session data
-        session_ref.update({
-            f'conversation/q{question_index + 1}': conversation_entry
-        })
-        
-        logger.info(f"Conversation entry saved to Firebase: {conversation_entry}")
-    except Exception as e:
-        logger.error(f"Error saving conversation to Firebase: {str(e)}")
+def get_user(user_id):
+    """
+    Fetches the user data from Firebase Realtime Database.
+
+    Args:
+        user_id (str): The ID of the user.
+
+    Returns:
+        dict: The user's data if found, else None.
+    """
+    user = db.reference(f'users/{user_id}').get()
+    return user
+
+def save_conversation_to_firebase(conversation_entry, user_id, session_id):
+    session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}')
+    session_ref.child('transcript').push(conversation_entry)  # Append to the existing transcript
 
 def save_summary_to_firebase(summary, user_id, session_id):
     try:
@@ -92,27 +95,35 @@ def get_guide(guide_id):
         guide['voice'] = voice_attributes.get('base_voice', 'alloy')  # Default to 'alloy' if not specified
     return guide
 
-def create_guided_session(user_id, guide_id, module_id):
+# def create_guided_session(user_id, guide_id, module_id):
+#     session_id = str(int(time.time() * 1000))  # Generate a unique session ID
+#     session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}')
+#     session_ref.set({
+#         'createdDate': datetime.datetime.utcnow().isoformat(),
+#         'userId': user_id,
+#         'guideId': guide_id,
+#         'moduleId': module_id,
+#         'status': 'processing',
+#     })
+#     return session_id  # Return the session_id for later use
+
+def update_session_status(user_id, session_id, status):
     try:
-        # Create a new session with all attributes including empty conversation
-        session_data = {
-            'userId': user_id,
-            'guideId': guide_id,
-            'moduleId': module_id,
-            'createdDate': datetime.datetime.now().isoformat(),
-            'status': 'processing',
-            'conversation': {},  # Initialize empty conversation object
-            'sessionId': str(int(time.time() * 1000))  # Unix timestamp as session ID
-        }
-        
-        # Save the complete session object
-        session_ref = db.reference(f'guidedSessions/{user_id}/{session_data["sessionId"]}')
-        session_ref.set(session_data)
-        
-        return session_data['sessionId']
+        session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}')
+        session_ref.update({'status': status})
+        logger.info(f"Session {session_id} status updated to {status}")
     except Exception as e:
-        logger.error(f"Error creating guided session: {str(e)}")
-        raise
+        logger.error(f"Error updating session status: {str(e)}")
+
+def initiate_processing(user_id, session_id):
+    try:
+        # You can trigger a Cloud Function here if needed
+        # For example, write to a specific path that the Cloud Function listens to
+        processing_ref = db.reference(f'guidedSessions/{user_id}/{session_id}/status')
+        processing_ref.set('Processing')
+        logger.info(f"Initiated processing for session {session_id}")
+    except Exception as e:
+        logger.error(f"Error initiating processing: {str(e)}")
 
 
 
@@ -169,78 +180,67 @@ def create_session_prompt(guide, module):
         "content": f"""
 You are {guide['name']}
 You're leading a session on {module['name']}
+At the end of session the user should walk away with {module['expected_outcome']}
 
 Key Guidelines:
-1. Stay in character consistently, using your defined speaking style and tone
-2. Use the base questions as a framework, but:
-   - Adapt follow-up questions based on user responses
-   - Dive deeper when users show interest or need clarity
-   - Use your expertise to guide users toward insights
-3. Don't just ask questions - share brief insights from your background when relevant
-4. Help users explore their thoughts while keeping the session focused on {module['name']}
+1. Don't just ask questions - share brief insights from your background when relevant
+2. Help users explore their thoughts while keeping the session focused on {module['name']}
 
-Remember: You're not just asking questions - you're guiding a discovery process using your unique personality and expertise in {module['session_approach']['framework']}.
 """
     }
 
-async def conduct_interactive_session(assistant, module, guide, user_id, session_id):
-    base_questions = 'whats yo mama name'
+async def conduct_interactive_session(assistant, module, user_id, session_id):
+    # Fetch user data
+    user = get_user(user_id)
+    if not user or 'name' not in user:
+        logger.error(f"User data not found for user_id: {user_id}")
+        raise ValueError("User data not found")
     
-    # Simple welcome, then pause
-    welcome_message = f"Let's begin."
+    # Extract first name
+    user_first_name = user['name'].split()[0]
+    logger.info(f"User's first name: {user_first_name}")
+    welcome_message = f"Hey {user_first_name}, Say ola"
     await assistant.say(welcome_message, allow_interruptions=False)
-    await asyncio.sleep(1)  # Brief pause before first question
-    
-    for idx, question in enumerate(base_questions):
-        # Ask one question clearly and wait
-        await assistant.say(question, allow_interruptions=False)
-        
-        # Wait for complete user response
-        response = await wait_for_user_input(assistant)
-        
-        # Save the response
-        conversation_entry = {
-            'question': question,
-            'answer': response,
-            'questionNumber': idx + 1
-        }
-        save_conversation_to_firebase(conversation_entry, user_id, session_id, idx)
-        
-        # Brief acknowledgment or follow-up if needed
-        if needs_deeper_exploration(response):
-            # Wait a moment before follow-up to avoid interrupting
-            await asyncio.sleep(1)
-            follow_up = select_focused_follow_up(response)
-            if follow_up:
-                await assistant.say(follow_up, allow_interruptions=False)
-                follow_up_response = await wait_for_user_input(assistant)
-                
-                # Save follow-up response
-                follow_up_entry = {
-                    'question': follow_up,
-                    'answer': follow_up_response,
-                    'questionNumber': f"{idx + 1}.1"
-                }
-                save_conversation_to_firebase(follow_up_entry, user_id, session_id, f"{idx}_followup")
-        
-        # Add a pause between questions
-        if idx < len(base_questions) - 1:
-            await asyncio.sleep(1.5)
 
-def select_focused_follow_up(response):
-    # Simplified to return a single reflective prompt
-    return "Can you tell me more about that?"
+    # Wait for the user's response
+    user_response = await wait_for_user_input(assistant)
 
-def needs_deeper_exploration(response):
-    # Simplified logic for when to ask follow-up
-    words = response.split()
-    return len(words) < 10  # Only follow up on very brief responses
+    # Save the conversation entry
+    conversation_entry = {
+        'question': welcome_message,
+        'answer': user_response,
+        'questionNumber': '1'  # Simple question number
+    }
+    try:
+        logger.info(f"Saving conversation entry for session_id: {session_id}")
+        save_conversation_to_firebase(conversation_entry, user_id, session_id)
+        logger.info(f"Conversation entry saved: {conversation_entry}")
+    except Exception as e:
+        logger.error(f"Error saving conversation to Firebase: {str(e)}")
+
+    # Define summary, title, and transcript
+    summary = "Summary pending"  # Replace with actual summary logic
+    title = "Title pending"  # Replace with actual title logic
+    transcript = [conversation_entry]  # Collecting the transcript entries
+
+    # End the session
+    goodbye_message = "Thank you for saying ola!"
+    await assistant.say(goodbye_message, allow_interruptions=False)
+
+    # After the session ends, update the existing session entry
+    try:
+        logger.info(f"Updating session entry for session_id: {session_id}")
+        await db.reference(f'guidedSessions/{user_id}/{session_id}').update({
+            'status': 'completed',
+            'summary': summary,
+            'title': title,
+            'transcript': transcript,  # Assuming you have this data
+        })
+    except Exception as e:
+        logger.error(f"Error updating session entry: {str(e)}")
 
 
-
-
-
-# =================================
+# ============================
 # Entrypoint for the Worker
 # =================================
 async def entrypoint(ctx: JobContext):
@@ -255,9 +255,10 @@ async def entrypoint(ctx: JobContext):
     user_id, module_id, guide_id, session_id = room_name_parts
     logger.info(f"Extracted IDs - User: {user_id}, Module: {module_id}, Guide: {guide_id}, Session: {session_id}")
 
+
+
     module = get_module(module_id)
     guide = get_guide(guide_id)
-    
 
     logger.info(f"Retrieved module: {module}")
     logger.info(f"Retrieved guide: {guide}")
@@ -265,12 +266,12 @@ async def entrypoint(ctx: JobContext):
     if not module or not guide:
         logger.error(f"Invalid Module ID ({module_id}) or Guide ID ({guide_id})")
         raise ValueError("Invalid Module ID or Guide ID")
-
-    #  Create a much simpler, more dynamic system prompt
+    
+    # Create the initial chat context
     initial_ctx = llm.ChatContext().append(
         role="system",
         text=f"""You are {guide['name']}, a guide who helps people explore and develop their thoughts on {module['name']}.
-
+    
         Your Essence:
         - You're here to help users discover their own insights about {module['name']}
 
@@ -282,7 +283,10 @@ async def entrypoint(ctx: JobContext):
 
         Remember: You're having a natural conversation. React to what the user says rather than following a script. Help them explore their thoughts about {module['name']} in whatever direction feels most valuable to them."""
     )
-
+    
+    # Create a new guided session
+    # session_id = create_guided_session(user_id, guide_id, module_id)
+    
     # Connect to LiveKit room
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
@@ -301,26 +305,18 @@ async def entrypoint(ctx: JobContext):
     # Start the voice assistant with the LiveKit room
     assistant.start(ctx.room)
 
-    # Simple welcome and initial open-ended prompt
-    welcome_message = f"Hi, I'm {guide['name']}. Let's start your {module['name']} session."
-    await assistant.say(welcome_message, allow_interruptions=True)
+    # Start the interactive session
+    await conduct_interactive_session(assistant, module, user_id, session_id)
 
-
-    # Main conversation loop
-    while True:
-        # Wait for and process user input
-        response = await wait_for_user_input(assistant)
-        
-        # Save response to Firebase
-        save_conversation_to_firebase({
-            'timestamp': int(time.time() * 1000),
-            'user_input': response
-        }, user_id, session_id)
-        await conduct_interactive_session(assistant, module, guide, user_id, session_id)
-
-        # # Wrap up the session
-        goodbye_message = f"Great job doing today's {module['name']} session!"
-        await assistant.say(goodbye_message, allow_interruptions=False)
+    # Update session status to completed after the session ends
+    await db.reference(f'guidedSessions/{user_id}/{session_id}').update({
+        'dateCreated': {'.sv': 'timestamp'},
+        'moduleId': module_id,
+        'moduleName': module['name'],
+        'guideName': guide['name'],
+        'guideId': guide_id,
+        'status': 'processing'
+    })
 
 
 # ============================

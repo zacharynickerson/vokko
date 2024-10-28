@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, SafeAreaView, Modal } from 'react-native';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, SafeAreaView, Modal, TextInput, FlatList } from 'react-native';
 import { Audio } from 'expo-av';
 import { FontAwesome } from '@expo/vector-icons';
 import {
@@ -13,7 +13,7 @@ import { API_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js'
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
 import CallLayout from '../components/CallLayout';
-import { getDatabase, ref, push, set, remove } from 'firebase/database';  // Update this line
+import { getDatabase, ref, push, set, remove, onValue, get } from 'firebase/database';  // Ensure onValue is imported
 import { db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 
 registerGlobals();
@@ -28,6 +28,8 @@ const GuidedSessionCall = ({ route, navigation }) => {
   const [room, setRoom] = useState(null);  // Add this state
   const [isCancelling, setIsCancelling] = useState(false);
   const { user } = useAuth();
+  const [sessionContext, setSessionContext] = useState({}); // Add this state for session context
+  const userInputRef = useRef(''); // Reference to store user input
   
   // Get the selected module and guide from route params
   const { module: selectedModule, guide: selectedGuide } = route.params;
@@ -135,19 +137,19 @@ const GuidedSessionCall = ({ route, navigation }) => {
       
       // Save session data to Firebase
       if (user && selectedModule && selectedGuide) {
-        const sessionData = {
-          moduleId: selectedModule.id,
-          guideId: selectedGuide.id,
-          status: 'processing',
-          createdDate: new Date().toISOString(),
-          userId: user.uid
-        };
+        // const sessionData = {
+        //   moduleId: selectedModule.id,
+        //   guideId: selectedGuide.id,
+        //   status: 'completed',
+        //   createdDate: new Date().toISOString(),
+        //   userId: user.uid
+        // };
         
         try {
           const database = getDatabase();
           const sessionRef = ref(database, `guidedSessions/${user.uid}`);
-          const newSessionRef = push(sessionRef);
-          await set(newSessionRef, sessionData);
+          // const newSessionRef = push(sessionRef);
+          // await set(newSessionRef, sessionData);
           
           // Updated navigation path to match your structure
           navigation.navigate('App', {
@@ -174,13 +176,21 @@ const GuidedSessionCall = ({ route, navigation }) => {
         await room.disconnect();
       }
       
-      // Delete the session from Firebase
-      if (user && selectedModule && selectedGuide) {
-        const database = getDatabase();
-        const sessionRef = ref(database, `guidedSessions/${user.uid}`);
-        await remove(sessionRef);
-      }
-      
+      // // Delete the most recently created session from Firebase
+      // if (user && selectedModule && selectedGuide) {
+      //   const database = getDatabase();
+      //   const sessionsRef = ref(database, `guidedSessions/${user.uid}`);
+      //   const snapshot = await get(sessionsRef);
+      //   if (snapshot.exists()) {
+      //     const sessions = snapshot.val();
+      //     const sessionKeys = Object.keys(sessions);
+      //     const mostRecentSessionKey = sessionKeys[sessionKeys.length - 1]; // Get the last session key
+      //     const mostRecentSessionRef = ref(database, `guidedSessions/${user.uid}/${mostRecentSessionKey}`);
+      //     await remove(mostRecentSessionRef);
+      //     console.log('Deleted the most recently created session:', mostRecentSessionKey);
+      //   }
+      // }
+
       // Reset states
       setIsConnected(false);
       setToken(null);
@@ -195,12 +205,8 @@ const GuidedSessionCall = ({ route, navigation }) => {
         routes: [{ name: 'App', params: { screen: 'HomeScreen' } }],
       });
     } catch (error) {
-      console.error('Error during cancel:', error);
-      // If there's an error, still try to navigate away
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'App', params: { screen: 'HomeScreen' } }],
-      });
+      console.error('Error during cancel operation:', error);
+      Alert.alert('Error', 'Failed to cancel the session properly.');
     }
   };
 
@@ -216,6 +222,12 @@ const GuidedSessionCall = ({ route, navigation }) => {
       </View>
     );
   }
+
+  // Define the startSession function
+  const startSession = () => {
+    // Logic to start the session, e.g., sending an initial message or setting up the context
+    console.log('Session started');
+  };
 
   return (
     <View style={styles.container}>

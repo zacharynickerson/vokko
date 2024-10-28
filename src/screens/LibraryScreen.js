@@ -5,14 +5,13 @@ import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-nat
 import { FlatList } from 'react-native-gesture-handler';
 import { auth, db } from '../../config/firebase';
 import { ref, onValue, off } from 'firebase/database';
-// import { getVoiceNotesFromLocal, saveVoiceNotesToLocal } from '../utilities/voiceNoteLocalStorage'; // Commented out
 import { formatDateForDisplay } from '../utilities/helpers';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SoloVoiceNoteItem from '../components/SoloSessionItem';
 import GuidedSessionItem from '../components/GuidedSessionItem';
 
 export default function LibraryScreen({ navigation }) {
-  const [voiceNotes, setVoiceNotes] = useState([]);
+  const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const route = useRoute();
 
@@ -20,7 +19,7 @@ export default function LibraryScreen({ navigation }) {
     navigation.navigate('SettingsScreen');
   };
 
-  const fetchVoiceNotes = useCallback(async () => {
+  const fetchSessions = useCallback(async () => {
     const userId = auth.currentUser?.uid;
     if (!userId) {
       setLoading(false);
@@ -28,70 +27,128 @@ export default function LibraryScreen({ navigation }) {
     }
 
     const voiceNotesRef = ref(db, `/voiceNotes/${userId}`);
+    const guidedSessionsRef = ref(db, `/guidedSessions/${userId}`);
 
-    const onDataChange = async (snapshot) => {
-      try {
-        setLoading(true);
-        let firebaseNotes = [];
-        if (snapshot.exists()) {
-          firebaseNotes = Object.values(snapshot.val()).map(note => ({
-            voiceNoteId: note.voiceNoteId || note.id,
-            createdDate: note.createdDate || new Date().toISOString(),
-            title: note.title || 'Untitled Note',
-            status: note.status, // Add this line to include the status
-          }));
-        }
+    const fetchVoiceNotes = () => {
+      return new Promise((resolve, reject) => {
+        const voiceNotesListener = onValue(voiceNotesRef, (snapshot) => {
+          try {
+            let firebaseNotes = [];
+            if (snapshot.exists()) {
+              firebaseNotes = Object.values(snapshot.val()).map(note => ({
+                id: note.voiceNoteId || note.id,
+                createdDate: note.createdDate || new Date().toISOString(),
+                title: note.title || 'Untitled Note',
+                status: note.status || 'completed',
+                type: 'solo',
+                image: note.image || null,
+              }));
+            }
+            resolve(firebaseNotes);
+          } catch (error) {
+            reject(error);
+          }
+        }, (error) => {
+          reject(error);
+        });
 
-        const sortedNotes = sortNotesChronologically(firebaseNotes);
-        setVoiceNotes(sortedNotes);
-      } catch (error) {
-        console.error('Error processing voice notes:', error);
-        Alert.alert('Error', 'Failed to load voice notes. Please try again.');
-      } finally {
-        setLoading(false);
-      }
+        // Cleanup listener
+        return () => off(voiceNotesRef, 'value', voiceNotesListener);
+      });
     };
 
-    onValue(voiceNotesRef, onDataChange, (error) => {
-      console.error('Firebase onValue error:', error);
-      setLoading(false);
-    });
+    const fetchGuidedSessions = () => {
+      return new Promise((resolve, reject) => {
+        const guidedSessionsListener = onValue(guidedSessionsRef, (snapshot) => {
+          try {
+            let guidedNotes = [];
+            if (snapshot.exists()) {
+              guidedNotes = Object.values(snapshot.val()).map(session => ({
+                id: session.guidedSessionId || session.id,
+                createdDate: session.createdDate || new Date().toISOString(),
+                title: session.title || 'Untitled Session',
+                coachAvatar: session.coachAvatar || null,
+                coachName: session.coachName || 'Coach',
+                moduleName: session.moduleName || 'Module',
+                type: 'guided',
+                image: session.image || null,
+              }));
+            }
+            resolve(guidedNotes);
+          } catch (error) {
+            reject(error);
+          }
+        }, (error) => {
+          reject(error);
+        });
 
-    return () => off(voiceNotesRef);
+        // Cleanup listener
+        return () => off(guidedSessionsRef, 'value', guidedSessionsListener);
+      });
+    };
+
+    try {
+      setLoading(true);
+      const [voiceNotes, guidedSessions] = await Promise.all([fetchVoiceNotes(), fetchGuidedSessions()]);
+
+      const combinedSessions = [...voiceNotes, ...guidedSessions];
+      const sortedSessions = sortSessionsChronologically(combinedSessions);
+      setSessions(sortedSessions);
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      Alert.alert('Error', 'Failed to load sessions. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       if (route.params?.refresh) {
-        fetchVoiceNotes();
+        fetchSessions();
         navigation.setParams({ refresh: undefined });
       }
-    }, [route.params?.refresh, fetchVoiceNotes, navigation])
+    }, [route.params?.refresh, fetchSessions, navigation])
   );
 
   useEffect(() => {
-    fetchVoiceNotes();
-  }, [fetchVoiceNotes]);
+    fetchSessions();
+  }, [fetchSessions]);
 
-  const sortNotesChronologically = (notes) => {
-    return notes.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
+  const sortSessionsChronologically = (sessions) => {
+    return sessions.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
   };
 
   const renderItem = ({ item }) => {
-    const isLoading = item.status === 'recording' || item.status === 'processing';
-    const onPress = () => {
-      if (item.status === 'completed' || item.status === 'error') {
-        navigation.navigate('VoiceNoteDetails', { voiceNote: item });
-      }
-    };
+    if (item.type === 'solo') {
+      const isLoading = item.status === 'recording' || item.status === 'processing';
+      const onPress = () => {
+        if (item.status === 'completed' || item.status === 'error') {
+          navigation.navigate('VoiceNoteDetails', { voiceNote: item });
+        }
+      };
 
-    return (
-      <SoloVoiceNoteItem
-        item={item}
-        onPress={onPress}
-        isLoading={isLoading}
-      />
-    );
+      return (
+        <SoloVoiceNoteItem
+          item={item}
+          onPress={onPress}
+          isLoading={isLoading}
+        />
+      );
+    } else if (item.type === 'guided') {
+      const onPress = () => {
+        navigation.navigate('VoiceNoteDetails', { voiceNote: item });
+      };
+
+      return (
+        <GuidedSessionItem
+          item={item}
+          onPress={onPress}
+        />
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -118,13 +175,19 @@ export default function LibraryScreen({ navigation }) {
         </View>
       </View>
 
-      <FlatList
-        data={voiceNotes}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        style={styles.flatList}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={sessions}
+          renderItem={renderItem}
+          keyExtractor={(item) => `${item.type}-${item.id}`}
+          contentContainerStyle={styles.listContent}
+          style={styles.flatList}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -171,17 +234,18 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 20,
   },
   flatList: {
     backgroundColor: '#F9F9F9',
   },
-  itemContainer: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  itemTitle: {
+  loadingText: {
     fontSize: wp(4),
-    fontWeight: '500',
+    color: '#666',
   },
 });

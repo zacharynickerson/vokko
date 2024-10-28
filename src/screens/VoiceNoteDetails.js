@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, TextInput, Alert, ScrollView, Image } from 'react-native';
+import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth, db } from '../../config/firebase';
 import { ref as dbRef, onValue, remove } from 'firebase/database';
@@ -12,7 +12,7 @@ import { useWindowDimensions } from 'react-native';
 
 export default function VoiceNoteDetails({ route, navigation }) {
   const { voiceNote } = route.params;
-  const { voiceNoteId } = voiceNote;
+  const { voiceNoteId, type } = voiceNote; // Destructure 'type' from voiceNote
 
   const [noteTitle, setNoteTitle] = useState('');
   const [formattedNote, setFormattedNote] = useState('');
@@ -23,6 +23,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
   const { width } = useWindowDimensions();
 
   const formatNoteContent = (content) => {
+    if (!content) return 'Note unavailable';
     // Convert **text** to <strong>text</strong>
     let formattedContent = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
@@ -32,24 +33,40 @@ export default function VoiceNoteDetails({ route, navigation }) {
     return formattedContent;
   };
 
-
-
   useEffect(() => {
-    const noteRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteId}`);
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated.');
+      navigation.goBack();
+      return;
+    }
+
+    // Determine the correct path based on the type
+    const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
+    const noteRef = dbRef(db, `/${path}/${userId}/${voiceNoteId}`);
     
-    const unsubscribe = onValue(noteRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const noteData = snapshot.val();
-        setFormattedNote(noteData.summary || 'Note unavailable'); // Use summary for formatted note
-        setNoteTitle(noteData.title || '');
-        setAudioUri(noteData.chunks[0]?.url || null); // Access the first chunk's URL
+    const unsubscribe = onValue(
+      noteRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const noteData = snapshot.val();
+          setFormattedNote(noteData.summary || 'Note unavailable'); // Use summary for formatted note
+          setNoteTitle(noteData.title || '');
+          setAudioUri(noteData.chunks ? noteData.chunks[0]?.url || null : null); // Access the first chunk's URL if available
+        } else {
+          setFormattedNote('Note unavailable');
+          setNoteTitle('Untitled');
+          setAudioUri(null);
+        }
+      },
+      (error) => {
+        console.error('Error fetching note details:', error);
+        Alert.alert('Error', 'Failed to load note details.');
       }
-    }, (error) => {
-      console.error('Error fetching note details:', error);
-    });
+    );
 
     return () => unsubscribe();
-  }, [voiceNoteId]);
+  }, [voiceNoteId, type, navigation]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -68,7 +85,8 @@ export default function VoiceNoteDetails({ route, navigation }) {
           text: "Yes", 
           onPress: async () => {
             try {
-              const voiceNoteDbRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteId}`);
+              const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
+              const voiceNoteDbRef = dbRef(db, `/${path}/${auth.currentUser.uid}/${voiceNoteId}`);
               await remove(voiceNoteDbRef);
               navigation.navigate('LibraryScreen', { refresh: true });
             } catch (error) {
@@ -116,7 +134,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.sessionItemContainer}>
-          {voiceNote.guideName ? (
+          {type === 'guided' ? (
             <GuidedSessionItem item={voiceNote} />
           ) : (
             <SoloVoiceNoteItem item={voiceNote} />
@@ -127,9 +145,9 @@ export default function VoiceNoteDetails({ route, navigation }) {
 
         <View style={styles.contentContainer}>
           <RenderHtml
-            contentWidth={width}
-            source={{ html: formattedHtml || 'Note unavailable' }}
-            tagsStyles={styles.tagsStyles}
+            contentWidth={width - 40} // Adjusted for padding
+            source={{ html: formattedHtml }}
+            tagsStyles={tagsStyles}
             baseStyle={styles.formattedNoteText}
           />
         </View>

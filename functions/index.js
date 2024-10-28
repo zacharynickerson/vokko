@@ -240,3 +240,109 @@ async function processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, transcri
     throw error;
   }
 }
+
+exports.processGuidedSession = functions.database
+  .ref('/guidedSessions/{userId}/{sessionId}/status')
+  .onUpdate(async (change, context) => {
+    const newStatus = change.after.val();
+    const oldStatus = change.before.val();
+    const { userId, sessionId } = context.params;
+
+    if (newStatus !== 'Processing' || oldStatus === 'Processing') {
+      // Only proceed if status changed to 'Processing'
+      return null;
+    }
+
+    try {
+      // Fetch the transcript
+      const transcriptSnapshot = await admin.database().ref(`/guidedSessions/${userId}/${sessionId}/transcript`).once('value');
+      const transcriptData = transcriptSnapshot.val();
+      
+      if (!transcriptData) {
+        throw new Error('Transcript data is missing.');
+      }
+
+      // Concatenate all transcript entries
+      let fullTranscript = '';
+      transcriptSnapshot.forEach(childSnapshot => {
+        const entry = childSnapshot.val();
+        if (entry.role && entry.content) {
+          fullTranscript += `${entry.role === 'user' ? 'User' : 'Assistant'}: ${entry.content}\n`;
+        }
+      });
+
+      // Call OpenAI to generate title and summary
+      const { title, summary } = await generateTitleAndSummary(fullTranscript);
+
+      // Update Firebase with title and summary, and set status to 'Completed'
+      await admin.database().ref(`/guidedSessions/${userId}/${sessionId}`).update({
+        title: title || 'Untitled Session',
+        summary: summary || fullTranscript,
+        status: 'Completed'
+      });
+
+      console.log(`Session ${sessionId} processed successfully.`);
+      return null;
+    } catch (error) {
+      console.error(`Error processing session ${sessionId}:`, error);
+      // Update status to 'Error' and log the error
+      await admin.database().ref(`/guidedSessions/${userId}/${sessionId}`).update({
+        status: 'Error',
+        error: error.message,
+      });
+      return null;
+    }
+  });
+
+async function generateTitleAndSummary(transcript) {
+  const prompt = `Generate a descriptive title and a beautifully formatted summary for the following transcript. Maintain the original voice and content, but improve readability with formatting and styling using HTML tags such as <strong>, <em>, and <u>. Format section headers as <h3 style='color: #4FBF67;'>[Header Text]</h3>. Use headers sparingly, only for major topic changes, typically every 2-3 paragraphs. Avoid using terms like 'overview' or 'the speaker'. Wrap paragraphs in <p> tags without extra line breaks between them.\n\nTranscript:\n${transcript}\n\nFormat:\n\nTITLE: [Generated Title]\n\nFORMATTEDNOTE: [Formatted transcript with HTML styling]`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 500,
+      temperature: 0.7,
+    });
+ 
+    if (response.choices && response.choices.length > 0) {
+      const content = response.choices[0].message.content.trim();
+      const sections = content.split(/\n(?=TITLE:|FORMATTEDNOTE:)/);
+ 
+      let title = '';
+      let summary = '';
+ 
+      sections.forEach(section => {
+        if (section.startsWith('TITLE:')) {
+          title = section.replace('TITLE:', '').trim();
+        } else if (section.startsWith('FORMATTEDNOTE:')) {
+          summary = section.replace('FORMATTEDNOTE:', '').trim();
+        }
+      });
+ 
+      return { title, summary };
+    } else {
+      throw new Error('No choices returned from OpenAI.');
+    }
+  } catch (error) {
+    console.error('Error generating title and summary:', error);
+    throw error;
+  }
+}
+
+// Assuming you have a function that processes the transcript
+async function processTranscriptAndUpdateGuidedSession(userId, sessionId, fullTranscript) {
+  try {
+    // Update the guided session with the full transcript
+    await admin.database().ref(`/guidedSessions/${userId}/${sessionId}`).update({
+      transcript: fullTranscript,
+      status: 'processing' // Update status to processing
+    });
+  } catch (error) {
+    console.error('Error updating guided session transcript:', error);
+    throw error;
+  }
+}

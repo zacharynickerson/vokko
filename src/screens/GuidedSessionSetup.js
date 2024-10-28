@@ -162,13 +162,7 @@ const GuidedSessionSetup = () => {
                     onPress={() => setSelectedModule(item)}
                   >
                     <View style={styles.selectorRow}>
-                      <View style={styles.iconContainer}>
-                        <FontAwesome5 
-                          name={item.ui?.icon || 'circle'} 
-                          size={24} 
-                          color={item.ui?.color || '#4CAF50'} 
-                        />
-                      </View>
+                      
                       <View style={styles.textContainer}>
                         <Text style={styles.selectorTitle} numberOfLines={1}>{item.name}</Text>
                         <Text style={styles.selectorDescription} numberOfLines={2}>{item.description}</Text>

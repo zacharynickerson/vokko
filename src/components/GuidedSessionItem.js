@@ -1,10 +1,13 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { formatDateForDisplay } from '../utilities/helpers';
 
-const GuidedSessionItem = ({ item }) => {
+const GuidedSessionItem = ({ item, onPress }) => {
   return (
-    <View style={styles.container}>
+    <TouchableOpacity 
+      style={styles.container}
+      onPress={onPress}
+    >
       <View style={styles.imageContainer}>
         <Image 
           source={item.image ? { uri: item.image } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/default-note-image.png')} 
@@ -23,14 +26,14 @@ const GuidedSessionItem = ({ item }) => {
       
       <View style={styles.guideContainer}>
         <Image 
-          source={item.guideImage ? { uri: item.guideImage } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 15.png')} 
+          source={item.coachAvatar ? { uri: item.coachAvatar } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 15.png')} 
           style={styles.guideImage}
         />
-        <Text style={styles.guideName}>{item.guideName}</Text>
+        <Text style={styles.guideName}>{item.coachName}</Text>
         <Text style={styles.moduleSeparator}> | </Text>
         <Text style={styles.moduleName}>{item.moduleName}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
