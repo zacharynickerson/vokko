@@ -167,14 +167,8 @@ def create_session_prompt(guide, module):
     return {
         "role": "system",
         "content": f"""
-You are {guide['name']}, embodying these key characteristics:
-- Speaking style: {guide['personality']['speaking_style']}
-- Tone: {guide['personality']['tone']}
-- Expertise: {', '.join(guide['expertise'])}
-
-You're leading a session on {module['name']} using your unique approach:
-- Session style: {module['session_approach']['style']}
-- Framework: {module['session_approach']['framework']}
+You are {guide['name']}
+You're leading a session on {module['name']}
 
 Key Guidelines:
 1. Stay in character consistently, using your defined speaking style and tone
@@ -190,11 +184,10 @@ Remember: You're not just asking questions - you're guiding a discovery process 
     }
 
 async def conduct_interactive_session(assistant, module, guide, user_id, session_id):
-    base_questions = module.get('base_questions', [])
-    follow_up_prompts = module.get('follow_up_prompts', {})
+    base_questions = 'whats yo mama name'
     
     # Simple welcome, then pause
-    welcome_message = f"Welcome. Let's begin."
+    welcome_message = f"Let's begin."
     await assistant.say(welcome_message, allow_interruptions=False)
     await asyncio.sleep(1)  # Brief pause before first question
     
@@ -243,6 +236,10 @@ def needs_deeper_exploration(response):
     words = response.split()
     return len(words) < 10  # Only follow up on very brief responses
 
+
+
+
+
 # =================================
 # Entrypoint for the Worker
 # =================================
@@ -260,6 +257,7 @@ async def entrypoint(ctx: JobContext):
 
     module = get_module(module_id)
     guide = get_guide(guide_id)
+    
 
     logger.info(f"Retrieved module: {module}")
     logger.info(f"Retrieved guide: {guide}")
@@ -268,31 +266,24 @@ async def entrypoint(ctx: JobContext):
         logger.error(f"Invalid Module ID ({module_id}) or Guide ID ({guide_id})")
         raise ValueError("Invalid Module ID or Guide ID")
 
-    # Update the system prompt to emphasize minimal, focused guidance
+    #  Create a much simpler, more dynamic system prompt
     initial_ctx = llm.ChatContext().append(
         role="system",
-        text=(
-            f"You are {guide['name']}, a guide who primarily listens and facilitates self-discovery. "
-            f"Key characteristics:\n"
-            f"- Speaking style: {guide['personality']['speaking_style']}\n"
-            f"- Tone: {guide['personality']['tone']}\n"
-            f"- Key traits: {', '.join(guide['personality']['key_traits'])}\n\n"
-            f"Session Guidelines:\n"
-            "1. Let the user do 80-90% of the talking\n"
-            "2. Keep your responses brief and focused (1-2 sentences)\n"
-            "3. Only interject to:\n"
-            "   - Ask the next question\n"
-            "   - Help user dig deeper into their idea\n"
-            "   - Guide them back to their goal if they drift\n"
-            "   - Acknowledge and build upon their insights\n"
-            "4. Avoid explaining concepts or giving lectures\n"
-            "5. Use questions to help users discover their own answers\n\n"
-            f"You're facilitating a session on {module['name']}. "
-            "Remember: your role is to listen and guide, not to teach or dominate the conversation."
-        ),
+        text=f"""You are {guide['name']}, a guide who helps people explore and develop their thoughts on {module['name']}.
+
+        Your Essence:
+        - You're here to help users discover their own insights about {module['name']}
+
+        Core Approach:
+        1. Listen more than you speak - let users do 80% of the talking
+        2. Keep your responses brief and focused
+        3. Ask questions that help users explore their thoughts more deeply
+        4. Adapt to the user's energy and engagement level
+
+        Remember: You're having a natural conversation. React to what the user says rather than following a script. Help them explore their thoughts about {module['name']} in whatever direction feels most valuable to them."""
     )
 
-    # Connect to the LiveKit room
+    # Connect to LiveKit room
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
     # Create the VoiceAssistant with the guide's voice settings
@@ -310,15 +301,26 @@ async def entrypoint(ctx: JobContext):
     # Start the voice assistant with the LiveKit room
     assistant.start(ctx.room)
 
-    # logger.info(f"Starting the {module['name']} session with {guide['name']}.")
-    welcome_message = f"Welcome to your {module['name']} session. Let's begin with your first thought:"
+    # Simple welcome and initial open-ended prompt
+    welcome_message = f"Hi, I'm {guide['name']}. Let's start your {module['name']} session."
     await assistant.say(welcome_message, allow_interruptions=True)
 
-    await conduct_interactive_session(assistant, module, guide, user_id, session_id)
-    goodbye_message = f"Great job doing today's {module['name']} session!"
 
-    # Wrap up the session
-    await assistant.say(goodbye_message, allow_interruptions=False)
+    # Main conversation loop
+    while True:
+        # Wait for and process user input
+        response = await wait_for_user_input(assistant)
+        
+        # Save response to Firebase
+        save_conversation_to_firebase({
+            'timestamp': int(time.time() * 1000),
+            'user_input': response
+        }, user_id, session_id)
+        await conduct_interactive_session(assistant, module, guide, user_id, session_id)
+
+        # # Wrap up the session
+        goodbye_message = f"Great job doing today's {module['name']} session!"
+        await assistant.say(goodbye_message, allow_interruptions=False)
 
 
 # ============================
@@ -329,30 +331,3 @@ if __name__ == "__main__":
         entrypoint_fnc=entrypoint,
     )
     cli.run_app(options)
-
-
-
-# Reference to the 'modules' node in the database
-# ref = db.reference('modules')
-
-# Auto-generate a new module with push() - this will create a unique key
-# new_module_ref = ref.push()
-
-# Set the new module data for "Zane, the Focused Achiever"
-# new_module_ref.set({
-#     'coachId': '-O83wlfCWno8uScxMm5C',
-#     'description': 'A compassionate guide for exploring emotions and fostering healing',
-#     'name': 'Emotional Healing and Self-Reflection',
-#     'questions': [
-#         'What emotions are you feeling right now, and why do you think that is?',
-#         'What do you wish you could change about this experience?',
-#         'What’s something you’ve been holding onto that you need to let go of?'
-#         'What’s one thing you can do to nurture yourself during this time?'
-#     ]
-# })
-
-
-
-
-
-
