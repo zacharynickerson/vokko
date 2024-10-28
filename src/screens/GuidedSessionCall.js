@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, SafeAreaView, Modal } from 'react-native';
 import { Audio } from 'expo-av';
 import { FontAwesome } from '@expo/vector-icons';
 import {
@@ -13,7 +13,7 @@ import { API_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js'
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
 import CallLayout from '../components/CallLayout';
-import { getDatabase, ref, push, set } from 'firebase/database';  // Update this line
+import { getDatabase, ref, push, set, remove } from 'firebase/database';  // Update this line
 import { db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 
 registerGlobals();
@@ -26,6 +26,7 @@ const GuidedSessionCall = ({ route, navigation }) => {
   const [callDuration, setCallDuration] = useState(0);
   const [sessionStartTime, setSessionStartTime] = useState(null);
   const [room, setRoom] = useState(null);  // Add this state
+  const [isCancelling, setIsCancelling] = useState(false);
   const { user } = useAuth();
   
   // Get the selected module and guide from route params
@@ -164,6 +165,50 @@ const GuidedSessionCall = ({ route, navigation }) => {
     }
   }, [room, navigation, user, selectedModule, selectedGuide]);
 
+  const handleCancel = async () => {
+    setIsCancelling(true); // Set this first
+    
+    try {
+      // Clean up first
+      if (room) {
+        await room.disconnect();
+      }
+      
+      // Delete the session from Firebase
+      if (user && selectedModule && selectedGuide) {
+        const database = getDatabase();
+        const sessionRef = ref(database, `guidedSessions/${user.uid}`);
+        await remove(sessionRef);
+      }
+      
+      // Reset states
+      setIsConnected(false);
+      setToken(null);
+      setUrl(null);
+      setRoomName('');
+      setCallDuration(0);
+      setRoom(null);
+      
+      // Navigate last
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'App', params: { screen: 'HomeScreen' } }],
+      });
+    } catch (error) {
+      console.error('Error during cancel:', error);
+      // If there's an error, still try to navigate away
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'App', params: { screen: 'HomeScreen' } }],
+      });
+    }
+  };
+
+  // Add this early return
+  if (isCancelling) {
+    return null; // Or a blank screen
+  }
+
   if (!user || !selectedModule || !selectedGuide) {
     return (
       <View style={styles.loadingContainer}>
@@ -200,6 +245,7 @@ const GuidedSessionCall = ({ route, navigation }) => {
               <CallInterface
                 formatTime={formatTime}
                 onDisconnect={handleDisconnect}
+                onCancel={handleCancel}
                 room={room}
                 guideName={selectedGuide?.name}
               />
@@ -215,28 +261,32 @@ const GuidedSessionCall = ({ route, navigation }) => {
   );
 };
 
-const CallInterface = ({ formatTime, onDisconnect, room, guideName }) => {
-  const { isMicrophoneEnabled, setIsMicrophoneEnabled } = useLocalParticipant();
-
-  const toggleMicrophone = useCallback(async () => {
-    try {
-      if (setIsMicrophoneEnabled) {
-        await setIsMicrophoneEnabled(!isMicrophoneEnabled);
-      }
-    } catch (error) {
-      console.error('Error toggling microphone:', error);
-      Alert.alert('Microphone Error', 'Failed to toggle microphone state.');
-    }
-  }, [isMicrophoneEnabled, setIsMicrophoneEnabled]);
+const CallInterface = ({ formatTime, onDisconnect, onCancel, room, guideName }) => {
+  const handleCancelPress = () => {
+    Alert.alert(
+      'Cancel Session?',
+      'Are you sure you want to cancel this session? This action cannot be undone.',
+      [
+        {
+          text: 'No, Keep Session',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: onCancel,
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.callControls}>
-      <TouchableOpacity style={styles.controlButton} onPress={toggleMicrophone}>
-        <FontAwesome 
-          name={isMicrophoneEnabled ? 'microphone' : 'microphone-slash'} 
-          size={24} 
-          color="white" 
-        />
+      <TouchableOpacity 
+        style={styles.controlButton} 
+        onPress={handleCancelPress}
+      >
+        <FontAwesome name="trash" size={24} color="white" />
       </TouchableOpacity>
       <TouchableOpacity 
         style={[styles.controlButton, styles.endCallButton]} 
@@ -291,7 +341,7 @@ const styles = StyleSheet.create({
   },
   endCallButton: {
     backgroundColor: '#FF3B30',
-  }
+  },
 });
 
 export default GuidedSessionCall;

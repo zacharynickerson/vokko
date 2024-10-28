@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, FlatList, Image, SafeAreaView, Platform, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import Modal from 'react-native-modal';
@@ -40,6 +40,21 @@ const GuidedSessionSetup = () => {
   const [guides, setGuides] = useState([]);
   const navigation = useNavigation();
   const { user } = useAuth();
+
+  // Add this effect near the top of the component, after state declarations
+  useFocusEffect(
+    useCallback(() => {
+      // Reset all relevant state when screen comes into focus
+      setStep(1);
+      setSelectedModule(null);
+      setSelectedGuide(null);
+      setStartNow(true);
+      setStartOption('now');
+      setDatePickerVisibility(false);
+      setScheduledDate(new Date());
+      setIsSessionScheduled(false);
+    }, [])
+  );
 
   useEffect(() => {
     const fetchModules = async () => {
@@ -297,76 +312,85 @@ const GuidedSessionSetup = () => {
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
         <View style={styles.stepContentWrapper}>
           <Text style={styles.stepTitle}>Session Start</Text>
-          <View style={styles.selectorContainer}>
-            <View style={styles.selectedItemRow}>
+          
+          <View style={styles.selectedItemsContainer}>
+            <View style={styles.selectedModuleContainer}>
               <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
-              <Text style={styles.selectedItemText}>
-                {selectedModule ? selectedModule.name : "Select a module"}
+              <Text style={styles.selectedModuleText}>
+                {selectedModule.name}
               </Text>
-              {selectedModule && (
-                <TouchableOpacity onPress={() => {
-                  setSelectedModule(null);
-                  setStep(1);
-                }}>
-                  <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity onPress={() => {
+                setSelectedModule(null);
+                setStep(1);
+              }}>
+                <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.dottedLine} />
+            
+            <View style={styles.selectedModuleContainer}>
+              <MaterialCommunityIcons name="heart-outline" size={24} color="#4CAF50" />
+              <Text style={styles.selectedModuleText}>
+                {selectedGuide.name}
+              </Text>
+              <TouchableOpacity onPress={() => {
+                setSelectedGuide(null);
+                setStep(2);
+              }}>
+                <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dottedLine} />
+
+            <View style={styles.chooseGuideContainer}>
+              <MaterialCommunityIcons name="clock-outline" size={24} color="#4CAF50" />
+              <Text style={styles.subtitle}>Choose when</Text>
             </View>
           </View>
+
+          {/* Start Options */}
           <View style={styles.selectorContainer}>
-            <View style={styles.selectedItemRow}>
-              <MaterialCommunityIcons name="circle-outline" size={24} color="#4CAF50" />
-              <Text style={styles.selectedItemText}>
-                {selectedGuide ? selectedGuide.name : "Select a guide"}
-              </Text>
-              {selectedGuide && (
-                <TouchableOpacity onPress={() => {
-                  setSelectedGuide(null);
-                  setStep(2);
-                }}>
-                  <MaterialCommunityIcons name="close" size={24} color="#1B1D21" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-          <View style={styles.chooseGuideContainer}>
-            <MaterialCommunityIcons name="heart-outline" size={24} color="#4CAF50" />
-            <Text style={styles.subtitle}>Choose when</Text>
-          </View>
-          <View style={styles.startOptionsContainer}>
-            <TouchableOpacity
-              style={[styles.startOption, startOption === 'now' && styles.selectedStartOption]}
+            <TouchableOpacity 
+              style={[
+                styles.startOption,
+                startOption === 'now' && styles.selectedStartOption
+              ]}
               onPress={() => setStartOption('now')}
             >
-              <MaterialCommunityIcons
-                name={startOption === 'now' ? "circle-slice-8" : "circle-outline"}
-                size={24}
-                color={startOption === 'now' ? "#4CAF50" : "#1B1D21"}
+              <MaterialCommunityIcons 
+                name={startOption === 'now' ? "circle" : "circle-outline"} 
+                size={24} 
+                color="#4CAF50" 
               />
-              <Text style={styles.startOptionText}>Start now</Text>
+              <Text style={styles.startOptionText}>Start Now</Text>
             </TouchableOpacity>
+
             <View style={styles.optionDivider} />
-            <TouchableOpacity
-              style={[styles.startOption, startOption === 'schedule' && styles.selectedStartOption]}
-              onPress={() => setStartOption('schedule')}
+
+            <TouchableOpacity 
+              style={[
+                styles.startOption,
+                startOption === 'schedule' && styles.selectedStartOption
+              ]}
+              onPress={() => {
+                setStartOption('schedule');
+                setDatePickerVisibility(true);
+              }}
             >
-              <MaterialCommunityIcons
-                name={startOption === 'schedule' ? "circle-slice-8" : "circle-outline"}
-                size={24}
-                color={startOption === 'schedule' ? "#4CAF50" : "#1B1D21"}
+              <MaterialCommunityIcons 
+                name={startOption === 'schedule' ? "circle" : "circle-outline"} 
+                size={24} 
+                color="#4CAF50" 
               />
-              <Text style={styles.startOptionText}>Schedule a time</Text>
+              <Text style={styles.startOptionText}>
+                {scheduledDate && startOption === 'schedule' 
+                  ? moment(scheduledDate).format('MMM D, YYYY [at] h:mm A')
+                  : "Schedule for Later"}
+              </Text>
             </TouchableOpacity>
           </View>
-          {startOption === 'schedule' && (
-            <View style={styles.datePickerWrapper}>
-              <CustomDatePicker
-                onDateSelect={(date, time) => {
-                  setScheduledDate(moment(`${date} ${time}`, 'YYYY-MM-DD HH:mm A').toDate());
-                }}
-              />
-            </View>
-          )}
         </View>
       </ScrollView>
       {startOption === 'now' && (
@@ -482,6 +506,61 @@ const GuidedSessionSetup = () => {
       {renderDatePicker()}
     </View>
   );
+};
+
+const additionalStyles = {
+  selectedItemsContainer: {
+    marginBottom: hp(3),
+  },
+  selectedModuleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp(1),
+    paddingHorizontal: wp(4),
+  },
+  dottedLine: {
+    height: hp(4),
+    width: 1,
+    borderStyle: 'dotted',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    marginLeft: wp(3),
+  },
+  selectedModuleText: {
+    flex: 1,
+    fontSize: wp(4),
+    color: '#1B1D21',
+    marginLeft: wp(2),
+  },
+  chooseGuideContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp(1),
+    paddingHorizontal: wp(4),
+  },
+  subtitle: {
+    fontSize: wp(4),
+    color: '#1B1D21',
+    marginLeft: wp(2),
+  },
+  startOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp(3),
+    paddingHorizontal: wp(4),
+  },
+  startOptionText: {
+    marginLeft: wp(2),
+    fontSize: wp(4),
+    color: '#1B1D21',
+  },
+  selectedStartOption: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  optionDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
 };
 
 const styles = StyleSheet.create({
@@ -1001,6 +1080,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E0E0',
     marginLeft: wp(16),
   },
+  ...additionalStyles,
 });
 
 export default GuidedSessionSetup;

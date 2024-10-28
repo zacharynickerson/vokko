@@ -10,7 +10,6 @@ const CustomDatePicker = ({ onDateSelect }) => {
 
   const onDayPress = (day) => {
     setSelectedDate(moment(day.dateString));
-    onDateSelect(day.dateString, selectedTime);
   };
 
   const renderHeader = (date) => {
@@ -32,7 +31,10 @@ const CustomDatePicker = ({ onDateSelect }) => {
 
   const onTimeSelect = (time) => {
     setSelectedTime(time);
-    onDateSelect(selectedDate.format('YYYY-MM-DD'), time);
+  };
+
+  const handleConfirm = () => {
+    onDateSelect(selectedDate.format('YYYY-MM-DD'), selectedTime);
   };
 
   return (
@@ -43,7 +45,7 @@ const CustomDatePicker = ({ onDateSelect }) => {
         monthFormat={'MMMM yyyy'}
         renderHeader={renderHeader}
         markedDates={{
-          [selectedDate.format('YYYY-MM-DD')]: {selected: true, selectedColor: '#4FBF67'}
+          [selectedDate.format('YYYY-MM-DD')]: { selected: true, selectedColor: '#4FBF67' }
         }}
         theme={{
           calendarBackground: 'white',
@@ -95,10 +97,14 @@ const CustomDatePicker = ({ onDateSelect }) => {
           </TouchableOpacity>
         ))}
       </View>
+      <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+        <Text style={styles.confirmButtonText}>Confirm</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
+// Updated styles
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
@@ -112,9 +118,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#4FBF67',
     paddingVertical: 15,
     paddingHorizontal: 20,
-    borderRadius: 25,
-    marginHorizontal: 10,
-    marginTop: 10,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
   },
   headerText: {
     color: 'white',
@@ -150,6 +155,18 @@ const styles = StyleSheet.create({
   },
   selectedTimeButtonText: {
     color: 'white',
+  },
+  confirmButton: {
+    backgroundColor: '#4FBF67',
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
