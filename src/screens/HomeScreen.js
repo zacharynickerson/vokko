@@ -33,26 +33,40 @@ export default function HomeScreen() {
     if (!userId) return;
 
     const voiceNotesRef = ref(db, `/voiceNotes/${userId}`);
+    const guidedSessionsRef = ref(db, `/guidedSessions/${userId}`);
 
-    const onDataChange = (snapshot) => {
+    const fetchSessions = (snapshot, isGuided = false) => {
       if (snapshot.exists()) {
-        const firebaseNotes = Object.values(snapshot.val())
-          .map(note => ({
-            ...note,
-            voiceNoteId: note.voiceNoteId || note.id // Use voiceNoteId if available, fallback to id
+        return Object.values(snapshot.val())
+          .map(session => ({
+            ...session,
+            voiceNoteId: session.voiceNoteId || session.id,
+            isGuided: isGuided
           }))
-          .filter(note => note !== null);
-
-        const sortedNotes = sortNotesChronologically(firebaseNotes);
-        if (sortedNotes.length > 0) {
-          setRecentSession(sortedNotes[0]);
-        }
+          .filter(session => session !== null);
       }
+      return [];
     };
 
-    onValue(voiceNotesRef, onDataChange);
+    onValue(voiceNotesRef, (snapshot) => {
+      const soloSessions = fetchSessions(snapshot, false);
+      
+      onValue(guidedSessionsRef, (guidedSnapshot) => {
+        const guidedSessions = fetchSessions(guidedSnapshot, true);
+        
+        const allSessions = [...soloSessions, ...guidedSessions];
+        const sortedSessions = sortNotesChronologically(allSessions);
+        
+        if (sortedSessions.length > 0) {
+          setRecentSession(sortedSessions[0]);
+        }
+      });
+    });
 
-    return () => off(voiceNotesRef);
+    return () => {
+      off(voiceNotesRef);
+      off(guidedSessionsRef);
+    };
   }, []);
 
   useEffect(() => {
@@ -67,7 +81,11 @@ export default function HomeScreen() {
   };
 
   const sortNotesChronologically = (notes) => {
-    return notes.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
+    return notes.sort((b, a) => {
+      const dateA = a.dateCreated || a.createdDate && new Date(a.createdDate).getTime();
+      const dateB = b.dateCreated || b.createdDate && new Date(b.createdDate).getTime();
+      return dateA - dateB;
+    });
   };
 
   const FilterButton = ({ title, isSelected, onPress }) => (

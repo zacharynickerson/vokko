@@ -112,8 +112,13 @@ export default function VoiceNoteDetails({ route, navigation }) {
           text: "Yes", 
           onPress: async () => {
             try {
+              const userId = auth.currentUser.uid;
               const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
-              const voiceNoteDbRef = dbRef(db, `/${path}/${auth.currentUser.uid}/${id}`);
+              // For guided sessions, use the id directly as it's the timestamp key
+              // For solo sessions, use the voiceNoteId from the voiceNote object
+              const noteId = type === 'solo' ? voiceNote.voiceNoteId : id;
+              
+              const voiceNoteDbRef = dbRef(db, `/${path}/${userId}/${noteId}`);
               await remove(voiceNoteDbRef);
               navigation.navigate('LibraryScreen', { refresh: true });
             } catch (error) {
