@@ -13,7 +13,7 @@ import { API_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js'
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
 import CallLayout from '../components/CallLayout';
-import { getDatabase, ref, push, set, remove, onValue, get } from 'firebase/database';  // Ensure onValue is imported
+import { getDatabase, ref, push, set, remove, onValue, get, update } from 'firebase/database';  // Ensure onValue is imported
 import { db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 
 registerGlobals();
@@ -122,50 +122,43 @@ const GuidedSessionCall = ({ route, navigation }) => {
 
   const handleDisconnect = useCallback(async () => {
     try {
-      // Clean up the room connection
       if (room) {
         await room.disconnect();
       }
       
-      // Update states
       setIsConnected(false);
       setToken(null);
       setUrl(null);
       setRoomName('');
       setCallDuration(0);
-      setRoom(null);  // Clear room state
+      setRoom(null);
       
-      // Save session data to Firebase
-      if (user && selectedModule && selectedGuide) {
-        // const sessionData = {
-        //   moduleId: selectedModule.id,
-        //   guideId: selectedGuide.id,
-        //   status: 'completed',
-        //   createdDate: new Date().toISOString(),
-        //   userId: user.uid
-        // };
+      // Get the existing session data first
+      if (user && roomName) {
+        const sessionId = roomName.split('_')[3];
+        const sessionRef = ref(db, `guidedSessions/${user.uid}/${sessionId}`);
         
-        try {
-          const database = getDatabase();
-          const sessionRef = ref(database, `guidedSessions/${user.uid}`);
-          // const newSessionRef = push(sessionRef);
-          // await set(newSessionRef, sessionData);
+        // Get current session data
+        const sessionSnapshot = await get(sessionRef);
+        if (sessionSnapshot.exists()) {
+          // Only update the status if the session exists
+          await update(sessionRef, {
+            status: 'Processing'
+          });
           
-          // Updated navigation path to match your structure
           navigation.navigate('App', {
             screen: 'Library',
             params: { refresh: true }
           });
-        } catch (firebaseError) {
-          console.error('Firebase error:', firebaseError);
-          Alert.alert('Error', 'Failed to save session data.');
+        } else {
+          console.error('Session not found in database');
         }
       }
     } catch (error) {
       console.error('Error during disconnect:', error);
       Alert.alert('Error', 'Failed to end the session properly.');
     }
-  }, [room, navigation, user, selectedModule, selectedGuide]);
+  }, [room, navigation, user, roomName]);
 
   const handleCancel = async () => {
     setIsCancelling(true); // Set this first

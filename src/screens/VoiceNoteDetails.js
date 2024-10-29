@@ -12,7 +12,7 @@ import { useWindowDimensions } from 'react-native';
 
 export default function VoiceNoteDetails({ route, navigation }) {
   const { voiceNote } = route.params;
-  const { voiceNoteId, type } = voiceNote; // Destructure 'type' from voiceNote
+  const { id, type } = voiceNote;
 
   const [noteTitle, setNoteTitle] = useState('');
   const [formattedNote, setFormattedNote] = useState('');
@@ -34,6 +34,11 @@ export default function VoiceNoteDetails({ route, navigation }) {
   };
 
   useEffect(() => {
+    console.log('=== VoiceNoteDetails useEffect START ===');
+    console.log('voiceNote:', voiceNote);
+    console.log('noteId:', id);
+    console.log('type:', type);
+
     const userId = auth.currentUser?.uid;
     if (!userId) {
       Alert.alert('Error', 'User not authenticated.');
@@ -41,18 +46,40 @@ export default function VoiceNoteDetails({ route, navigation }) {
       return;
     }
 
-    // Determine the correct path based on the type
     const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
-    const noteRef = dbRef(db, `/${path}/${userId}/${voiceNoteId}`);
+    const noteRef = dbRef(db, `/${path}/${userId}/${id}`);
+    console.log('Firebase path:', `/${path}/${userId}/${id}`);
     
     const unsubscribe = onValue(
       noteRef,
       (snapshot) => {
+        // console.log('=== Firebase Snapshot ===');
+        // console.log('Snapshot exists:', snapshot.exists());
         if (snapshot.exists()) {
           const noteData = snapshot.val();
-          setFormattedNote(noteData.summary || 'Note unavailable'); // Use summary for formatted note
-          setNoteTitle(noteData.title || '');
-          setAudioUri(noteData.chunks ? noteData.chunks[0]?.url || null : null); // Access the first chunk's URL if available
+          // console.log('Note Data:', JSON.stringify(noteData, null, 2));
+          // console.log('Note Type:', type);
+          // console.log('Note Summary:', noteData.summary);
+
+          if (type === 'guided') {
+            const updatedVoiceNote = {
+              ...voiceNote,
+              guideId: noteData.guideId,
+              guideName: noteData.guideName,
+              moduleName: noteData.moduleName,
+              title: noteData.title || 'Title pending',
+              createdDate: noteData.dateCreated,
+              summary: noteData.summary || 'Summary pending...',
+            };
+            navigation.setParams({ voiceNote: updatedVoiceNote });
+            
+            setFormattedNote(noteData.summary || 'Summary pending...');
+            setNoteTitle(noteData.title || 'Title pending');
+          } else {
+            setFormattedNote(noteData.summary || 'Note unavailable');
+            setNoteTitle(noteData.title || 'Untitled');
+          }
+          setAudioUri(noteData.chunks ? noteData.chunks[0]?.url || null : null);
         } else {
           setFormattedNote('Note unavailable');
           setNoteTitle('Untitled');
@@ -66,7 +93,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
     );
 
     return () => unsubscribe();
-  }, [voiceNoteId, type, navigation]);
+  }, [id, type, navigation]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -86,7 +113,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
           onPress: async () => {
             try {
               const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
-              const voiceNoteDbRef = dbRef(db, `/${path}/${auth.currentUser.uid}/${voiceNoteId}`);
+              const voiceNoteDbRef = dbRef(db, `/${path}/${auth.currentUser.uid}/${id}`);
               await remove(voiceNoteDbRef);
               navigation.navigate('LibraryScreen', { refresh: true });
             } catch (error) {

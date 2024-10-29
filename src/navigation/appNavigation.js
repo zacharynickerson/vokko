@@ -37,7 +37,7 @@ const screenOptions = {
     }
 };
 
-const tabBarStyle = { backgroundColor: "#1F222A" };
+const tabBarStyle = { backgroundColor: "#1B1D21" };
 
 function HomeStack() {
     return (

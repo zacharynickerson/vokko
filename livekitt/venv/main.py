@@ -10,7 +10,7 @@ from livekit.plugins import deepgram, openai, silero
 import os
 from dotenv import load_dotenv
 import firebase_admin
-from firebase_admin import credentials, firestore, db
+from firebase_admin import credentials, db
 import colorlog
 
 # Load environment variables
@@ -45,6 +45,8 @@ cred = credentials.Certificate(firebase_credentials_path)
 firebase_admin.initialize_app(cred, {
     'databaseURL': os.getenv('FIREBASE_DATABASE_URL')
 })
+
+db = firebase_admin.db
 
 # ============================
 # Firebase Functions
@@ -189,7 +191,8 @@ Key Guidelines:
 """
     }
 
-async def conduct_interactive_session(assistant, module, user_id, session_id):
+async def conduct_interactive_session(assistant, module, guide, user_id, session_id):
+
     # Fetch user data
     user = get_user(user_id)
     if not user or 'name' not in user:
@@ -246,27 +249,24 @@ async def conduct_interactive_session(assistant, module, user_id, session_id):
 async def entrypoint(ctx: JobContext):
     logger.info(f"New session started with room name: {ctx.room.name}")
 
-    # Extract module_id and guide_id from the room name
+    # Extract IDs from the room name
     room_name_parts = ctx.room.name.split('_')
     if len(room_name_parts) != 4:
         logger.error(f"Invalid room name format: {ctx.room.name}")
         raise ValueError("Invalid room name format")
     
+    # Use the same session_id that was generated in GuidedSessionCall
     user_id, module_id, guide_id, session_id = room_name_parts
-    logger.info(f"Extracted IDs - User: {user_id}, Module: {module_id}, Guide: {guide_id}, Session: {session_id}")
+    logger.info(f"Using frontend-generated session ID: {session_id}")
 
-
-
+    # Retrieve module and guide data
     module = get_module(module_id)
     guide = get_guide(guide_id)
-
-    logger.info(f"Retrieved module: {module}")
-    logger.info(f"Retrieved guide: {guide}")
 
     if not module or not guide:
         logger.error(f"Invalid Module ID ({module_id}) or Guide ID ({guide_id})")
         raise ValueError("Invalid Module ID or Guide ID")
-    
+
     # Create the initial chat context
     initial_ctx = llm.ChatContext().append(
         role="system",
@@ -305,18 +305,18 @@ async def entrypoint(ctx: JobContext):
     # Start the voice assistant with the LiveKit room
     assistant.start(ctx.room)
 
-    # Start the interactive session
-    await conduct_interactive_session(assistant, module, user_id, session_id)
-
-    # Update session status to completed after the session ends
-    await db.reference(f'guidedSessions/{user_id}/{session_id}').update({
+    # Update session status using the same session_id
+    db.reference(f'guidedSessions/{user_id}/{session_id}').update({
         'dateCreated': {'.sv': 'timestamp'},
         'moduleId': module_id,
         'moduleName': module['name'],
         'guideName': guide['name'],
         'guideId': guide_id,
-        'status': 'processing'
+        'status': 'recording'
     })
+
+    # Start the interactive session with the same session_id
+    await conduct_interactive_session(assistant, module, guide, user_id, session_id)
 
 
 # ============================

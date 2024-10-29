@@ -2,7 +2,25 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { formatDateForDisplay } from '../utilities/helpers';
 
+// Define a mapping of guide IDs to their avatar images
+const guideAvatars = {
+  '1': require('../../assets/images/Avatar Female 1.png'),
+  '2': require('../../assets/images/Avatar Female 2.png'),
+  '3': require('../../assets/images/Avatar Female 3.png'),
+  '4': require('../../assets/images/Avatar Female 4.png'),
+  '5': require('../../assets/images/Avatar Female 5.png'),
+  '6': require('../../assets/images/Avatar Female 6.png'),
+  // Add more mappings as needed
+};
+
 const GuidedSessionItem = ({ item, onPress }) => {
+  // console.log('Guided Session Item:', item);
+
+  // Get the guide avatar from the mapping or use default
+  const guideAvatarPath = item.guideId ? 
+    guideAvatars[item.guideId] || require('../../assets/images/Avatar Male 15.png') : 
+    require('../../assets/images/Avatar Male 15.png');
+
   return (
     <TouchableOpacity 
       style={styles.container}
@@ -26,10 +44,10 @@ const GuidedSessionItem = ({ item, onPress }) => {
       
       <View style={styles.guideContainer}>
         <Image 
-          source={item.coachAvatar ? { uri: item.coachAvatar } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 15.png')} 
+          source={guideAvatarPath}
           style={styles.guideImage}
         />
-        <Text style={styles.guideName}>{item.coachName}</Text>
+        <Text style={styles.guideName}>{item.guideName}</Text>
         <Text style={styles.moduleSeparator}> | </Text>
         <Text style={styles.moduleName}>{item.moduleName}</Text>
       </View>

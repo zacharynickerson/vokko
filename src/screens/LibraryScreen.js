@@ -19,7 +19,82 @@ export default function LibraryScreen({ navigation }) {
     navigation.navigate('SettingsScreen');
   };
 
-  const fetchSessions = useCallback(async () => {
+  const fetchVoiceNotes = useCallback((voiceNotesRef) => {
+    return new Promise((resolve, reject) => {
+      try {
+        onValue(voiceNotesRef, (snapshot) => {
+          let firebaseNotes = [];
+          if (snapshot.exists()) {
+            firebaseNotes = Object.entries(snapshot.val()).map(([id, note]) => ({
+              id: note.voiceNoteId || id,
+              createdDate: note.createdDate || new Date().toISOString(),
+              title: note.title || 'Untitled Note',
+              status: note.status || 'completed',
+              type: 'solo',
+              image: note.image || null,
+            }));
+          }
+          resolve(firebaseNotes);
+        }, {
+          onlyOnce: true
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }, []);
+
+  const fetchGuidedSessions = useCallback((guidedSessionsRef) => {
+    return new Promise((resolve, reject) => {
+      try {
+        onValue(guidedSessionsRef, (snapshot) => {
+          let guidedNotes = [];
+          if (snapshot.exists()) {
+            guidedNotes = Object.entries(snapshot.val()).map(([id, session]) => ({
+              id,
+              guidedSessionId: id,
+              createdDate: session.dateCreated,
+              title: session.title || 'Title pending',
+              guideId: session.guideId,
+              guideName: session.guideName,
+              moduleName: session.moduleName,
+              type: 'guided',
+              status: session.status,
+              summary: session.summary
+            }));
+          }
+          resolve(guidedNotes);
+        }, {
+          onlyOnce: true
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }, []);
+
+  const fetchSessions = useCallback(() => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+
+    const voiceNotesRef = ref(db, `/voiceNotes/${userId}`);
+    const guidedSessionsRef = ref(db, `/guidedSessions/${userId}`);
+
+    setLoading(true);
+    Promise.all([fetchVoiceNotes(voiceNotesRef), fetchGuidedSessions(guidedSessionsRef)])
+      .then(([voiceNotes, guidedSessions]) => {
+        const combinedSessions = [...voiceNotes, ...guidedSessions];
+        setSessions(sortSessionsChronologically(combinedSessions));
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Error fetching sessions:', error);
+        Alert.alert('Error', 'Failed to load sessions. Please try again.');
+        setLoading(false);
+      });
+  }, [fetchVoiceNotes, fetchGuidedSessions]);
+
+  useEffect(() => {
     const userId = auth.currentUser?.uid;
     if (!userId) {
       setLoading(false);
@@ -29,78 +104,71 @@ export default function LibraryScreen({ navigation }) {
     const voiceNotesRef = ref(db, `/voiceNotes/${userId}`);
     const guidedSessionsRef = ref(db, `/guidedSessions/${userId}`);
 
-    const fetchVoiceNotes = () => {
-      return new Promise((resolve, reject) => {
-        const voiceNotesListener = onValue(voiceNotesRef, (snapshot) => {
-          try {
-            let firebaseNotes = [];
-            if (snapshot.exists()) {
-              firebaseNotes = Object.values(snapshot.val()).map(note => ({
-                id: note.voiceNoteId || note.id,
-                createdDate: note.createdDate || new Date().toISOString(),
-                title: note.title || 'Untitled Note',
-                status: note.status || 'completed',
-                type: 'solo',
-                image: note.image || null,
-              }));
-            }
-            resolve(firebaseNotes);
-          } catch (error) {
-            reject(error);
-          }
-        }, (error) => {
-          reject(error);
-        });
-
-        // Cleanup listener
-        return () => off(voiceNotesRef, 'value', voiceNotesListener);
+    // Set up listeners for real-time updates
+    const voiceNotesListener = onValue(voiceNotesRef, (snapshot) => {
+      let firebaseNotes = [];
+      if (snapshot.exists()) {
+        firebaseNotes = Object.entries(snapshot.val()).map(([id, note]) => ({
+          id: note.voiceNoteId || id,
+          createdDate: note.createdDate || new Date().toISOString(),
+          title: note.title || 'Untitled Note',
+          status: note.status || 'completed',
+          type: 'solo',
+          image: note.image || null,
+        }));
+      }
+      
+      setSessions(prevSessions => {
+        const guidedSessions = prevSessions.filter(session => session.type === 'guided');
+        return sortSessionsChronologically([...guidedSessions, ...firebaseNotes]);
       });
-    };
+    });
 
-    const fetchGuidedSessions = () => {
-      return new Promise((resolve, reject) => {
-        const guidedSessionsListener = onValue(guidedSessionsRef, (snapshot) => {
-          try {
-            let guidedNotes = [];
-            if (snapshot.exists()) {
-              guidedNotes = Object.values(snapshot.val()).map(session => ({
-                id: session.guidedSessionId || session.id,
-                createdDate: session.createdDate || new Date().toISOString(),
-                title: session.title || 'Untitled Session',
-                coachAvatar: session.coachAvatar || null,
-                coachName: session.coachName || 'Coach',
-                moduleName: session.moduleName || 'Module',
-                type: 'guided',
-                image: session.image || null,
-              }));
-            }
-            resolve(guidedNotes);
-          } catch (error) {
-            reject(error);
-          }
-        }, (error) => {
-          reject(error);
-        });
+    const guidedSessionsListener = onValue(guidedSessionsRef, (snapshot) => {
+      let guidedNotes = [];
+      if (snapshot.exists()) {
+        guidedNotes = Object.entries(snapshot.val()).map(([id, session]) => ({
+          id,
+          guidedSessionId: id,
+          createdDate: session.dateCreated,
+          title: session.title || 'Title pending',
+          guideId: session.guideId,
+          guideName: session.guideName,
+          moduleName: session.moduleName,
+          type: 'guided',
+          status: session.status,
+          summary: session.summary
+        }));
+      }
 
-        // Cleanup listener
-        return () => off(guidedSessionsRef, 'value', guidedSessionsListener);
+      setSessions(prevSessions => {
+        const voiceNotes = prevSessions.filter(session => session.type === 'solo');
+        return sortSessionsChronologically([...voiceNotes, ...guidedNotes]);
       });
+    });
+
+    // Initial load
+    Promise.all([
+      fetchVoiceNotes(voiceNotesRef),
+      fetchGuidedSessions(guidedSessionsRef)
+    ])
+      .then(([voiceNotes, guidedSessions]) => {
+        const combinedSessions = [...voiceNotes, ...guidedSessions];
+        setSessions(sortSessionsChronologically(combinedSessions));
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Error fetching sessions:', error);
+        Alert.alert('Error', 'Failed to load sessions. Please try again.');
+        setLoading(false);
+      });
+
+    // Cleanup listeners
+    return () => {
+      off(voiceNotesRef);
+      off(guidedSessionsRef);
     };
-
-    try {
-      setLoading(true);
-      const [voiceNotes, guidedSessions] = await Promise.all([fetchVoiceNotes(), fetchGuidedSessions()]);
-
-      const combinedSessions = [...voiceNotes, ...guidedSessions];
-      const sortedSessions = sortSessionsChronologically(combinedSessions);
-      setSessions(sortedSessions);
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-      Alert.alert('Error', 'Failed to load sessions. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  }, [fetchVoiceNotes, fetchGuidedSessions]);
 
   useFocusEffect(
     useCallback(() => {
@@ -110,10 +178,6 @@ export default function LibraryScreen({ navigation }) {
       }
     }, [route.params?.refresh, fetchSessions, navigation])
   );
-
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
 
   const sortSessionsChronologically = (sessions) => {
     return sessions.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
