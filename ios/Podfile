@@ -49,6 +49,12 @@ target 'VokkoApp' do
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
   )
 
+  # Ensure that ExpoModulesCore is included
+  pod 'ExpoModulesCore', :path => '../node_modules/expo-modules-core'
+
+  # Add react-native-callkeep
+  pod 'RNCallKeep', :path => '../node_modules/react-native-callkeep'
+
   post_install do |installer|
     react_native_post_install(
       installer,

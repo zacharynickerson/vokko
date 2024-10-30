@@ -3,7 +3,7 @@ import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert } from 'r
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { FlatList } from 'react-native-gesture-handler';
-import { auth, db } from '../../config/firebase';
+import { auth, db, updateVoiceNote } from '../../config/firebase';
 import { ref, onValue, off } from 'firebase/database';
 import { formatDateForDisplay } from '../utilities/helpers';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import GuidedSessionItem from '../components/GuidedSessionItem';
 export default function LibraryScreen({ navigation }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
   const route = useRoute();
 
   const navigateToSettings = () => {
@@ -183,6 +184,21 @@ export default function LibraryScreen({ navigation }) {
     return sessions.sort((b, a) => new Date(a.createdDate) - new Date(b.createdDate));
   };
 
+  const handleRetry = async (voiceNoteId) => {
+    setIsRetrying(true);
+    console.log(`Retrying transcription for voice note ID: ${voiceNoteId}`);
+
+    try {
+      await updateVoiceNote(auth.currentUser.uid, voiceNoteId, { status: 'processing' });
+      Alert.alert('Retry initiated', 'The transcription process has been retried.');
+    } catch (error) {
+      console.error('Error retrying transcription:', error);
+      Alert.alert('Error', 'Failed to retry transcription.');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const renderItem = ({ item }) => {
     if (item.type === 'solo') {
       const isLoading = item.status === 'recording' || item.status === 'processing';
@@ -196,7 +212,8 @@ export default function LibraryScreen({ navigation }) {
         <SoloVoiceNoteItem
           item={item}
           onPress={onPress}
-          isLoading={isLoading}
+          onRetry={() => handleRetry(item.id)}
+          isLoading={isLoading || isRetrying}
         />
       );
     } else if (item.type === 'guided') {

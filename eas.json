@@ -7,8 +7,9 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "node": "v20.9.0",
       "ios": {
-        "resourceClass": "m1-medium"
+        "resourceClass": "m-medium"
       },
       "android": {
         "buildType": "apk"
@@ -19,21 +20,22 @@
       "distribution": "internal",
       "ios": {
         "simulator": true,
-        "resourceClass": "m1-medium"
+        "resourceClass": "m-medium"
       }
     },
     "preview": {
       "distribution": "internal",
       "ios": {
-        "resourceClass": "m1-medium"
+        "resourceClass": "m-medium"
       },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "node": "v20.9.0",
       "ios": {
-        "resourceClass": "m1-medium"
+        "resourceClass": "m-medium"
       },
       "env": {
         "OPENAI_API_KEY": "OPENAI_API_KEY"

@@ -107,6 +107,13 @@ export default function SoloSessionCall() {
   });
 
   async function startRecording() {
+    // Check for audio recording permission
+    const { status } = await Audio.requestPermissionsAsync();
+    if (status !== 'granted') {
+        Alert.alert('Permission required', 'You need to grant permission to use audio recording.');
+        return; // Exit the function if permission is not granted
+    }
+
     try {
       console.log('Starting recording...');
       

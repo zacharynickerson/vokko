@@ -17,7 +17,6 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-
 const openai = new OpenAI({
   apiKey: functions.config().openai.key,
 });
@@ -114,10 +113,7 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
   }
 });
 
-
-
-
-  exports.processVoiceNoteBackground = functions.database
+exports.processVoiceNoteBackground = functions.database
   .ref('/voiceNotes/{userId}/{voiceNoteId}')
   .onUpdate(async (change, context) => {
     const voiceNoteData = change.after.val();
@@ -137,7 +133,7 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
 
         // Download the file to a temporary location
         const tempFilePath = `/tmp/${voiceNoteId}_${i}.m4a`;
-        await bucket.file(chunkPath).download({destination: tempFilePath});
+        await bucket.file(chunkPath).download({ destination: tempFilePath });
 
         console.log(`Processing chunk ${i}, path: ${tempFilePath}`);
 
@@ -168,108 +164,79 @@ exports.transcribeAudio = functions.https.onCall(async (data, context) => {
       await processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, fullTranscript);
 
     } catch (error) {
-      console.error('Error processing voice note:', error);
-      await admin.database().ref(`voiceNotes/${userId}/${voiceNoteId}`).update({
-        status: 'error',
+      console.error('Error processing voice note:', error.response ? error.response.data : error.message);
+      await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
+        status: 'Error',
         error: error.message,
       });
+      return null;
     }
   });
 
-async function processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, transcript) {
-  console.log(`Processing voice note: userId=${userId}, voiceNoteId=${voiceNoteId}, transcript=${transcript}`);
-
-  const prompt = {
-    model: "gpt-3.5-turbo-0125",
-    messages: [
-      { 
-        "role": "system", 
-        "content": 
-`You are a transcript formatter. Your task is to format conversation transcripts exactly as they are, with no modifications.
-
-INPUT FORMAT:
-The input will be a conversation with lines like "User: [message]" and "Guide: [message]"
-
-OUTPUT FORMAT:
-You must output in this exact format:
-TITLE: [A title that exactly describes what was discussed]
-
-FORMATTEDNOTE:
-[The transcript formatted in HTML paragraphs]
-
-RULES:
-1. Use ONLY the exact words from the transcript
-2. DO NOT add any new content
-3. DO NOT create fictional dialogue
-4. DO NOT expand or modify the conversation
-5. Short or test conversations are fine - format them as-is
-
-EXAMPLE:
-For input:
-"User: Testing 123
-Guide: Hello, can you hear me?"
-
-Output should be:
-TITLE: Audio Test Conversation
-
-FORMATTEDNOTE:
-<p><strong>User:</strong> Testing 123</p>
-<p><strong>Guide:</strong> Hello, can you hear me?</p>`
-      },
-      { 
-        "role": "user", 
-        "content": fullTranscript 
-      }
-    ],
-    max_tokens: 3000,
-    temperature: 0.1
-  };
-
-  try {
-    const response = await openai.chat.completions.create(prompt);
-
-    console.log('API response:', response);
-
-    if (response.choices && response.choices.length > 0) {
-      const resultText = response.choices[0].message.content.trim();
-
-      // Split the response into sections
-      const sections = resultText.split(/\n(?=TITLE:|FORMATTEDNOTE:)/);
-
-      let title = '';
-      let summary = '';
-
-      sections.forEach(section => {
-        if (section.startsWith('TITLE:')) {
-          title = section.replace('TITLE:', '').trim();
-        } else if (section.startsWith('FORMATTEDNOTE:')) {
-          summary = section.replace('FORMATTEDNOTE:', '').trim();
+  async function processTranscriptAndUpdateVoiceNote(userId, voiceNoteId, transcript) {
+    console.log(`Processing voice note: userId=${userId}, voiceNoteId=${voiceNoteId}, transcript=${transcript}`);
+  
+    const prompt = {
+      model: "gpt-3.5-turbo-0125",
+      messages: [
+        { 
+          "role": "system", 
+          "content": "You are an AI assistant that processes voice note transcripts. Your task is to generate a title and a beautifully formatted version of the transcript. The output should maintain the original voice and content, but improve readability with formatting and styling. Use HTML tags for styling, such as <strong>, <em>, and <u>. Format section headers as <h3 style='color: #4FBF67;'>[Header Text]</h3>. Use headers sparingly, only for major topic changes, typically every 2-3 paragraphs. Avoid using terms like 'overview' or 'the speaker'. Wrap paragraphs in <p> tags without extra line breaks between them. Your response should be in the following format:\n\nTITLE: [Generated Title]\n\nFORMATTEDNOTE: [Formatted transcript with HTML styling]"
+        },
+        { 
+          "role": "user", 
+          "content": `Please process the following voice note transcript:\n\n${transcript}` 
         }
-      });
-
-      // Remove any remaining newlines between HTML tags
-      summary = summary.replace(/>\s+</g, '><');
-
-      console.log('Title:', title);
-      console.log('Formatted Note:', summary);
-
-      // Update Firebase with title and summary
-      await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
-        title: title || 'Untitled Note',
-        summary: summary || transcript,
-        status: 'completed',
-      });
-
-      console.log(`Voice note processed successfully: ${voiceNoteId}`);
-    } else {
-      console.error('API returned no choices in the response');
-      throw new Error('API returned no choices in the response');
+      ],
+      max_tokens: 3000,
+      temperature: 0.7,
+    };
+  
+    try {
+      const response = await openai.chat.completions.create(prompt);
+  
+      console.log('API response:', response);
+  
+      if (response.choices && response.choices.length > 0) {
+        const resultText = response.choices[0].message.content.trim();
+  
+        // Split the response into sections
+        const sections = resultText.split(/\n(?=TITLE:|FORMATTEDNOTE:)/);
+  
+        let title = '';
+        let summary = '';
+  
+        sections.forEach(section => {
+          if (section.startsWith('TITLE:')) {
+            title = section.replace('TITLE:', '').trim();
+          } else if (section.startsWith('FORMATTEDNOTE:')) {
+            summary = section.replace('FORMATTEDNOTE:', '').trim();
+          }
+        });
+  
+        // Remove any remaining newlines between HTML tags
+        summary = summary.replace(/>\s+</g, '><');
+  
+        console.log('Title:', title);
+        console.log('Formatted Note:', summary);
+  
+        // Update Firebase with title and summary
+        await admin.database().ref(`/voiceNotes/${userId}/${voiceNoteId}`).update({
+          title: title || 'Untitled Note',
+          summary: summary || transcript,
+          status: 'completed',
+        });
+  
+        console.log(`Voice note processed successfully: ${voiceNoteId}`);
+      } else {
+        console.error('API returned no choices in the response');
+        throw new Error('API returned no choices in the response');
+      }
+    } catch (error) {
+      console.error('Error processing voice note:', error.response ? error.response.data : error.message);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error processing voice note:', error.response ? error.response.data : error.message);
-    throw error;
   }
-}
 
 exports.processGuidedSession = functions.database
   .ref('/guidedSessions/{userId}/{sessionId}/status')
@@ -378,3 +345,4 @@ RULES:
       return null;
     }
   });
+

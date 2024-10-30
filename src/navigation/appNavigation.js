@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { Entypo } from "@expo/vector-icons";
-import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
@@ -18,6 +17,9 @@ import GuidedSession from '../screens/GuidedSessionSetup';
 import ExploreScreen from '../screens/ExploreScreen';
 import SoloSessionSetup from '../screens/SoloSessionSetup';
 import GuidedSessionCall from '../screens/GuidedSessionCall';
+import IncomingCallScreen from '../screens/IncomingCallScreen';
+import ScheduledSessionsScreen from '../screens/ScheduledSessionsScreen';
+import * as Notifications from 'expo-notifications';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -43,10 +45,12 @@ function HomeStack() {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
+            <Stack.Screen name="VoiceNoteDetails" component={VoiceNoteDetails} />
             <Stack.Screen name="GuidedSession" component={GuidedSession} />
             <Stack.Screen name="SoloSessionSetup" component={SoloSessionSetup} />
             <Stack.Screen name="SoloSessionCall" component={RecordScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+            <Stack.Screen name="ScheduledSessions" component={ScheduledSessionsScreen} />
         </Stack.Navigator>
     );
 }
@@ -105,6 +109,14 @@ function TabNavigator() {
 function CallStackNavigator() {
     return (
         <CallStack.Navigator screenOptions={{ headerShown: false }}>
+            <CallStack.Screen 
+                name="IncomingCall" 
+                component={IncomingCallScreen}
+                options={{
+                    presentation: 'fullScreenModal',
+                    gestureEnabled: false,
+                }}
+            />
             <CallStack.Screen name="SoloSessionCall" component={RecordScreen} />
             <CallStack.Screen name="GuidedSessionCall" component={GuidedSessionCall} />
         </CallStack.Navigator>
@@ -113,24 +125,57 @@ function CallStackNavigator() {
 
 export default function AppNavigation() {
     const { user } = useAuth();
+    const navigationRef = useRef();
+
+    useEffect(() => {
+        if (!user) return;
+
+        // Set up notification handlers
+        const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+            console.log('Received notification:', notification);
+        });
+
+        const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+            const sessionData = response.notification.request.content.data;
+            
+            if (navigationRef.current) {
+                // Navigate to IncomingCall screen when notification is tapped
+                navigationRef.current.navigate('CallStack', {
+                    screen: 'IncomingCall',
+                    params: { sessionData }
+                });
+            }
+        });
+
+        // Cleanup
+        return () => {
+            Notifications.removeNotificationSubscription(notificationListener);
+            Notifications.removeNotificationSubscription(responseListener);
+        };
+    }, [user]);
 
     return (
-        <NavigationContainer>
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-                {user ? (
-                    <>
-                        <Stack.Screen name="App" component={TabNavigator} />
-                        <Stack.Screen name="CallStack" component={CallStackNavigator} />
-                    </>
-                ) : (
-                    <>
-                        <Stack.Screen name="WelcomeScreen" component={WelcomeScreen} />
-                        <Stack.Screen name="LoginScreen" component={LoginScreen} />
-                        <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
-                        <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
-                    </>
-                )}
-            </Stack.Navigator>
-        </NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {user ? (
+                <>
+                    <Stack.Screen name="App" component={TabNavigator} />
+                    <Stack.Screen 
+                        name="CallStack" 
+                        component={CallStackNavigator}
+                        options={{
+                            presentation: 'fullScreenModal',
+                            animation: 'slide_from_bottom'
+                        }}
+                    />
+                </>
+            ) : (
+                <>
+                    <Stack.Screen name="WelcomeScreen" component={WelcomeScreen} />
+                    <Stack.Screen name="LoginScreen" component={LoginScreen} />
+                    <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
+                    <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
+                </>
+            )}
+        </Stack.Navigator>
     );
 }

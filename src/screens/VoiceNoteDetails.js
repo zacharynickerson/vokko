@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { auth, db } from '../../config/firebase';
+import { auth, db, updateVoiceNote } from '../../config/firebase';
 import { ref as dbRef, onValue, remove } from 'firebase/database';
 import SoloVoiceNoteItem from '../components/SoloSessionItem';
 import GuidedSessionItem from '../components/GuidedSessionItem';
-import { formatDateForDisplay } from '../utilities/helpers';
-import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+// import { formatDateForDisplay } from '../utilities/helpers';
+// import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 
@@ -21,6 +21,8 @@ export default function VoiceNoteDetails({ route, navigation }) {
   const playbackRef = useRef(null);
 
   const { width } = useWindowDimensions();
+
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const formatNoteContent = (content) => {
     if (!content) return 'Note unavailable';
@@ -40,57 +42,28 @@ export default function VoiceNoteDetails({ route, navigation }) {
     console.log('type:', type);
 
     const userId = auth.currentUser?.uid;
-    if (!userId) {
-      Alert.alert('Error', 'User not authenticated.');
-      navigation.goBack();
-      return;
-    }
+    if (!userId) return;
 
-    const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
+    // Determine the correct path based on the type
+    const path = type === 'guided' ? 'guidedSessions' : 'voiceNotes';
     const noteRef = dbRef(db, `/${path}/${userId}/${id}`);
-    console.log('Firebase path:', `/${path}/${userId}/${id}`);
-    
-    const unsubscribe = onValue(
-      noteRef,
-      (snapshot) => {
-        // console.log('=== Firebase Snapshot ===');
-        // console.log('Snapshot exists:', snapshot.exists());
-        if (snapshot.exists()) {
-          const noteData = snapshot.val();
-          // console.log('Note Data:', JSON.stringify(noteData, null, 2));
-          // console.log('Note Type:', type);
-          // console.log('Note Summary:', noteData.summary);
 
-          if (type === 'guided') {
-            const updatedVoiceNote = {
-              ...voiceNote,
-              guideId: noteData.guideId,
-              guideName: noteData.guideName,
-              moduleName: noteData.moduleName,
-              title: noteData.title || 'Title pending',
-              createdDate: noteData.dateCreated,
-              summary: noteData.summary || 'Summary pending...',
-            };
-            navigation.setParams({ voiceNote: updatedVoiceNote });
-            
-            setFormattedNote(noteData.summary || 'Summary pending...');
-            setNoteTitle(noteData.title || 'Title pending');
-          } else {
-            setFormattedNote(noteData.summary || 'Note unavailable');
-            setNoteTitle(noteData.title || 'Untitled');
-          }
-          setAudioUri(noteData.chunks ? noteData.chunks[0]?.url || null : null);
-        } else {
-          setFormattedNote('Note unavailable');
-          setNoteTitle('Untitled');
-          setAudioUri(null);
-        }
-      },
-      (error) => {
-        console.error('Error fetching note details:', error);
-        Alert.alert('Error', 'Failed to load note details.');
+    console.log('Firebase path:', `/${path}/${userId}/${id}`);
+
+    // Fetch note details from Firebase
+    const unsubscribe = onValue(noteRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setNoteTitle(data.title || 'Untitled Note');
+        setFormattedNote(data.summary || 'Note unavailable');
+        setAudioUri(data.audioUri || null);
+      } else {
+        Alert.alert('Error', 'Note not found.');
       }
-    );
+    }, (error) => {
+      console.error('Error fetching note details:', error);
+      Alert.alert('Error', 'Failed to load note details.');
+    });
 
     return () => unsubscribe();
   }, [id, type, navigation]);
@@ -137,6 +110,24 @@ export default function VoiceNoteDetails({ route, navigation }) {
 
   const formattedHtml = useMemo(() => formatNoteContent(formattedNote), [formattedNote]);
 
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    console.log(`Retrying transcription for voice note ID: ${id}`);
+
+    try {
+      // Update the existing voice note's status to 'processing'
+      await updateVoiceNote(auth.currentUser.uid, id, { status: 'processing' });
+
+      // Optionally, refresh the data or update the UI
+      Alert.alert('Retry initiated', 'The transcription process has been retried.');
+    } catch (error) {
+      console.error('Error retrying transcription:', error);
+      Alert.alert('Error', 'Failed to retry transcription.');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
@@ -169,7 +160,11 @@ export default function VoiceNoteDetails({ route, navigation }) {
           {type === 'guided' ? (
             <GuidedSessionItem item={voiceNote} />
           ) : (
-            <SoloVoiceNoteItem item={voiceNote} />
+            <SoloVoiceNoteItem
+              item={voiceNote}
+              onRetry={handleRetry}
+              isLoading={isRetrying}
+            />
           )}
         </View>
 
@@ -191,7 +186,6 @@ export default function VoiceNoteDetails({ route, navigation }) {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -303,3 +297,4 @@ const tagsStyles = {
     color: '#4FBF67',
   },
 };
+

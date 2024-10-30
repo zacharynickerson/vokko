@@ -16,10 +16,7 @@
     ],
     "ios": {
       "googleServicesFile": "GoogleService-Info.plist",
-      "buildNumber": "24",
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.VokkoApp",
-      "usesAppleSignIn": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app needs access to the microphone to record audio for guided sessions.",
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text.",
@@ -70,7 +67,15 @@
         }
       ],
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff",
+          "sounds": ["./assets/notification-sound.wav"]
+        }
+      ]
     ],
     "extra": {
       "eas": {
@@ -80,6 +85,13 @@
         "secretName": "OPENAI_API_KEY"
       }
     },
-    "scheme":"Vokko"
+    "scheme":"Vokko",
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#ffffff",
+      "iosDisplayInForeground": true,
+      "androidMode": "default",
+      "androidCollapsedTitle": "New Message"
+    }
   }
 }

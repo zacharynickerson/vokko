@@ -1,46 +1,56 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { formatDateForDisplay } from '../utilities/helpers';
 
-const SoloVoiceNoteItem = ({ item, onPress, isLoading }) => {
-  const isClickable = item.status === 'completed' || item.status === 'error';
+const SoloVoiceNoteItem = ({ item, onPress, isLoading, onRetry }) => {
+  const isClickable = item.status === 'completed';
 
   return (
-    <TouchableOpacity 
-      style={[
-        styles.container, 
-        isLoading && styles.loadingContainer,
-        !isClickable && styles.disabledContainer
-      ]}
-      onPress={isClickable ? onPress : null}
-      disabled={!isClickable}
-    >
-      <View style={styles.imageContainer}>
-        <Image 
-          source={item.image ? { uri: item.image } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/default-note-image.png')} 
-          style={styles.image}
-        />
-        <View style={styles.typeIndicator}>
-          <Text style={styles.typeText}>Solo</Text>
+    <View style={styles.container}>
+      <TouchableOpacity 
+        style={[
+          styles.touchableContainer, 
+          isLoading && styles.loadingContainer,
+          !isClickable && styles.disabledContainer
+        ]}
+        onPress={isClickable ? onPress : null}
+        disabled={!isClickable}
+      >
+        <View style={styles.imageContainer}>
+          <Image 
+            source={item.image ? { uri: item.image } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/default-note-image.png')} 
+            style={styles.image}
+          />
+          <View style={styles.typeIndicator}>
+            <Text style={styles.typeText}>Solo</Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.contentContainer}>
-        <Text style={styles.title} numberOfLines={2}>
-          {isLoading ? 'Processing...' : item.title}
-        </Text>
-        <Text style={styles.date}>{formatDateForDisplay(item.createdDate)}</Text>
-        {item.status === 'error' && <Text style={styles.errorText}>Error occurred</Text>}
-      </View>
-    </TouchableOpacity>
+        <View style={styles.contentContainer}>
+          <Text style={styles.title} numberOfLines={2}>
+            {isLoading ? 'Processing...' : item.title}
+          </Text>
+          <Text style={styles.date}>{formatDateForDisplay(item.createdDate)}</Text>
+          {item.status === 'error' && <Text style={styles.errorText}>Error occurred</Text>}
+        </View>
+      </TouchableOpacity>
+      {item.status === 'error' && (
+        <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+          <Ionicons name="refresh" size={24} color="#FF3B30" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    marginBottom: 16,
+  },
+  touchableContainer: {
     backgroundColor: 'white',
     borderRadius: 10,
     overflow: 'hidden',
-    marginBottom: 16,
     borderColor: '#F9F9F9',
     borderWidth: 1,
   },
@@ -59,7 +69,7 @@ const styles = StyleSheet.create({
   },
   typeIndicator: {
     position: 'absolute',
-    top: 20, // Changed from 30 to 20 to match GuidedSessionItem
+    top: 20,
     left: 20,
     backgroundColor: '#1B1D21',
     paddingHorizontal: 15,
@@ -94,6 +104,15 @@ const styles = StyleSheet.create({
     color: 'red',
     fontSize: 12,
     marginTop: 4,
+  },
+  retryButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 5,
+    elevation: 3,
   },
 });
 

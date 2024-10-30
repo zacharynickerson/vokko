@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, ScrollView, FlatList } from 'react-native';
+import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, ScrollView, FlatList, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import ModuleCard from '../components/ModuleCard';
 import SoloVoiceNoteItem from '../components/SoloSessionItem';
 import GuidedSessionItem from '../components/GuidedSessionItem';
-import { auth, db } from '../../config/firebase';
+import { auth, db, updateVoiceNote } from '../../config/firebase';
 import { ref, onValue, off } from 'firebase/database';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [selectedFilter, setSelectedFilter] = useState('Trending');
   const [recentSession, setRecentSession] = useState(null);
+  const [scheduledSessionsCount, setScheduledSessionsCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const navigateToSettings = () => {
     navigation.navigate('SettingsScreen');
@@ -26,9 +28,13 @@ export default function HomeScreen() {
     navigation.navigate('SoloSessionSetup');
   };
 
+  const navigateToScheduledSessions = () => {
+    navigation.navigate('ScheduledSessions');
+  };
+
   const filters = ['Trending', 'New Idea', 'Reflection', 'Goal Setting', 'Productivity'];
 
-  const fetchRecentSession = useCallback(async () => {
+  const fetchRecentSession = useCallback(() => {
     const userId = auth.currentUser?.uid;
     if (!userId) return;
 
@@ -37,13 +43,12 @@ export default function HomeScreen() {
 
     const fetchSessions = (snapshot, isGuided = false) => {
       if (snapshot.exists()) {
-        return Object.values(snapshot.val())
-          .map(session => ({
-            ...session,
-            voiceNoteId: session.voiceNoteId || session.id,
-            isGuided: isGuided
-          }))
-          .filter(session => session !== null);
+        return Object.entries(snapshot.val()).map(([id, session]) => ({
+          ...session,
+          id,
+          voiceNoteId: session.voiceNoteId || id,
+          isGuided: isGuided
+        }));
       }
       return [];
     };
@@ -55,7 +60,7 @@ export default function HomeScreen() {
         const guidedSessions = fetchSessions(guidedSnapshot, true);
         
         const allSessions = [...soloSessions, ...guidedSessions];
-        const sortedSessions = sortNotesChronologically(allSessions);
+        const sortedSessions = allSessions.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
         
         if (sortedSessions.length > 0) {
           setRecentSession(sortedSessions[0]);
@@ -72,6 +77,26 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchRecentSession();
   }, [fetchRecentSession]);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const sessionsRef = ref(db, `scheduledSessions/${auth.currentUser.uid}`);
+    const unsubscribe = onValue(sessionsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const sessions = Object.values(snapshot.val());
+        const futureSessionsCount = sessions.filter(session => 
+          session.status === 'scheduled' && 
+          new Date(session.scheduledFor) > new Date()
+        ).length;
+        setScheduledSessionsCount(futureSessionsCount);
+      } else {
+        setScheduledSessionsCount(0);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth.currentUser]);
 
   const extractVoiceNoteIdFromUri = (uri) => {
     if (!uri) return null;
@@ -135,33 +160,55 @@ export default function HomeScreen() {
     />
   );
 
+  const handleRetry = async (voiceNoteId) => {
+    setIsRetrying(true);
+    console.log(`Retrying transcription for voice note ID: ${voiceNoteId}`);
+
+    try {
+      await updateVoiceNote(auth.currentUser.uid, voiceNoteId, { status: 'processing' });
+      Alert.alert('Retry initiated', 'The transcription process has been retried.');
+    } catch (error) {
+      console.error('Error retrying transcription:', error);
+      Alert.alert('Error', 'Failed to retry transcription.');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handlePress = () => {
+    if (recentSession.status === 'completed' || recentSession.status === 'error') {
+      console.log('Navigating with recentSession:', recentSession);
+      navigation.navigate('VoiceNoteDetails', { voiceNote: recentSession });
+    }
+  };
+
   const renderRecentSessionItem = () => {
     if (!recentSession) return null;
 
-    const SessionComponent = recentSession.guideName ? GuidedSessionItem : SoloVoiceNoteItem;
+    const SessionComponent = recentSession.isGuided ? GuidedSessionItem : SoloVoiceNoteItem;
+    const isLoading = recentSession.status === 'recording' || recentSession.status === 'processing';
 
     return (
       <View style={styles.recentSessionContainer}>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('Library', {
-            screen: 'VoiceNoteDetails',
-            params: { voiceNote: recentSession }
-          })}
-        >
-          <SessionComponent item={recentSession} />
-        </TouchableOpacity>
-        {recentSession.formattedNote && (
-          <Text style={styles.formattedNotePreview} numberOfLines={3}>
-          </Text>
-        )}
+        <SessionComponent
+          item={recentSession}
+          onPress={() => navigation.navigate('VoiceNoteDetails', { voiceNote: recentSession })}
+          onRetry={() => handleRetry(recentSession.voiceNoteId || recentSession.id)}
+          isLoading={isLoading || isRetrying}
+        />
       </View>
     );
   };
 
-  const renderSessionTypeButton = (title, iconName, color, onPress) => (
+  const renderSessionTypeButton = (title, iconName, color, onPress, badgeCount = null) => (
     <TouchableOpacity style={styles.sessionTypeButton} onPress={onPress}>
-      <View style={[styles.iconContainer, { backgroundColor: color + '26' }]}>
-        <MaterialCommunityIcons name={iconName} size={24} color={color} />
+      <View style={[styles.iconContainer, { backgroundColor: color }]}>
+        <MaterialCommunityIcons name={iconName} size={24} color="white" />
+        {badgeCount !== null && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badgeCount}</Text>
+          </View>
+        )}
       </View>
       <Text style={styles.sessionTypeText}>{title}</Text>
     </TouchableOpacity>
@@ -188,7 +235,13 @@ export default function HomeScreen() {
         <View style={styles.buttonCardsContainer}>
           {renderSessionTypeButton("Guided Session", "robot", "#FDB921", navigateToGuidedSession)}
           {renderSessionTypeButton("Solo Session", "microphone", "#71D7F4", navigateToSoloSession)}
-          {renderSessionTypeButton("Scheduled Sessions", "calendar-clock", "#BA59FE", () => {/* Handle Scheduled Sessions */})}
+          {renderSessionTypeButton(
+            "Scheduled Sessions",
+            "calendar-clock",
+            "#BA59FE",
+            navigateToScheduledSessions,
+            scheduledSessionsCount > 0 ? scheduledSessionsCount : null
+          )}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -381,5 +434,22 @@ const styles = StyleSheet.create({
     fontSize: wp(3.5),
     color: '#666',
     marginTop: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 2,
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: wp(3),
+    fontWeight: 'bold',
   },
 });

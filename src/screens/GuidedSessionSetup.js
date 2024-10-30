@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, Image, SafeAreaView, Platform, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, Image, SafeAreaView, Platform, ScrollView, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
@@ -7,9 +7,12 @@ import Modal from 'react-native-modal';
 import moment from 'moment';
 import CustomDatePicker from '/Users/zacharynickerson/Desktop/vokko/src/components/CustomDatePicker.js';
 import SessionConfirmation from '../components/SessionConfirmation';
-import { getModules, getModuleWithGuide, getGuides } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+import { getModules, getModuleWithGuide, getGuides, scheduleSession, getScheduledSessions, cancelScheduledSession, db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
 import { auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+import * as Notifications from 'expo-notifications';
+import { scheduleCallNotification } from '../utilities/notificationManager.js';
+import { getDatabase, ref, set, get, push, update, query, orderByChild } from 'firebase/database';
 
 const images = {
   'Avatar Female 6.png': require('../../assets/images/Avatar Female 6.png'),
@@ -23,8 +26,19 @@ const images = {
 
 const getImageSource = (imageName) => {
   if (!imageName) return require('../../assets/images/user-photo.png');
-  const key = imageName.split('/').pop(); // This will get just the filename
-  return images[key] || require('../../assets/images/user-photo.png');
+  
+  // Check if imageName is a remote URL
+  if (imageName.startsWith('http')) {
+    return { uri: imageName };
+  }
+  
+  // Handle local assets
+  const imageMap = {
+    'Avatar Female 6.png': require('../../assets/images/Avatar Female 6.png'),
+    // Add other mappings here
+  };
+  
+  return imageMap[imageName] || require('../../assets/images/user-photo.png');
 };
 
 const GuidedSessionSetup = () => {
@@ -436,10 +450,57 @@ const GuidedSessionSetup = () => {
     </View>
   );
 
-  const handleScheduleSession = () => {
-    // Here you would typically call your API to set up the cron job
-    // For now, we'll just set the state to show the confirmation screen
-    setIsSessionScheduled(true);
+  const handleScheduleSession = async () => {
+    try {
+      if (!user || !selectedModule || !selectedGuide || !scheduledDate) {
+        throw new Error('Missing required data for scheduling');
+      }
+
+      // Create session data
+      const sessionData = {
+        moduleId: selectedModule.id,
+        moduleName: selectedModule.name,
+        guideId: selectedGuide.id,
+        guideName: selectedGuide.name,
+        guidePhoto: selectedGuide.mainPhoto,
+        scheduledFor: scheduledDate.toISOString(),
+        userId: user.uid,
+        status: 'scheduled',
+      };
+
+      // Save to Firebase first
+      const sessionId = await scheduleSession(user.uid, sessionData);
+
+      // Schedule the notification
+      const notificationId = await scheduleCallNotification({
+        ...sessionData,
+        sessionId,
+      });
+
+      // Update Firebase with the notification ID and session details
+      await set(ref(db, `scheduledSessions/${user.uid}/${sessionId}`), {
+        ...sessionData,
+        notificationId,
+        sessionId,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Show success state
+      setIsSessionScheduled(true);
+
+      // Navigate back after delay
+      setTimeout(() => {
+        navigation.navigate('HomeScreen');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error scheduling session:', error);
+      Alert.alert(
+        'Scheduling Error',
+        'Failed to schedule the session. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleAddToCalendar = () => {

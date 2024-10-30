@@ -1,9 +1,11 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getDatabase, ref, set, get, push, update, query, orderByChild } from 'firebase/database';
+import { getDatabase, ref, set, get, push, update, query, orderByChild, remove } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { scheduleCallNotification } from '../src/utilities/notificationManager';
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyBVWVsTVx5i9TtQCgwgobQA-Q4Ik_oWO14",
@@ -74,7 +76,12 @@ export const getVoiceNotes = async (userId) => {
 
 export const updateVoiceNote = async (userId, voiceNoteId, updates) => {
   const voiceNoteRef = ref(db, `voiceNotes/${userId}/${voiceNoteId}`);
-  await update(voiceNoteRef, updates);
+  try {
+    await update(voiceNoteRef, updates);
+    console.log(`Voice note ${voiceNoteId} updated with:`, updates);
+  } catch (error) {
+    console.error(`Failed to update voice note ${voiceNoteId}:`, error);
+  }
 };
 
 // Module operations
@@ -161,4 +168,54 @@ export const getModuleWithGuide = async (moduleId) => {
     console.error('Error in getModuleWithGuide:', error);
     return null;
   }
+};
+
+export const scheduleSession = async (userId, sessionData) => {
+  try {
+    const scheduledSessionsRef = ref(db, `scheduledSessions/${userId}`);
+    const newSessionRef = push(scheduledSessionsRef);
+    
+    // Set scheduledFor to 1 minute from now for testing
+    const scheduledFor = new Date(Date.now() + 60000).toISOString(); // 1 minute from now
+    
+    // Ensure sessionData includes all required fields
+    const completeSessionData = {
+      ...sessionData,
+      status: 'scheduled',
+      createdAt: new Date().toISOString(),
+      sessionId: newSessionRef.key,
+      scheduledFor, // Overriding with test time
+    };
+
+    await set(newSessionRef, completeSessionData);
+    
+    // Schedule the notification
+    const notificationId = await scheduleCallNotification({
+      sessionId: newSessionRef.key,
+      moduleName: sessionData.moduleName,
+      guideName: sessionData.guideName,
+      scheduledFor, // Use the test time here as well
+    });
+
+    // Update the session with the notificationId
+    await update(ref(db, `scheduledSessions/${userId}/${newSessionRef.key}`), {
+      notificationId,
+    });
+
+    return newSessionRef.key;
+  } catch (error) {
+    console.error('Error scheduling session:', error);
+    throw error;
+  }
+};
+
+export const getScheduledSessions = async (userId) => {
+  const sessionsRef = ref(db, `scheduledSessions/${userId}`);
+  const snapshot = await get(sessionsRef);
+  return snapshot.val();
+};
+
+export const cancelScheduledSession = async (userId, sessionId) => {
+  const sessionRef = ref(db, `scheduledSessions/${userId}/${sessionId}`);
+  await remove(sessionRef);
 };
