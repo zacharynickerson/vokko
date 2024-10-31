@@ -21,12 +21,16 @@
         "NSMicrophoneUsageDescription": "This app needs access to the microphone to record audio for guided sessions.",
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text.",
         "NSPhotoLibraryUsageDescription": "Vokko needs access to your photo library to allow file system operations and to choose and upload photos within the app.",
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "NSCameraUsageDescription": "This app requires access to the camera.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-      }
+      },
+      "bitcode": false,
+      "bundleIdentifier": "com.anonymous.VokkoApp"
     },
     "android": {
       "googleServicesFile": "GoogleService-Info.plist",
@@ -35,7 +39,15 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH"
       ],
       "package": "com.anonymous.VokkoApp"
     },
@@ -52,7 +64,9 @@
           }
         }
       ],
-      ["expo-apple-authentication"],
+      [
+        "expo-apple-authentication"
+      ],
       [
         "expo-av",
         {
@@ -72,10 +86,10 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#ffffff",
-          "sounds": ["./assets/notification-sound.wav"]
+          "color": "#ffffff"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "eas": {
@@ -85,7 +99,7 @@
         "secretName": "OPENAI_API_KEY"
       }
     },
-    "scheme":"Vokko",
+    "scheme": "Vokko",
     "notification": {
       "icon": "./assets/notification-icon.png",
       "color": "#ffffff",

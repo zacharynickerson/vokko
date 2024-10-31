@@ -57,18 +57,16 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>21</string>
+    <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSAppTransportSecurity</key>
     <dict>
       <key>NSAllowsArbitraryLoads</key>
-      <false/>
-      <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Camera permission description</string>
+    <string>This app requires access to the camera.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationAlwaysUsageDescription</key>

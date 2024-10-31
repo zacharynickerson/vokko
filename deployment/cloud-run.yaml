@@ -1,0 +1,62 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: livekit-agent
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      containers:
+        - image: gcr.io/your-project/livekit-agent
+          resources:
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+          env:
+            - name: LIVEKIT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: livekit-secrets
+                  key: url
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: livekit-secrets
+                  key: api-key
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: livekit-secrets
+                  key: api-secret
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: openai-key
+            - name: DEEPGRAM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: deepgram-key
+            - name: FIREBASE_CREDENTIALS_PATH
+              value: "/secrets/firebase/credentials.json"
+          ports:
+            - containerPort: 8081
+          terminationGracePeriodSeconds: 600  # 10 minutes for conversations to finish 
+          volumeMounts:
+            - name: firebase-creds
+              mountPath: "/secrets/firebase"
+              readOnly: true
+      volumes:
+        - name: firebase-creds
+          secret:
+            secretName: firebase-secrets
+            items:
+              - key: credentials.json
+                path: credentials.json

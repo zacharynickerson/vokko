@@ -18,6 +18,7 @@
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
+      "node": "20.9.0",
       "ios": {
         "simulator": true,
         "resourceClass": "m-medium"
