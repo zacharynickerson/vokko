@@ -13,7 +13,7 @@ import { API_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js'
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
 import CallLayout from '../components/CallLayout';
-import { getDatabase, ref, push, set, remove, onValue, get, update } from 'firebase/database';  // Ensure onValue is imported
+import { getDatabase, ref, push, set, remove, onValue, get } from 'firebase/database';  // Ensure onValue is imported
 import { db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
 
 registerGlobals();
@@ -49,8 +49,19 @@ const GuidedSessionCall = ({ route, navigation }) => {
         const roomName = `${user.uid}_${selectedModule.id}_${selectedGuide.id}_${sessionId}`;
         console.log('Creating room with name:', roomName);
 
-        const response = await fetch(`${API_URL}/api/token?roomName=${roomName}&userId=${user.uid}`, {
-          timeout: 5000
+        // Create the URL with all necessary parameters
+        const tokenUrl = new URL(`${API_URL}/api/token`);
+        tokenUrl.searchParams.append('roomName', roomName);
+        tokenUrl.searchParams.append('userId', user.uid);
+        tokenUrl.searchParams.append('serverUrl', 'wss://localhost:7880'); // Use secure WebSocket
+
+        console.log('Requesting token from:', tokenUrl.toString());
+
+        const response = await fetch(tokenUrl, {
+          timeout: 5000,
+          headers: {
+            'Accept': 'application/json',
+          }
         });
 
         if (!response.ok) {
@@ -58,6 +69,7 @@ const GuidedSessionCall = ({ route, navigation }) => {
         }
 
         const data = await response.json();
+        console.log('Token response:', data);
         
         // Only update state if component is still mounted
         if (mounted) {
@@ -122,43 +134,50 @@ const GuidedSessionCall = ({ route, navigation }) => {
 
   const handleDisconnect = useCallback(async () => {
     try {
+      // Clean up the room connection
       if (room) {
         await room.disconnect();
       }
       
+      // Update states
       setIsConnected(false);
       setToken(null);
       setUrl(null);
       setRoomName('');
       setCallDuration(0);
-      setRoom(null);
+      setRoom(null);  // Clear room state
       
-      // Get the existing session data first
-      if (user && roomName) {
-        const sessionId = roomName.split('_')[3];
-        const sessionRef = ref(db, `guidedSessions/${user.uid}/${sessionId}`);
+      // Save session data to Firebase
+      if (user && selectedModule && selectedGuide) {
+        // const sessionData = {
+        //   moduleId: selectedModule.id,
+        //   guideId: selectedGuide.id,
+        //   status: 'completed',
+        //   createdDate: new Date().toISOString(),
+        //   userId: user.uid
+        // };
         
-        // Get current session data
-        const sessionSnapshot = await get(sessionRef);
-        if (sessionSnapshot.exists()) {
-          // Only update the status if the session exists
-          await update(sessionRef, {
-            status: 'Processing'
-          });
+        try {
+          const database = getDatabase();
+          const sessionRef = ref(database, `guidedSessions/${user.uid}`);
+          // const newSessionRef = push(sessionRef);
+          // await set(newSessionRef, sessionData);
           
+          // Updated navigation path to match your structure
           navigation.navigate('App', {
             screen: 'Library',
             params: { refresh: true }
           });
-        } else {
-          console.error('Session not found in database');
+        } catch (firebaseError) {
+          console.error('Firebase error:', firebaseError);
+          Alert.alert('Error', 'Failed to save session data.');
         }
       }
     } catch (error) {
       console.error('Error during disconnect:', error);
       Alert.alert('Error', 'Failed to end the session properly.');
     }
-  }, [room, navigation, user, roomName]);
+  }, [room, navigation, user, selectedModule, selectedGuide]);
 
   const handleCancel = async () => {
     setIsCancelling(true); // Set this first

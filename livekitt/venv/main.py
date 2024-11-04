@@ -97,18 +97,17 @@ def get_guide(guide_id):
         guide['voice'] = voice_attributes.get('base_voice', 'alloy')  # Default to 'alloy' if not specified
     return guide
 
-def create_guided_session(user_id, guide_id, module_id):
-    session_id = str(int(time.time() * 1000))  # Generate a unique session ID
-    session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}')
-    session_ref.set({
-        'createdDate': datetime.datetime.utcnow().isoformat(),
-        'userId': user_id,
-        'guideId': guide_id,
-        'moduleId': module_id,
-        'status': 'processing',
-        'type': 'guided',  # Add the type attribute
-    })
-    return session_id  # Return the session_id for later use
+# def create_guided_session(user_id, guide_id, module_id):
+#     session_id = str(int(time.time() * 1000))  # Generate a unique session ID
+#     session_ref = db.reference(f'guidedSessions/{user_id}/{session_id}')
+#     session_ref.set({
+#         'createdDate': datetime.datetime.utcnow().isoformat(),
+#         'userId': user_id,
+#         'guideId': guide_id,
+#         'moduleId': module_id,
+#         'status': 'processing',
+#     })
+#     return session_id  # Return the session_id for later use
 
 def update_session_status(user_id, session_id, status):
     try:

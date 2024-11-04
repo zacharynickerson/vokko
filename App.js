@@ -79,7 +79,7 @@ export default function App() {
 
     setupNotifications();
 
-    testImmediateNotification();
+    // testImmediateNotification();
 
     return () => {
       subscription.remove();
@@ -107,26 +107,26 @@ export default function App() {
     return status;
   };
 
-  const testImmediateNotification = async () => {
-    try {
-      const identifier = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Test Notification',
-          body: 'This is a test notification to check immediate delivery.',
-          sound: true,
-          priority: 'max',
-          vibrate: [0, 250, 250, 250],
-        },
-        trigger: {
-          seconds: 5, // Trigger after 5 seconds
-        },
-      });
+  // const testImmediateNotification = async () => {
+  //   try {
+  //     const identifier = await Notifications.scheduleNotificationAsync({
+  //       content: {
+  //         title: 'Test Notification',
+  //         body: 'This is a test notification to check immediate delivery.',
+  //         sound: true,
+  //         priority: 'max',
+  //         vibrate: [0, 250, 250, 250],
+  //       },
+  //       trigger: {
+  //         seconds: 5, // Trigger after 5 seconds
+  //       },
+  //     });
 
-      console.log(`Immediate notification scheduled with ID: ${identifier}`);
-    } catch (error) {
-      console.error('Error scheduling immediate notification:', error);
-    }
-  };
+  //     console.log(`Immediate notification scheduled with ID: ${identifier}`);
+  //   } catch (error) {
+  //     console.error('Error scheduling immediate notification:', error);
+  //   }
+  // };
 
   if (!fontsLoaded) {
     return null; // or a loading indicator
