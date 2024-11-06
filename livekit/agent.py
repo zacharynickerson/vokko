@@ -12,7 +12,7 @@ from livekit.agents import (
     transcription,
 )
 from livekit.agents.pipeline import VoicePipelineAgent
-from livekit.plugins import openai, deepgram, silero
+from livekit.plugins import openai, silero
 
 
 load_dotenv(dotenv_path=".env.local")
@@ -50,7 +50,7 @@ async def entrypoint(ctx: JobContext):
         track=None  # This will be set automatically by VoicePipelineAgent
     )
 
-    # This project is configured to use Deepgram STT, OpenAI LLM and TTS plugins
+    # This project is configured to use OpenAI for both STT and TTS plugins
     # Other great providers exist like Cartesia and ElevenLabs
     # Learn more and pick the best one for your app:
     # https://docs.livekit.io/agents/plugins
