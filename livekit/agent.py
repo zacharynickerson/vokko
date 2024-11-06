@@ -75,14 +75,12 @@ if __name__ == "__main__":
     # Get port from Heroku environment
     port = int(os.environ.get("PORT", 5000))
     
-    # Run the worker with the port configuration
+    # Run the worker with simplified port configuration
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             prewarm_fnc=prewarm,
             port=port,  # Add the port
             host="0.0.0.0",  # Required for Heroku
-            health_port=port,  # Use the same port for health checks
-            health_host="0.0.0.0"  # Required for Heroku
         ),
     )
