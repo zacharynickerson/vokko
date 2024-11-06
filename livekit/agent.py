@@ -44,11 +44,11 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"starting guided session for participant {user_id}")
 
     # Create the STT forwarder
-    stt_forwarder = transcription.STTSegmentsForwarder(
-        room=ctx.room,
-        participant=participant,
-        track=None  # This will be set automatically by VoicePipelineAgent
-    )
+    # stt_forwarder = transcription.STTSegmentsForwarder(
+    #     room=ctx.room,
+    #     participant=participant,
+    #     track=None  # This will be set automatically by VoicePipelineAgent
+    # )
 
     # This project is configured to use OpenAI for both STT and TTS plugins
     # Other great providers exist like Cartesia and ElevenLabs
@@ -63,7 +63,7 @@ async def entrypoint(ctx: JobContext):
     )
 
     # Set the forwarder after creating the agent
-    assistant.stt_forwarder = stt_forwarder
+    # assistant.stt_forwarder = stt_forwarder
 
     assistant.start(ctx.room, participant)
 
