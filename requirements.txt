@@ -1,6 +1,9 @@
-livekit-agents>=0.11.1
-livekit-plugins-silero>=0.1.0
-livekit-plugins-openai>=0.1.0
-python-dotenv
+pywatchman==2.0.0
+livekit
+livekit-agents
+livekit-plugins-deepgram
+livekit-plugins-openai
+livekit-plugins-elevenlabs
+livekit-plugins-silero
+python-dotenv==1.0.0
 gunicorn
-openai
