@@ -9,7 +9,7 @@ import {
   useRoomContext,
   registerGlobals,
 } from '@livekit/react-native';
-import { API_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js';
+import { API_URL, LIVEKIT_WS_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
 import CallLayout from '../components/CallLayout';
@@ -53,29 +53,21 @@ const GuidedSessionCall = ({ route, navigation }) => {
         const tokenUrl = new URL(`${API_URL}/api/token`);
         tokenUrl.searchParams.append('roomName', roomName);
         tokenUrl.searchParams.append('userId', user.uid);
-        tokenUrl.searchParams.append('serverUrl', 'wss://localhost:7880'); // Use secure WebSocket
+        tokenUrl.searchParams.append('serverUrl', LIVEKIT_WS_URL);  // Use the LiveKit URL from config
 
         console.log('Requesting token from:', tokenUrl.toString());
 
-        const response = await fetch(tokenUrl, {
-          timeout: 5000,
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        const response = await fetch(tokenUrl);
         const data = await response.json();
         console.log('Token response:', data);
         
+        // Use the URL from the response
+        setToken(data.accessToken);
+        setUrl(data.url || LIVEKIT_WS_URL);  // Fallback to config URL if not in response
+        setRoomName(roomName);
+        
         // Only update state if component is still mounted
         if (mounted) {
-          setToken(data.accessToken);
-          setUrl(data.url);
-          setRoomName(roomName);
           setIsConnected(true);
         }
       } catch (error) {

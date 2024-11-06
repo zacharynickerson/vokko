@@ -1,6 +1,5 @@
 import logging
-import asyncio
-import os
+
 from dotenv import load_dotenv
 from livekit.agents import (
     AutoSubscribe,
@@ -12,7 +11,7 @@ from livekit.agents import (
     transcription,
 )
 from livekit.agents.pipeline import VoicePipelineAgent
-from livekit.plugins import openai, silero
+from livekit.plugins import openai, deepgram, silero
 
 
 load_dotenv(dotenv_path=".env.local")
@@ -50,7 +49,7 @@ async def entrypoint(ctx: JobContext):
         track=None  # This will be set automatically by VoicePipelineAgent
     )
 
-    # This project is configured to use OpenAI for both STT and TTS plugins
+    # This project is configured to use Deepgram STT, OpenAI LLM and TTS plugins
     # Other great providers exist like Cartesia and ElevenLabs
     # Learn more and pick the best one for your app:
     # https://docs.livekit.io/agents/plugins
@@ -72,15 +71,9 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    # Get port from Heroku environment
-    port = int(os.environ.get("PORT", 5000))
-    
-    # Run the worker with simplified port configuration
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             prewarm_fnc=prewarm,
-            port=port,  # Add the port
-            host="0.0.0.0",  # Required for Heroku
         ),
     )
