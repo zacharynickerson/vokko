@@ -28,7 +28,7 @@ const GuidedSessionItem = ({ item, onPress }) => {
     >
       <View style={styles.imageContainer}>
         <Image 
-          source={item.image ? { uri: item.image } : require('/Users/zacharynickerson/Desktop/vokko/assets/images/default-note-image.png')} 
+          source={item.image ? { uri: item.image } : require('../../assets/images/default-note-image.png')} 
           style={styles.image}
         />
         <View style={styles.typeIndicator}>

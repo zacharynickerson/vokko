@@ -3,8 +3,8 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Alert } from
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import moment from 'moment';
-import { getScheduledSessions, cancelScheduledSession } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
-import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
+import { getScheduledSessions, cancelScheduledSession } from '../../config/firebase.js';
+import useAuth from '../../hooks/useAuth.js';
 import * as Notifications from 'expo-notifications';
 import TestSessionButton from '../components/TestSessionButton';
 

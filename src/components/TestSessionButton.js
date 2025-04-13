@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { scheduleSession } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+import { scheduleSession } from '../../config/firebase.js';
 import { scheduleCallNotification } from '../utilities/notificationManager';
 
 

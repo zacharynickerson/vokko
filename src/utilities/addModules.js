@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('/Users/zacharynickerson/Desktop/vokko/config/vokko-f8f6a-firebase-adminsdk-8f7lc-a5c3daf9b9.json');
+const serviceAccount = require('../../config/vokko-f8f6a-firebase-adminsdk-8f7lc-a5c3daf9b9.json');
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {

@@ -33,7 +33,7 @@ export default function WelcomeScreen() {
           <View style={styles.dailyStandupCard}>
             <Text style={styles.cardTitle}>Daily Standup</Text>
             <Image
-              source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/avatar-welcome.png')}
+              source={require('../../assets/images/avatar-welcome.png')}
               style={styles.avatar}
             />
             <Svg height="100%" width="100%" style={styles.decorativeLines}>
@@ -73,7 +73,7 @@ export default function WelcomeScreen() {
           
           <View style={styles.sessionScheduledCard}>
             <Image
-              source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/success-confetti-welcome.png')}
+              source={require('../../assets/images/success-confetti-welcome.png')}
               style={styles.confettiImage}
             />
             <Text style={styles.cardTitle}>Session Scheduled</Text>
@@ -93,23 +93,23 @@ export default function WelcomeScreen() {
 
         <View style={styles.vavatarContainer}>
           <Image
-            source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 7.png')}
+            source={require('../../assets/images/Avatar Male 7.png')}
             style={[styles.vavatar, styles.vavatar1]}
           />
           <Image
-            source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 11.png')}
+            source={require('../../assets/images/Avatar Male 11.png')}
             style={[styles.vavatar, styles.vavatar2]}
           />
           <Image
-            source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 2.png')}
+            source={require('../../assets/images/Avatar Male 2.png')}
             style={[styles.vavatar, styles.vavatar3]}
           />
           <Image
-            source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Female 6.png')}
+            source={require('../../assets/images/Avatar Female 6.png')}
             style={[styles.vavatar, styles.vavatar4]}
           />
           <Image
-            source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 3.png')}
+            source={require('../../assets/images/Avatar Male 3.png')}
             style={[styles.vavatar, styles.vavatar5]}
           />
         </View>

@@ -1,8 +1,0 @@
-livekit
-livekit-agents
-livekit-plugins-deepgram
-livekit-plugins-openai
-livekit-plugins-elevenlabs
-livekit-plugins-silero
-# main.py download-files
-# main.py start

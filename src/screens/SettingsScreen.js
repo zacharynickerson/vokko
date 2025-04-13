@@ -63,7 +63,7 @@ export default function SettingsScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.profileSection}>
                     <Image
-                        source={require('/Users/zacharynickerson/Desktop/vokko/assets/images/Avatar Male 1.png')}
+                        source={require('../../assets/images/Avatar Male 1.png')}
                         style={styles.profileImage}
                     />
                     <Text style={styles.profileName}>{user?.displayName || 'Zachary Nickerson'}</Text>

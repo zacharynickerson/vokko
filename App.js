@@ -25,8 +25,8 @@ export default function App() {
   useEffect(() => {
     async function loadFonts() {
       await Font.loadAsync({
-        'DMSans': require('/Users/zacharynickerson/Desktop/vokko/assets/fonts/DMSans-VariableFont_opsz,wght.ttf'),
-        'DMSans-Italic': require('/Users/zacharynickerson/Desktop/vokko/assets/fonts/DMSans-Italic-VariableFont_opsz,wght.ttf'),
+        'DMSans': require('./assets/fonts/DMSans-VariableFont_opsz,wght.ttf'),
+        'DMSans-Italic': require('./assets/fonts/DMSans-Italic-VariableFont_opsz,wght.ttf'),
       });
       setFontsLoaded(true);
     }

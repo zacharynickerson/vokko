@@ -9,12 +9,12 @@ import {
   useRoomContext,
   registerGlobals,
 } from '@livekit/react-native';
-import { API_URL, LIVEKIT_WS_URL } from '/Users/zacharynickerson/Desktop/vokko/config/config.js';
+import { API_URL, LIVEKIT_WS_URL } from '../../config/config.js';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
-import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
+import useAuth from '../../hooks/useAuth.js';
 import CallLayout from '../components/CallLayout';
 import { getDatabase, ref, push, set, remove, onValue, get } from 'firebase/database';  // Ensure onValue is imported
-import { db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+import { db } from '../../config/firebase.js';
 
 registerGlobals();
 

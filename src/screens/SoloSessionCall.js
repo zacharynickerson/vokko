@@ -380,7 +380,7 @@ export default function SoloSessionCall() {
         isGuidedSession={false}
         userFirstName="Zachary" // Replace with actual user data
         userLastName="Nickerson" // Replace with actual user data
-        userProfilePhoto="/Users/zacharynickerson/Desktop/vokko/assets/images/user-photo.png" // Replace with actual user photo
+        userProfilePhoto="../../assets/images/user-photo.png" // Replace with actual user photo
         sessionTime={sessionTime}
       />
       

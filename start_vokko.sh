@@ -15,7 +15,7 @@ EOF
 }
 
 # Change to the project directory (adjust this path as needed)
-cd /Users/zacharynickerson/Desktop/vokko
+cd .
 
 # Start the Python server
 new_iterm_tab "cd livekitt && cd venv && python3 main.py dev"

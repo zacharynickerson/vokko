@@ -5,11 +5,11 @@ import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-ico
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import Modal from 'react-native-modal';
 import moment from 'moment';
-import CustomDatePicker from '/Users/zacharynickerson/Desktop/vokko/src/components/CustomDatePicker.js';
+import CustomDatePicker from '../components/CustomDatePicker.js';
 import SessionConfirmation from '../components/SessionConfirmation';
-import { getModules, getModuleWithGuide, getGuides, scheduleSession, getScheduledSessions, cancelScheduledSession, db } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
-import useAuth from '/Users/zacharynickerson/Desktop/vokko/hooks/useAuth.js';
-import { auth } from '/Users/zacharynickerson/Desktop/vokko/config/firebase.js';
+import { getModules, getModuleWithGuide, getGuides, scheduleSession, getScheduledSessions, cancelScheduledSession, db } from '../../config/firebase.js';
+import useAuth from '../../hooks/useAuth.js';
+import { auth } from '../../config/firebase.js';
 import * as Notifications from 'expo-notifications';
 import { scheduleCallNotification } from '../utilities/notificationManager.js';
 import { getDatabase, ref, set, get, push, update, query, orderByChild } from 'firebase/database';
