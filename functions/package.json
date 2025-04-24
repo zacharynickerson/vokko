@@ -10,22 +10,21 @@
     "logs": "firebase functions:log"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "index.js",
   "dependencies": {
     "@google-cloud/storage": "^6.0.0",
     "axios": "^0.27.2",
     "dotenv": "^16.0.0",
-    "firebase-admin": "^11.8.0",
-    "firebase-functions": "^4.9.0",
+    "firebase-admin": "latest",
+    "firebase-functions": "latest",
     "form-data": "^4.0.0",
     "openai": "^4.0.0"
   },
   "devDependencies": {
     "eslint": "^8.15.0",
-    "eslint-config-google": "^0.14.0",
-    "firebase-functions-test": "^3.1.0"
+    "eslint-config-google": "^0.14.0"
   },
   "private": true
 }

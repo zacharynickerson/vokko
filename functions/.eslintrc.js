@@ -8,6 +8,9 @@ module.exports = {
     "eslint:recommended",
     "plugin:react/recommended"
   ],
+  globals: {
+    process: "readonly",
+  },
   parserOptions: {
     ecmaVersion: 12,
     sourceType: "module",
@@ -16,6 +19,7 @@ module.exports = {
     "react"
   ],
   rules: {
+    "no-undef": "error",
   },
   settings: {
     react: {

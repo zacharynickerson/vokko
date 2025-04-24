@@ -52,7 +52,14 @@ export const getLocation = async () => {
   };
   
   // If you still want to display the date in a human-readable format in your UI:
-  export const formatDateForDisplay = (isoString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(isoString).toLocaleDateString(undefined, options);
+  export const formatDateForDisplay = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).replace(',', ' •');
   };

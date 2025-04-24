@@ -72,7 +72,7 @@ const CallLayout = ({
 
         <View style={styles.photoContainer}>
           <Image 
-            source={photo} 
+            source={typeof photo === 'string' ? { uri: photo } : photo} 
             style={styles.photo}
             defaultSource={require('../../assets/images/user-photo.png')}
           />

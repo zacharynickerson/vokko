@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { auth } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
 import useAuth from '../../hooks/useAuth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail, OAuthProvider } from 'firebase/auth';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { ref, update } from 'firebase/database';
 
 export default function LoginScreen() {
     const navigation = useNavigation();
@@ -27,7 +28,7 @@ export default function LoginScreen() {
         try {
             await signIn(email, password);
             console.log("User signed in successfully");
-            navigation.navigate('LibraryScreen');
+            navigation.navigate('Library', { screen: 'LibraryScreen' });
         } catch (err) {
             console.error("Login error:", err);
             Alert.alert('Login Error', err.message);
@@ -39,11 +40,18 @@ export default function LoginScreen() {
     const handleGoogleSignIn = async () => {
         try {
             await GoogleSignin.hasPlayServices();
-            const { idToken } = await GoogleSignin.signIn();
+            const { idToken, user } = await GoogleSignin.signIn();
             const googleCredential = GoogleAuthProvider.credential(idToken);
-            await signInWithCredential(auth, googleCredential);
+            const userCredential = await signInWithCredential(auth, googleCredential);
+            
+            // Update the user's profile in Firebase with their Google photo
+            const userRef = ref(db, `users/${userCredential.user.uid}`);
+            await update(userRef, {
+                photoURL: user.photo
+            });
+            
             console.log("User signed in successfully with Google");
-            navigation.navigate('LibraryScreen');
+            navigation.navigate('Library', { screen: 'LibraryScreen' });
         } catch (error) {
             console.error("Google Sign-In error:", error);
             Alert.alert('Google Sign-In Error', 'An error occurred during Google sign-in. Please try again.');
@@ -59,7 +67,7 @@ export default function LoginScreen() {
                 ],
             });
             console.log("User signed in successfully with Apple");
-            navigation.navigate('LibraryScreen');
+            navigation.navigate('Library', { screen: 'LibraryScreen' });
         } catch (e) {
             if (e.code === 'ERR_CANCELED') {
                 console.log('User cancelled Apple Sign-In');

@@ -19,6 +19,7 @@ import SoloSessionSetup from '../screens/SoloSessionSetup';
 import GuidedSessionCall from '../screens/GuidedSessionCall';
 import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ScheduledSessionsScreen from '../screens/ScheduledSessionsScreen';
+import GuidedSessionsScreen from '../screens/GuidedSessionsScreen';
 import * as Notifications from 'expo-notifications';
 
 const Tab = createBottomTabNavigator();
@@ -51,6 +52,8 @@ function HomeStack() {
             <Stack.Screen name="SoloSessionCall" component={RecordScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
             <Stack.Screen name="ScheduledSessions" component={ScheduledSessionsScreen} />
+            <Stack.Screen name="GuidedSessionsScreen" component={GuidedSessionsScreen} />
+            <Stack.Screen name="ExploreScreen" component={ExploreScreen} />
         </Stack.Navigator>
     );
 }
@@ -86,7 +89,6 @@ function TabNavigator() {
             {[
                 { name: "Home", component: HomeStack, icon: "home" },
                 { name: "Library", component: LibraryStack, icon: "list" },
-                { name: "Explore", component: ExploreStack, icon: "compass" },
                 { name: "Settings", component: SettingsScreen, icon: "user" },
             ].map(({ name, component, icon }) => (
                 <Tab.Screen
@@ -95,8 +97,18 @@ function TabNavigator() {
                     component={component}
                     options={{
                         tabBarIcon: ({ focused }) => (
-                            <View style={{ alignItems: "center", justifyContent: "center" }}>
-                                <Entypo name={icon} size={24} color={focused ? "#FFF" : "#8B8B8B"} />
+                            <View style={{ 
+                                alignItems: "center", 
+                                justifyContent: "center",
+                                backgroundColor: focused ? "#2A2D36" : "transparent",
+                                padding: 8,
+                                borderRadius: 8
+                            }}>
+                                <Entypo 
+                                    name={icon} 
+                                    size={24} 
+                                    color={focused ? "#FFF" : "#8B8B8B"} 
+                                />
                             </View>
                         ),
                     }}

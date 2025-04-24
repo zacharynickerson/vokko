@@ -27,7 +27,7 @@ export default function SignUpScreen() {
         setLoading(true);
         try {
             await signUp(email, password, name);
-            navigation.navigate('LibraryScreen');
+            navigation.navigate('Library', { screen: 'LibraryScreen' });
         } catch (err) {
             console.error("Signup error:", err);
             if (err.code === 'auth/email-already-in-use') {
@@ -50,10 +50,11 @@ export default function SignUpScreen() {
             await createUser(userCredential.user.uid, {
                 name: user.name,
                 email: user.email,
+                photoURL: user.photo
             });
             
             console.log("User signed up successfully with Google");
-            navigation.navigate('LibraryScreen');
+            navigation.navigate('Library', { screen: 'LibraryScreen' });
         } catch (error) {
             console.error("Google Sign-Up error:", error);
             showCustomAlert('Google Sign-Up Error', 'An error occurred during Google sign-up. Please try again.');
@@ -73,13 +74,18 @@ export default function SignUpScreen() {
             // Here you would typically send the credential to your server or use it to sign in to Firebase
             // For this example, we'll assume you have a function to handle Apple sign-in with Firebase
             const userCredential = await signInWithApple(credential);
+            
+            // Apple doesn't provide a profile photo, so we'll use a default avatar
+            const defaultPhotoURL = null; // We'll use the default photo in the UI
+            
             await createUser(userCredential.user.uid, {
                 name: credential.fullName.givenName + ' ' + credential.fullName.familyName,
                 email: credential.email,
+                photoURL: defaultPhotoURL
             });
             
             console.log("User signed up successfully with Apple");
-            navigation.navigate('LibraryScreen');
+            navigation.navigate('Library', { screen: 'LibraryScreen' });
         } catch (error) {
             if (error.code === 'ERR_CANCELED') {
                 console.log('User cancelled Apple Sign-In');

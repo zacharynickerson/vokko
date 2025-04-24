@@ -4,7 +4,7 @@ import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { auth, saveToFirebaseStorage, createVoiceNote, updateVoiceNote, functions, httpsCallable } from '../../config/firebase';
-
+import * as Location from 'expo-location';
 
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
@@ -15,6 +15,7 @@ import { increment } from 'firebase/database'; // Import increment from Firebase
 import { ref as dbRef, remove } from 'firebase/database';
 import { db } from '../../config/firebase'; // Ensure this path is correct
 import { CommonActions } from '@react-navigation/native'; // Ensure this is imported
+import { ref, get } from 'firebase/database';
 
 const CHUNK_DURATION = 60000; // 1 minute chunks
 const MAX_RECORDING_DURATION = 1200000; // 20 minutes
@@ -24,6 +25,8 @@ export default function SoloSessionCall() {
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
+  const [userProfile, setUserProfile] = useState(null);
+  const [userPhoto, setUserPhoto] = useState(null);
 
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   const [voiceNotes, setVoiceNotes] = useState([]);
@@ -34,6 +37,32 @@ export default function SoloSessionCall() {
   const timerRef = useRef(null);
   const voiceNoteIdRef = useRef(null);
   const chunkCountRef = useRef(0);
+
+  // Fetch user profile data including photo URL
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        if (auth.currentUser) {
+          const userRef = ref(db, `users/${auth.currentUser.uid}`);
+          const snapshot = await get(userRef);
+          
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
+            setUserProfile(userData);
+            
+            // Set the user's photo URL if available
+            if (userData.photoURL) {
+              setUserPhoto(userData.photoURL);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+    
+    fetchUserProfile();
+  }, []);
 
   useEffect(() => {
     // const loadVoiceNotes = async () => {
@@ -117,6 +146,18 @@ export default function SoloSessionCall() {
     try {
       console.log('Starting recording...');
       
+      // Get location before starting recording
+      let location = null;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          location = await Location.getCurrentPositionAsync({});
+          console.log('Location captured:', location);
+        }
+      } catch (error) {
+        console.log('Error getting location:', error);
+      }
+      
       // Ensure any existing recording is stopped and unloaded
       if (recordingRef.current) {
         console.log('Stopping and unloading existing recording');
@@ -142,6 +183,10 @@ export default function SoloSessionCall() {
         status: 'recording',
         totalDuration: 0,
         totalChunks: 0,
+        location: location ? {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        } : null
       });
       startChunkUpload();
     } catch (err) {
@@ -195,7 +240,7 @@ export default function SoloSessionCall() {
           url: downloadUrl
         },
         totalChunks: chunkCountRef.current + 1,
-        totalDuration: 1 // Use increment from Firebase client SDK
+        totalDuration: increment(duration)
       };
       
       await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, updates);
@@ -220,13 +265,28 @@ export default function SoloSessionCall() {
         recordingRef.current = null;
       }
       setRecording(null);
+      // Add processingStartedAt timestamp when setting status to processing
       await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
         status: 'processing',
+        processingStartedAt: new Date().toISOString(), 
       });
       // Navigate to LibraryScreen after stopping the recording
       navigation.navigate('Library', { screen: 'LibraryScreen' });
     } catch (error) {
       console.error('Error stopping recording:', error);
+      // If stopping fails, mark as error immediately
+      await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
+        status: 'error',
+        errorDetails: {
+          error: `Recording stop error: ${error.message}`,
+          timestamp: new Date().toISOString()
+        }
+      });
+      // Navigate to show the error in the library
+      navigation.navigate('Library', { 
+        screen: 'LibraryScreen', 
+        params: { refresh: true } 
+      });
     }
   }
 
@@ -378,9 +438,9 @@ export default function SoloSessionCall() {
     <View style={styles.container}>
       <CallLayout
         isGuidedSession={false}
-        userFirstName="Zachary" // Replace with actual user data
-        userLastName="Nickerson" // Replace with actual user data
-        userProfilePhoto="../../assets/images/user-photo.png" // Replace with actual user photo
+        userFirstName={userProfile?.name?.split(' ')[0] || "User"}
+        userLastName={userProfile?.name?.split(' ').slice(1).join(' ') || ""}
+        userProfilePhoto={userPhoto || require('../../assets/images/user-photo.png')}
         sessionTime={sessionTime}
       />
       
@@ -394,7 +454,10 @@ export default function SoloSessionCall() {
                 </Animated.View>
               )}
               <Pressable
-                style={styles.recordButton}
+                style={[
+                  styles.recordButton,
+                  { backgroundColor: recording ? '#FF3B30' : '#4CAF50' }
+                ]}
                 onPress={recording ? (isPaused ? resumeRecording : pauseRecording) : startRecording}
               >
                 {recording ? (
@@ -404,7 +467,7 @@ export default function SoloSessionCall() {
                     <Icon name="pause" size={30} color="white" />
                   )
                 ) : (
-                  <Icon name="call" size={30} color="white" /> // Changed from "mic" to "call"
+                  <Icon name="mic" size={30} color="white" />
                 )}
               </Pressable>
               {recording && (

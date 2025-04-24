@@ -101,11 +101,11 @@ const ScheduledSessionsScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scheduled Sessions</Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.title}>Upcoming Rambles</Text>
+        <View style={styles.placeholder} />
       </View>
 
       {sessions.length === 0 ? (
@@ -142,9 +142,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
-  headerTitle: {
+  backButton: {
+    padding: wp(2),
+  },
+  title: {
     fontSize: wp(5),
     fontWeight: 'bold',
+  },
+  placeholder: {
+    width: 24,
   },
   listContainer: {
     padding: wp(5),

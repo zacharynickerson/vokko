@@ -19,7 +19,16 @@ export default function useAuth() {
 
   const signUp = useCallback(async (email, password, name) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    await createUser(userCredential.user.uid, { email, name });
+    
+    // Get the user's photo URL from their auth profile
+    const photoURL = userCredential.user.photoURL || null;
+    
+    await createUser(userCredential.user.uid, { 
+      email, 
+      name,
+      photoURL // Save the photo URL to the user's profile
+    });
+    
     setUser(userCredential.user);
   }, []);
 

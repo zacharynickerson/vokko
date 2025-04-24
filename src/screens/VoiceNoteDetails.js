@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView } from 'react-native';
+import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView, Image, Clipboard } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth, db, updateVoiceNote } from '../../config/firebase';
 import { ref as dbRef, onValue, remove } from 'firebase/database';
@@ -9,20 +9,30 @@ import GuidedSessionItem from '../components/GuidedSessionItem';
 // import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
+import MapPreviewModal from '../components/MapPreviewModal';
+import PropTypes from 'prop-types';
+import { getStaticMapUrl } from '../config/maps';
 
 export default function VoiceNoteDetails({ route, navigation }) {
   const { voiceNote } = route.params;
-  const { id, type } = voiceNote;
+  const { id, type, location } = voiceNote;
 
   const [noteTitle, setNoteTitle] = useState('');
   const [formattedNote, setFormattedNote] = useState('');
   const [audioUri, setAudioUri] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [showMapPreview, setShowMapPreview] = useState(false);
   const playbackRef = useRef(null);
 
   const { width } = useWindowDimensions();
 
   const [isRetrying, setIsRetrying] = useState(false);
+  const [showCopyFeedback, setShowCopyFeedback] = useState(false);
+
+  const mapImageUrl = useMemo(() => {
+    if (!location) return null;
+    return getStaticMapUrl(location.latitude, location.longitude);
+  }, [location]);
 
   const formatNoteContent = (content) => {
     if (!content) return 'Note unavailable';
@@ -57,8 +67,6 @@ export default function VoiceNoteDetails({ route, navigation }) {
         setNoteTitle(data.title || 'Untitled Note');
         setFormattedNote(data.summary || 'Note unavailable');
         setAudioUri(data.audioUri || null);
-      } else {
-        Alert.alert('Error', 'Note not found.');
       }
     }, (error) => {
       console.error('Error fetching note details:', error);
@@ -87,16 +95,25 @@ export default function VoiceNoteDetails({ route, navigation }) {
             try {
               const userId = auth.currentUser.uid;
               const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
-              // For guided sessions, use the id directly as it's the timestamp key
-              // For solo sessions, use the voiceNoteId from the voiceNote object
-              const noteId = type === 'solo' ? voiceNote.voiceNoteId : id;
-              
-              const voiceNoteDbRef = dbRef(db, `/${path}/${userId}/${noteId}`);
+              const voiceNoteDbRef = dbRef(db, `/${path}/${userId}/${id}`);
               await remove(voiceNoteDbRef);
-              navigation.navigate('LibraryScreen', { refresh: true });
+              
+              // Show success message
+              Alert.alert(
+                "Success",
+                "Note deleted successfully",
+                [
+                  {
+                    text: "OK",
+                    onPress: () => {
+                      navigation.goBack();
+                    }
+                  }
+                ]
+              );
             } catch (error) {
-              console.error('Error deleting voice note:', error);
-              Alert.alert('Error', 'Failed to delete the voice note. Please try again.');
+              console.error('Error deleting note:', error);
+              Alert.alert('Error', 'Failed to delete note. Please try again.');
             }
           }
         }
@@ -111,21 +128,39 @@ export default function VoiceNoteDetails({ route, navigation }) {
   const formattedHtml = useMemo(() => formatNoteContent(formattedNote), [formattedNote]);
 
   const handleRetry = async () => {
+    if (isRetrying) return;
+    
     setIsRetrying(true);
-    console.log(`Retrying transcription for voice note ID: ${id}`);
-
+    console.log(`Attempting to retry processing for voice note ID: ${id}`);
+    
     try {
-      // Update the existing voice note's status to 'processing'
-      await updateVoiceNote(auth.currentUser.uid, id, { status: 'processing' });
-
-      // Optionally, refresh the data or update the UI
-      Alert.alert('Retry initiated', 'The transcription process has been retried.');
+      await updateVoiceNote(auth.currentUser.uid, id, {
+        status: 'processing',
+        lastRetry: new Date().toISOString()
+      });
+      
+      Alert.alert('Retry Initiated', 'The voice note processing has been restarted.');
     } catch (error) {
-      console.error('Error retrying transcription:', error);
-      Alert.alert('Error', 'Failed to retry transcription.');
+      console.error('Error retrying processing:', error);
+      Alert.alert('Error', 'Failed to retry processing. Please try again later.');
     } finally {
       setIsRetrying(false);
     }
+  };
+
+  const handleMapPress = () => {
+    if (location && mapImageUrl) {
+      setShowMapPreview(true);
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    const formattedDate = new Date(voiceNote.createdDate).toLocaleDateString();
+    const textToCopy = `${noteTitle}\n${formattedDate}\n\n${formattedNote.replace(/<[^>]*>/g, '')}`;
+    
+    Clipboard.setString(textToCopy);
+    setShowCopyFeedback(true);
+    setTimeout(() => setShowCopyFeedback(false), 800);
   };
 
   return (
@@ -163,7 +198,9 @@ export default function VoiceNoteDetails({ route, navigation }) {
             <SoloVoiceNoteItem
               item={voiceNote}
               onRetry={handleRetry}
+              onDelete={handleDelete}
               isLoading={isRetrying}
+              enableMapClick={true}
             />
           )}
         </View>
@@ -180,9 +217,22 @@ export default function VoiceNoteDetails({ route, navigation }) {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.editButton} onPress={() => console.log('Edit pressed')}>
-        <Ionicons name="create-outline" size={24} color="#4FBF67" />
+      <TouchableOpacity style={styles.editButton} onPress={handleCopyToClipboard}>
+        <MaterialCommunityIcons 
+          name={showCopyFeedback ? "check" : "content-copy"} 
+          size={24} 
+          color="#4FBF67" 
+        />
       </TouchableOpacity>
+
+      {location && (
+        <MapPreviewModal
+          visible={showMapPreview}
+          onClose={() => setShowMapPreview(false)}
+          location={location}
+          mapImageUrl={mapImageUrl}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -212,7 +262,7 @@ const styles = StyleSheet.create({
   },
   sessionItemContainer: {
     paddingHorizontal: 10,
-    marginBottom: -10,
+    marginBottom: 10,
   },
   divider: {
     height: 1,
@@ -296,5 +346,25 @@ const tagsStyles = {
     fontWeight: 'bold',
     color: '#4FBF67',
   },
+};
+
+VoiceNoteDetails.propTypes = {
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      voiceNote: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        type: PropTypes.string,
+        location: PropTypes.shape({
+          latitude: PropTypes.number,
+          longitude: PropTypes.number,
+        }),
+        createdDate: PropTypes.string.isRequired,
+      }).isRequired,
+    }).isRequired,
+  }).isRequired,
+  navigation: PropTypes.shape({
+    goBack: PropTypes.func.isRequired,
+    navigate: PropTypes.func.isRequired,
+  }).isRequired,
 };
 
