@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import ModuleCard from '../components/ModuleCard';
+import FirebaseImage from '../components/FirebaseImage';
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
@@ -36,7 +37,7 @@ export default function ExploreScreen() {
     {
       id: '1',
       guideName: 'Guide Carter',
-      guidePhoto: require('../../assets/images/bg-Avatar Male 2.png'),
+      guidePhoto: 'bg-Avatar Male 2.png',
       moduleName: 'Daily Standup',
       moduleDescription: 'Plan your day in 5 questions',
       backgroundColor: '#C52528', // Red
@@ -44,7 +45,7 @@ export default function ExploreScreen() {
     {
       id: '2',
       guideName: 'Guide Jaja',
-      guidePhoto: require('../../assets/images/bg-Avatar Female 6.png'),
+      guidePhoto: 'bg-Avatar Female 6.png',
       moduleName: 'Gratitude',
       moduleDescription: 'Start your day saying thanks',
       backgroundColor: '#D4AF37', // Gold
@@ -52,7 +53,7 @@ export default function ExploreScreen() {
     {
       id: '3',
       guideName: 'The Vanguard',
-      guidePhoto: require('../../assets/images/bg-Avatar Male 9.png'),
+      guidePhoto: 'bg-Avatar Male 9.png',
       moduleName: 'New Idea',
       moduleDescription: 'Develop a novel concept',
       backgroundColor: '#2E8B57', // Sea Green
@@ -60,7 +61,7 @@ export default function ExploreScreen() {
     {
       id: '4',
       guideName: 'PM Benji',
-      guidePhoto: require('../../assets/images/bg-Avatar Male 5.png'),
+      guidePhoto: 'bg-Avatar Male 5.png',
       moduleName: 'Product Requirements',
       moduleDescription: 'Talk our your PRD',
       backgroundColor: '#FF7F50', // Coral

@@ -8,6 +8,8 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail, OAuthProvider } from 'firebase/auth';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { ref, update } from 'firebase/database';
+import { FirebaseImage } from '../components/FirebaseImage';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function LoginScreen() {
     const navigation = useNavigation();
@@ -18,6 +20,7 @@ export default function LoginScreen() {
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
     const [showEmailLogin, setShowEmailLogin] = useState(false);
+    const theme = useTheme();
 
     useEffect(() => {
         AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
@@ -99,26 +102,44 @@ export default function LoginScreen() {
                     <Text style={styles.subtitle}>Welcome back, you've been missed!</Text>
                 </View>
 
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity style={[styles.button, { backgroundColor: '#E6F6FE' }]} onPress={handleGoogleSignIn}>
-                        <Image source={require('../../assets/images/google.png')} style={styles.buttonIcon} />
-                        <Text style={styles.buttonText}>Connect with Google</Text>
+                <View style={styles.socialButtonsContainer}>
+                    <TouchableOpacity
+                        style={[styles.socialButton, { backgroundColor: theme.colors.surface }]}
+                        onPress={handleGoogleSignIn}
+                    >
+                        <FirebaseImage
+                            source="ui/google.png"
+                            style={styles.socialIcon}
+                            resizeMode="contain"
+                        />
+                        <Text style={[styles.socialButtonText, { color: theme.colors.text }]}>
+                            Continue with Google
+                        </Text>
                     </TouchableOpacity>
 
                     {isAppleSignInAvailable && (
-                        <TouchableOpacity style={[styles.button, { backgroundColor: '#F3F8FE' }]} onPress={handleAppleSignIn}>
-                            <Image source={require('../../assets/images/apple-logo-transparent.png')} style={styles.buttonIcon} />
-                            <Text style={styles.buttonText}>Connect with Apple</Text>
+                        <TouchableOpacity
+                            style={[styles.socialButton, { backgroundColor: theme.colors.surface }]}
+                            onPress={handleAppleSignIn}
+                        >
+                            <FirebaseImage
+                                source="ui/apple-logo-transparent.png"
+                                style={styles.socialIcon}
+                                resizeMode="contain"
+                            />
+                            <Text style={[styles.socialButtonText, { color: theme.colors.text }]}>
+                                Continue with Apple
+                            </Text>
                         </TouchableOpacity>
                     )}
-
-                    <TouchableOpacity style={[styles.button, { backgroundColor: '#F9FAFA' }]} onPress={() => setShowEmailLogin(true)}>
-                        <View style={styles.emailIcon}>
-                            <Text style={styles.emailIconText}>✉️</Text>
-                        </View>
-                        <Text style={styles.buttonText}>Connect with Email</Text>
-                    </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity style={[styles.button, { backgroundColor: '#F9FAFA' }]} onPress={() => setShowEmailLogin(true)}>
+                    <View style={styles.emailIcon}>
+                        <Text style={styles.emailIconText}>✉️</Text>
+                    </View>
+                    <Text style={styles.buttonText}>Connect with Email</Text>
+                </TouchableOpacity>
 
                 {showEmailLogin && (
                     <View style={styles.emailLoginContainer}>
@@ -209,20 +230,27 @@ const styles = StyleSheet.create({
         fontSize: 20,
         color: '#666',
     },
-    buttonContainer: {
+    socialButtonsContainer: {
         marginHorizontal: 20,
     },
-    button: {
+    socialButton: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 15,
         borderRadius: 10,
         marginBottom: 15,
     },
-    buttonIcon: {
+    socialIcon: {
         width: 24,
         height: 24,
         marginRight: 10,
+    },
+    socialButtonText: {
+        fontFamily: 'DM Sans',
+        fontWeight: 'bold',
+        marginLeft: 10,
+        fontSize: 16,
+        color: '#333',
     },
     emailIcon: {
         width: 24,

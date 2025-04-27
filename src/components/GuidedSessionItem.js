@@ -1,35 +1,19 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { formatDateForDisplay } from '../utilities/helpers';
-
-// Define a mapping of guide IDs to their avatar images
-const guideAvatars = {
-  '1': require('../../assets/images/Avatar Female 1.png'),
-  '2': require('../../assets/images/Avatar Female 2.png'),
-  '3': require('../../assets/images/Avatar Female 3.png'),
-  '4': require('../../assets/images/Avatar Female 4.png'),
-  '5': require('../../assets/images/Avatar Female 5.png'),
-  '6': require('../../assets/images/Avatar Female 6.png'),
-  // Add more mappings as needed
-};
+import FirebaseImage from './FirebaseImage';
 
 const GuidedSessionItem = ({ item, onPress }) => {
-  // console.log('Guided Session Item:', item);
-
-  // Get the guide avatar from the mapping or use default
-  const guideAvatarPath = item.guideId ? 
-    guideAvatars[item.guideId] || require('../../assets/images/Avatar Male 15.png') : 
-    require('../../assets/images/Avatar Male 15.png');
-
   return (
     <TouchableOpacity 
       style={styles.container}
       onPress={onPress}
     >
       <View style={styles.imageContainer}>
-        <Image 
-          source={item.image ? { uri: item.image } : require('../../assets/images/default-note-image.png')} 
+        <FirebaseImage 
+          uiName={item.image ? undefined : 'default-note-image.png'}
           style={styles.image}
+          defaultImage={{ uri: item.image }}
         />
         <View style={styles.typeIndicator}>
           <Text style={styles.typeText}>Guided</Text>
@@ -43,9 +27,10 @@ const GuidedSessionItem = ({ item, onPress }) => {
       <View style={styles.divider} />
       
       <View style={styles.guideContainer}>
-        <Image 
-          source={guideAvatarPath}
+        <FirebaseImage 
+          avatarName={item.guideAvatar}
           style={styles.guideImage}
+          defaultImage={require('../../assets/images/user-photo.png')}
         />
         <Text style={styles.guideName}>{item.guideName}</Text>
         <Text style={styles.moduleSeparator}> | </Text>

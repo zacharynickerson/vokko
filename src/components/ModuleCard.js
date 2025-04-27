@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Ionicons } from '@expo/vector-icons';
 import LinearGradient from 'react-native-linear-gradient';
+import FirebaseImage from './FirebaseImage';
 
 const ModuleCard = ({ guideName, guidePhoto, moduleName, moduleDescription, backgroundColor, size = 'normal' }) => {
   const cardStyle = size === 'small' ? styles.smallCard : styles.normalCard;
@@ -18,7 +19,10 @@ const ModuleCard = ({ guideName, guidePhoto, moduleName, moduleDescription, back
         style={styles.gradient}
       />
       <View style={styles.foregroundContainer}>
-        <Image source={guidePhoto} style={styles.guidePhoto} />
+        <FirebaseImage 
+          avatarName={guidePhoto}
+          style={styles.guidePhoto} 
+        />
         <View style={styles.contentContainer}>
           <View style={styles.guidePill}>
             <Ionicons name="flash" size={textStyle.guideNameIcon.fontSize} color="#FFFFFF" />
