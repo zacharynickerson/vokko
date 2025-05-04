@@ -1,0 +1,156 @@
+{
+  "v": "5.5.7",
+  "fr": 30,
+  "ip": 0,
+  "op": 90,
+  "w": 200,
+  "h": 200,
+  "nm": "Voice to Text",
+  "ddd": 0,
+  "assets": [],
+  "layers": [
+    {
+      "ddd": 0,
+      "ind": 1,
+      "ty": 4,
+      "nm": "Microphone",
+      "sr": 1,
+      "ks": {
+        "o": { "a": 0, "k": 100 },
+        "r": { "a": 0, "k": 0 },
+        "p": { "a": 0, "k": [100, 100, 0] },
+        "a": { "a": 0, "k": [0, 0, 0] },
+        "s": { "a": 0, "k": [100, 100, 100] }
+      },
+      "ao": 0,
+      "shapes": [
+        {
+          "ty": "gr",
+          "it": [
+            {
+              "ty": "rc",
+              "d": 1,
+              "s": { "a": 0, "k": [40, 40] },
+              "p": { "a": 0, "k": [0, 0] },
+              "r": { "a": 0, "k": 0 },
+              "nm": "Microphone Base",
+              "mn": "ADBE Vector Shape - Rect",
+              "hd": false
+            },
+            {
+              "ty": "fl",
+              "c": { "a": 0, "k": [0.4, 0.4, 0.4, 1] },
+              "o": { "a": 0, "k": 100 },
+              "r": 1,
+              "nm": "Fill 1",
+              "mn": "ADBE Vector Graphic - Fill",
+              "hd": false
+            }
+          ],
+          "nm": "Microphone",
+          "np": 1,
+          "cix": 2,
+          "bm": 0,
+          "ix": 1,
+          "mn": "ADBE Vector Group",
+          "hd": false
+        }
+      ],
+      "ip": 0,
+      "op": 90,
+      "st": 0,
+      "bm": 0
+    },
+    {
+      "ddd": 0,
+      "ind": 2,
+      "ty": 4,
+      "nm": "Sound Waves",
+      "sr": 1,
+      "ks": {
+        "o": { "a": 0, "k": 100 },
+        "r": { "a": 0, "k": 0 },
+        "p": { "a": 0, "k": [100, 100, 0] },
+        "a": { "a": 0, "k": [0, 0, 0] },
+        "s": { "a": 0, "k": [100, 100, 100] }
+      },
+      "ao": 0,
+      "shapes": [
+        {
+          "ty": "gr",
+          "it": [
+            {
+              "ty": "rc",
+              "d": 1,
+              "s": { "a": 1, "k": [
+                { "i": { "x": [0.667], "y": [1] }, "o": { "x": [0.333], "y": [0] }, "t": 0, "s": [20, 20] },
+                { "t": 30, "s": [40, 40] },
+                { "t": 60, "s": [20, 20] }
+              ] },
+              "p": { "a": 0, "k": [0, 0] },
+              "r": { "a": 0, "k": 0 },
+              "nm": "Wave 1",
+              "mn": "ADBE Vector Shape - Rect",
+              "hd": false
+            },
+            {
+              "ty": "fl",
+              "c": { "a": 0, "k": [0.4, 0.4, 0.4, 0.5] },
+              "o": { "a": 0, "k": 100 },
+              "r": 1,
+              "nm": "Fill 1",
+              "mn": "ADBE Vector Graphic - Fill",
+              "hd": false
+            }
+          ],
+          "nm": "Wave 1",
+          "np": 1,
+          "cix": 2,
+          "bm": 0,
+          "ix": 1,
+          "mn": "ADBE Vector Group",
+          "hd": false
+        },
+        {
+          "ty": "gr",
+          "it": [
+            {
+              "ty": "rc",
+              "d": 1,
+              "s": { "a": 1, "k": [
+                { "i": { "x": [0.667], "y": [1] }, "o": { "x": [0.333], "y": [0] }, "t": 15, "s": [20, 20] },
+                { "t": 45, "s": [40, 40] },
+                { "t": 75, "s": [20, 20] }
+              ] },
+              "p": { "a": 0, "k": [0, 0] },
+              "r": { "a": 0, "k": 0 },
+              "nm": "Wave 2",
+              "mn": "ADBE Vector Shape - Rect",
+              "hd": false
+            },
+            {
+              "ty": "fl",
+              "c": { "a": 0, "k": [0.4, 0.4, 0.4, 0.3] },
+              "o": { "a": 0, "k": 100 },
+              "r": 1,
+              "nm": "Fill 1",
+              "mn": "ADBE Vector Graphic - Fill",
+              "hd": false
+            }
+          ],
+          "nm": "Wave 2",
+          "np": 1,
+          "cix": 2,
+          "bm": 0,
+          "ix": 2,
+          "mn": "ADBE Vector Group",
+          "hd": false
+        }
+      ],
+      "ip": 0,
+      "op": 90,
+      "st": 0,
+      "bm": 0
+    }
+  ]
+} 

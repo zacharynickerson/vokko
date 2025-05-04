@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="200" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Service icons -->
+  <circle cx="80" cy="100" r="30" fill="#10A37F"/>
+  <circle cx="200" cy="100" r="30" fill="#1A1A1A"/>
+  <circle cx="320" cy="100" r="30" fill="#000000"/>
+  
+  <!-- Connection lines -->
+  <line x1="110" y1="100" x2="170" y2="100" stroke="#4A4A4A" stroke-width="4"/>
+  <line x1="230" y1="100" x2="290" y2="100" stroke="#4A4A4A" stroke-width="4"/>
+  
+  <!-- Connection dots -->
+  <circle cx="140" cy="100" r="4" fill="#4A4A4A"/>
+  <circle cx="260" cy="100" r="4" fill="#4A4A4A"/>
+  
+  <!-- Service labels -->
+  <text x="80" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#4A4A4A">ChatGPT</text>
+  <text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#4A4A4A">Vokko</text>
+  <text x="320" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#4A4A4A">Notion</text>
+</svg> 

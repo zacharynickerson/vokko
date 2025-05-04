@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Entypo } from "@expo/vector-icons";
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -20,7 +20,10 @@ import GuidedSessionCall from '../screens/GuidedSessionCall';
 import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ScheduledSessionsScreen from '../screens/ScheduledSessionsScreen';
 import GuidedSessionsScreen from '../screens/GuidedSessionsScreen';
+import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import * as Notifications from 'expo-notifications';
+import { ref, get } from 'firebase/database';
+import { db } from '../../config/firebase';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -41,6 +44,12 @@ const screenOptions = {
 };
 
 const tabBarStyle = { backgroundColor: "#1B1D21" };
+
+// Create a context for sharing onboarding state
+export const OnboardingContext = React.createContext({
+  onboardingCompleted: false,
+  setOnboardingCompleted: () => {},
+});
 
 function HomeStack() {
     return (
@@ -138,9 +147,25 @@ function CallStackNavigator() {
 export default function AppNavigation() {
     const { user } = useAuth();
     const navigationRef = useRef();
+    const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
     useEffect(() => {
         if (!user) return;
+
+        // Check if user has completed onboarding
+        const checkOnboardingStatus = async () => {
+            try {
+                const userRef = ref(db, `users/${user.uid}`);
+                const snapshot = await get(userRef);
+                const userData = snapshot.val();
+                setOnboardingCompleted(userData?.onboardingCompleted || false);
+            } catch (error) {
+                console.error('Error checking onboarding status:', error);
+                setOnboardingCompleted(true); // Default to true on error
+            }
+        };
+
+        checkOnboardingStatus();
 
         // Set up notification handlers
         const notificationListener = Notifications.addNotificationReceivedListener(notification => {
@@ -151,7 +176,6 @@ export default function AppNavigation() {
             const sessionData = response.notification.request.content.data;
             
             if (navigationRef.current) {
-                // Navigate to IncomingCall screen when notification is tapped
                 navigationRef.current.navigate('CallStack', {
                     screen: 'IncomingCall',
                     params: { sessionData }
@@ -167,27 +191,35 @@ export default function AppNavigation() {
     }, [user]);
 
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {user ? (
-                <>
-                    <Stack.Screen name="App" component={TabNavigator} />
-                    <Stack.Screen 
-                        name="CallStack" 
-                        component={CallStackNavigator}
-                        options={{
-                            presentation: 'fullScreenModal',
-                            animation: 'slide_from_bottom'
-                        }}
-                    />
-                </>
-            ) : (
-                <>
-                    <Stack.Screen name="WelcomeScreen" component={WelcomeScreen} />
-                    <Stack.Screen name="LoginScreen" component={LoginScreen} />
-                    <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
-                    <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
-                </>
-            )}
-        </Stack.Navigator>
+        <OnboardingContext.Provider value={{ onboardingCompleted, setOnboardingCompleted }}>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+                {user ? (
+                    <>
+                        {!onboardingCompleted ? (
+                            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                        ) : (
+                            <>
+                                <Stack.Screen name="App" component={TabNavigator} />
+                                <Stack.Screen 
+                                    name="CallStack" 
+                                    component={CallStackNavigator}
+                                    options={{
+                                        presentation: 'fullScreenModal',
+                                        animation: 'slide_from_bottom'
+                                    }}
+                                />
+                            </>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <Stack.Screen name="WelcomeScreen" component={WelcomeScreen} />
+                        <Stack.Screen name="LoginScreen" component={LoginScreen} />
+                        <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
+                        <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
+                    </>
+                )}
+            </Stack.Navigator>
+        </OnboardingContext.Provider>
     );
 }
