@@ -43,7 +43,7 @@ const PermissionsSlide = ({ onNext }) => {
       <View style={styles.content}>
         <Text style={styles.title}>Enable Permissions</Text>
         <Text style={styles.subtitle}>
-          Ramble needs a few permissions to work properly
+          Rambull needs a few permissions to work properly
         </Text>
 
         <View style={styles.permissionItem}>
@@ -94,6 +94,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: wp(7),
@@ -128,6 +129,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: hp(2),
+    marginTop: 0,
   },
   enableButtonText: {
     color: 'white',

@@ -4,6 +4,7 @@ import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-nat
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import FirebaseImage from '../components/FirebaseImage';
 
 export default function SettingsScreen() {
     const navigation = useNavigation();
@@ -62,9 +63,10 @@ export default function SettingsScreen() {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.profileSection}>
-                    <Image
-                        source={require('../../assets/images/Avatar Male 1.png')}
+                    <FirebaseImage
+                        avatarName={user?.avatar}
                         style={styles.profileImage}
+                        defaultImage={require('/Users/zachary.nickerson/Desktop/vokko/assets/images/default-prof-pic.png')}
                     />
                     <Text style={styles.profileName}>{user?.displayName || 'Zachary Nickerson'}</Text>
                     <Text style={styles.profileEmail}>{user?.email || 'zacharynickerson96@gmail.com'}</Text>

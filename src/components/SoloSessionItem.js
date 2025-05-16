@@ -49,8 +49,8 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
 
   // Determine if the item should show actions (Retry/Delete)
   const showActions = hasError || isStuckProcessing;
-  // Determine if item is clickable (only completed notes)
-  const isClickable = isCompleted;
+  // Determine if item is clickable (any non-loading state)
+  const isClickable = !isProcessing && !isRecording;
   // Determine loading/disabled appearance
   const isLoadingStyle = isProcessing || isRecording;
 

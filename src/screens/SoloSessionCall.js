@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, SafeAreaView, Pressable, StyleSheet, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
@@ -24,6 +24,7 @@ export default function SoloSessionCall() {
   const [recording, setRecording] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [location, setLocation] = useState(null);
   const navigation = useNavigation();
   const [userProfile, setUserProfile] = useState(null);
   const [userPhoto, setUserPhoto] = useState(null);
@@ -37,6 +38,79 @@ export default function SoloSessionCall() {
   const timerRef = useRef(null);
   const voiceNoteIdRef = useRef(null);
   const chunkCountRef = useRef(0);
+  const locationUpdateTimeoutRef = useRef(null);
+  const lastLocationRef = useRef(null);
+  const mapUrlCacheRef = useRef(new Map());
+
+  // Memoize location update to prevent unnecessary re-renders
+  const updateLocation = useCallback(async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const newLocation = await Location.getCurrentPositionAsync({});
+        
+        // Only update if location has changed significantly (more than 10 meters)
+        if (!lastLocationRef.current || 
+            calculateDistance(
+              lastLocationRef.current.coords.latitude,
+              lastLocationRef.current.coords.longitude,
+              newLocation.coords.latitude,
+              newLocation.coords.longitude
+            ) > 10) {
+          lastLocationRef.current = newLocation;
+          setLocation(newLocation);
+        }
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+    }
+  }, []);
+
+  // Helper function to calculate distance between coordinates in meters
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+  }
+
+  // Cache map URLs to prevent unnecessary regeneration
+  function getMapUrl(latitude, longitude) {
+    const key = `${latitude},${longitude}`;
+    if (mapUrlCacheRef.current.has(key)) {
+      return mapUrlCacheRef.current.get(key);
+    }
+    
+    const url = `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${longitude},${latitude},14/400x200?access_token=${process.env.MAPBOX_TOKEN}`;
+    mapUrlCacheRef.current.set(key, url);
+    return url;
+  }
+
+  // Update location periodically while recording
+  useEffect(() => {
+    if (recording) {
+      // Initial location update
+      updateLocation();
+
+      // Set up periodic updates (every 10 seconds instead of 5)
+      locationUpdateTimeoutRef.current = setInterval(updateLocation, 10000);
+
+      return () => {
+        if (locationUpdateTimeoutRef.current) {
+          clearInterval(locationUpdateTimeoutRef.current);
+          locationUpdateTimeoutRef.current = null;
+        }
+      };
+    }
+  }, [recording, updateLocation]);
 
   // Fetch user profile data including photo URL
   useEffect(() => {
@@ -136,34 +210,20 @@ export default function SoloSessionCall() {
   });
 
   async function startRecording() {
+    if (recordingRef.current) {
+      console.log('Recording already in progress');
+      return;
+    }
+
+    try {
     // Check for audio recording permission
     const { status } = await Audio.requestPermissionsAsync();
     if (status !== 'granted') {
         Alert.alert('Permission required', 'You need to grant permission to use audio recording.');
-        return; // Exit the function if permission is not granted
+        return;
     }
 
-    try {
       console.log('Starting recording...');
-      
-      // Get location before starting recording
-      let location = null;
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          location = await Location.getCurrentPositionAsync({});
-          console.log('Location captured:', location);
-        }
-      } catch (error) {
-        console.log('Error getting location:', error);
-      }
-      
-      // Ensure any existing recording is stopped and unloaded
-      if (recordingRef.current) {
-        console.log('Stopping and unloading existing recording');
-        await recordingRef.current.stopAndUnloadAsync();
-        recordingRef.current = null;
-      }
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
@@ -174,11 +234,14 @@ export default function SoloSessionCall() {
       });
 
       console.log('Creating new recording');
-      const { recording } = await Audio.Recording.createAsync(
+      const { recording: newRecording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
-      recordingRef.current = recording;
-      setRecording(recording);
+      
+      recordingRef.current = newRecording;
+      setRecording(newRecording);
+      
+      // Create voice note entry in Firebase
       voiceNoteIdRef.current = await createVoiceNote(auth.currentUser.uid, {
         status: 'recording',
         totalDuration: 0,
@@ -188,24 +251,35 @@ export default function SoloSessionCall() {
           longitude: location.coords.longitude
         } : null
       });
+      
       startChunkUpload();
     } catch (err) {
       console.error('Failed to start recording', err);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
     }
   }
 
   function startChunkUpload() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
     timerRef.current = setInterval(async () => {
-      if (recordingRef.current) {
+      if (recordingRef.current && !isPaused) {
         await processChunk();
       }
     }, CHUNK_DURATION);
   }
 
   async function processChunk() {
+    if (!recordingRef.current) return;
+
     try {
       const uri = recordingRef.current.getURI();
       const status = await recordingRef.current.getStatusAsync();
+      
+      // Only process if we have actual audio data
+      if (status.durationMillis > 0) {
       await recordingRef.current.stopAndUnloadAsync();
 
       const base64Data = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
@@ -213,7 +287,10 @@ export default function SoloSessionCall() {
 
       if (status.durationMillis >= MAX_RECORDING_DURATION) {
         await stopRecording();
-      } else {
+          return;
+        }
+
+        // Start new recording segment
         const newRecording = new Audio.Recording();
         await newRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
         await newRecording.startAsync();
@@ -221,6 +298,16 @@ export default function SoloSessionCall() {
       }
     } catch (error) {
       console.error('Error processing chunk:', error);
+      // If there's an error, try to recover by starting a new recording segment
+      try {
+        const newRecording = new Audio.Recording();
+        await newRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        await newRecording.startAsync();
+        recordingRef.current = newRecording;
+      } catch (recoveryError) {
+        console.error('Failed to recover from chunk processing error:', recoveryError);
+        await stopRecording();
+      }
     }
   }
 
@@ -258,23 +345,50 @@ export default function SoloSessionCall() {
   async function stopRecording() {
     try {
       console.log('Stopping recording...');
+      
+      // Clear all timers
+      if (timerRef.current) {
       clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      if (locationUpdateTimeoutRef.current) {
+        clearInterval(locationUpdateTimeoutRef.current);
+        locationUpdateTimeoutRef.current = null;
+      }
+
+      // Process final chunk if recording exists
       if (recordingRef.current) {
-        await processChunk(); // Process the final chunk
-        await recordingRef.current.stopAndUnloadAsync();
+        await processChunk();
         recordingRef.current = null;
       }
+
+      // Update states
       setRecording(null);
-      // Add processingStartedAt timestamp when setting status to processing
+      setIsPaused(false);
+      
+      // Update Firebase status
+      if (voiceNoteIdRef.current) {
       await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
         status: 'processing',
         processingStartedAt: new Date().toISOString(), 
       });
-      // Navigate to LibraryScreen after stopping the recording
+      }
+
+      // Reset audio mode
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+
+      // Navigate to library
       navigation.navigate('Library', { screen: 'LibraryScreen' });
     } catch (error) {
       console.error('Error stopping recording:', error);
-      // If stopping fails, mark as error immediately
+      
+      // Update Firebase with error status
+      if (voiceNoteIdRef.current) {
       await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
         status: 'error',
         errorDetails: {
@@ -282,7 +396,9 @@ export default function SoloSessionCall() {
           timestamp: new Date().toISOString()
         }
       });
-      // Navigate to show the error in the library
+      }
+
+      // Navigate to library to show error
       navigation.navigate('Library', { 
         screen: 'LibraryScreen', 
         params: { refresh: true } 
@@ -311,44 +427,53 @@ export default function SoloSessionCall() {
       [
         {
           text: "No",
-          onPress: () => console.log("Cancel Pressed"),
           style: "cancel"
         },
         {
           text: "Yes",
           onPress: async () => {
+            try {
+              // Clear all timers
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+              }
+              
+              if (locationUpdateTimeoutRef.current) {
+                clearInterval(locationUpdateTimeoutRef.current);
+                locationUpdateTimeoutRef.current = null;
+              }
+
+              // Stop and unload recording
             if (recordingRef.current) {
-              console.log('Stopping and unloading recording');
               await recordingRef.current.stopAndUnloadAsync();
               recordingRef.current = null;
+              }
+
+              // Reset states
               setRecording(null);
               setIsPaused(false);
-            }
 
-            // Delete the session from the database
-            try {
+              // Delete from Firebase
+              if (voiceNoteIdRef.current) {
               const voiceNoteDbRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNoteIdRef.current}`);
               await remove(voiceNoteDbRef);
-              console.log('Session deleted successfully');
-            } catch (error) {
-              console.error('Error deleting session:', error);
             }
 
-            // Reset the audio mode
+              // Reset audio mode
             await Audio.setAudioModeAsync({
               allowsRecordingIOS: false,
               playsInSilentModeIOS: true,
               staysActiveInBackground: false,
             });
 
-            // Debugging: Log before navigation
             console.log('Attempting to navigate to Home');
-
-            // Simplified navigation logic
             navigation.navigate('Home');
-
-            // Debugging: Log after navigation
             console.log('Navigation dispatched');
+            } catch (error) {
+              console.error('Error canceling recording:', error);
+              Alert.alert('Error', 'Failed to cancel recording properly.');
+            }
           }
         }
       ],
@@ -442,6 +567,7 @@ export default function SoloSessionCall() {
         userLastName={userProfile?.name?.split(' ').slice(1).join(' ') || ""}
         userProfilePhoto={userPhoto || require('../../assets/images/user-photo.png')}
         sessionTime={sessionTime}
+        location={location?.coords}
       />
       
       <SafeAreaView style={styles.controlsContainer}>
@@ -480,7 +606,6 @@ export default function SoloSessionCall() {
             </View>
       </SafeAreaView>
     </View> 
-    
   );
 }
 

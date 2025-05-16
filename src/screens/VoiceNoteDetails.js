@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView, Image, Clipboard } from 'react-native';
+import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView, Image, Clipboard, Linking } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth, db, updateVoiceNote } from '../../config/firebase';
-import { ref as dbRef, onValue, remove } from 'firebase/database';
+import { ref as dbRef, onValue, remove, get, update } from 'firebase/database';
 import SoloVoiceNoteItem from '../components/SoloSessionItem';
 import GuidedSessionItem from '../components/GuidedSessionItem';
 // import { formatDateForDisplay } from '../utilities/helpers';
@@ -12,6 +12,9 @@ import { useWindowDimensions } from 'react-native';
 import MapPreviewModal from '../components/MapPreviewModal';
 import PropTypes from 'prop-types';
 import { getStaticMapUrl } from '../config/maps';
+import { sendToAI } from '../utils/integrations';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function VoiceNoteDetails({ route, navigation }) {
   const { voiceNote } = route.params;
@@ -163,6 +166,104 @@ export default function VoiceNoteDetails({ route, navigation }) {
     setTimeout(() => setShowCopyFeedback(false), 800);
   };
 
+  const handleSendToAI = async (aiService) => {
+    let deepLink, webUrl, appName;
+    if (aiService === 'chatgpt') {
+      deepLink = 'chatgpt://';
+      webUrl = 'https://chat.openai.com/';
+      appName = 'ChatGPT';
+    } else if (aiService === 'claude') {
+      deepLink = 'claude://';
+      webUrl = 'https://claude.ai/';
+      appName = 'Claude';
+    }
+
+    // Copy note text to clipboard
+    Clipboard.setString(formattedNote.replace(/<[^>]*>/g, ''));
+
+    try {
+      const supported = await Linking.canOpenURL(deepLink);
+      if (supported) {
+        await Linking.openURL(deepLink);
+        Alert.alert(
+          `${appName} Opened`,
+          'Your note text has been copied. Just paste it into the chat!'
+        );
+      } else {
+        await Linking.openURL(webUrl);
+        Alert.alert(
+          `${appName} Web Opened`,
+          'Your note text has been copied. Just paste it into the chat!'
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', `Could not open ${appName}. Your note text has been copied, so you can paste it manually.`);
+    }
+  };
+
+  WebBrowser.maybeCompleteAuthSession();
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: '793156853153-4b0ji8gmd0hdkpb6tv1nto1mmfl945e4.apps.googleusercontent.com',
+    iosClientId: '793156853153-168gt88b3jmk0di9k02v71fkmnaa0oaj.apps.googleusercontent.com',
+    androidClientId: '793156853153-1h9hm9i443ar5d1mn691k4beh033l8p2.apps.googleusercontent.com',
+    webClientId: '793156853153-4b0ji8gmd0hdkpb6tv1nto1mmfl945e4.apps.googleusercontent.com',
+    scopes: [
+      'profile',
+      'email',
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/documents'
+    ],
+  });
+
+  const handleSendToGoogleDocs = async () => {
+    const result = await promptAsync();
+    if (result.type === 'success') {
+      const accessToken = result.authentication.accessToken;
+      try {
+        // 1. Create the document
+        const createRes = await fetch('https://docs.googleapis.com/v1/documents', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: noteTitle || 'New Note from App',
+          }),
+        });
+        const doc = await createRes.json();
+
+        // 2. Insert the note text
+        await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requests: [
+              {
+                insertText: {
+                  location: { index: 1 },
+                  text: formattedNote.replace(/<[^>]*>/g, ''),
+                },
+              },
+            ],
+          }),
+        });
+
+        // 3. Open the doc in browser
+        const docUrl = `https://docs.google.com/document/d/${doc.documentId}/edit`;
+        Linking.openURL(docUrl);
+      } catch (err) {
+        Alert.alert('Error', 'Failed to create Google Doc.');
+      }
+    } else {
+      Alert.alert('Error', 'Google authentication failed or was cancelled.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
@@ -182,10 +283,18 @@ export default function VoiceNoteDetails({ route, navigation }) {
 
         {showOptions && (
           <View style={styles.optionsMenu}>
+            <TouchableOpacity style={styles.optionItem} onPress={() => handleSendToAI('chatgpt')}>
+              <Text style={styles.optionText}>Send to ChatGPT</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.optionItem} onPress={() => handleSendToAI('claude')}>
+              <Text style={styles.optionText}>Send to Claude</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.optionItem} onPress={handleDelete}>
               <Text style={styles.optionText}>Delete Note</Text>
             </TouchableOpacity>
-            {/* Add more options here if needed */}
+            <TouchableOpacity style={styles.optionItem} onPress={handleSendToGoogleDocs}>
+              <Text style={styles.optionText}>Send to Google Docs</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -300,7 +409,7 @@ const styles = StyleSheet.create({
     top: '100%',
     right: 10,
     backgroundColor: 'white',
-    borderRadius: 5,
+    borderRadius: 8,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -310,12 +419,16 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
     zIndex: 1000,
+    minWidth: 200,
   },
   optionItem: {
-    padding: 10,
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   optionText: {
     fontSize: 16,
+    color: '#2C2E33',
   },
   tagsStyles: {
     strong: {

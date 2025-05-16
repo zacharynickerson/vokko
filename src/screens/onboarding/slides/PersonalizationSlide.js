@@ -15,11 +15,10 @@ import { ref, set } from 'firebase/database';
 const { width } = Dimensions.get('window');
 
 const PersonalizationSlide = ({ onNext, onPreferencesChange }) => {
-  const [usageTime, setUsageTime] = useState('');
+  const [usageTimes, setUsageTimes] = useState([]);
   const [topics, setTopics] = useState([]);
-  const [integrations, setIntegrations] = useState([]);
 
-  const usageTimes = [
+  const usageTimeOptions = [
     'Morning commute',
     'Midday walk',
     'Meetings',
@@ -37,11 +36,16 @@ const PersonalizationSlide = ({ onNext, onPreferencesChange }) => {
     'Other',
   ];
 
-  const integrationOptions = [
-    'ChatGPT',
-    'Claude',
-    'Notion',
-  ];
+  const handleUsageTimeToggle = (time) => {
+    let newTimes;
+    if (usageTimes.includes(time)) {
+      newTimes = usageTimes.filter(t => t !== time);
+    } else {
+      newTimes = [...usageTimes, time];
+    }
+    setUsageTimes(newTimes);
+    updatePreferences({ usageTimes: newTimes });
+  };
 
   const handleTopicToggle = (topic) => {
     let newTopics;
@@ -54,23 +58,11 @@ const PersonalizationSlide = ({ onNext, onPreferencesChange }) => {
     updatePreferences({ topics: newTopics });
   };
 
-  const handleIntegrationToggle = (integration) => {
-    let newIntegrations;
-    if (integrations.includes(integration)) {
-      newIntegrations = integrations.filter(i => i !== integration);
-    } else {
-      newIntegrations = [...integrations, integration];
-    }
-    setIntegrations(newIntegrations);
-    updatePreferences({ integrations: newIntegrations });
-  };
-
   const updatePreferences = (newPreferences) => {
     if (onPreferencesChange) {
       onPreferencesChange({
-        usageTime,
+        usageTimes,
         topics,
-        integrations,
         ...newPreferences
       });
     }
@@ -78,11 +70,9 @@ const PersonalizationSlide = ({ onNext, onPreferencesChange }) => {
 
   const handleGetStarted = async () => {
     try {
-      // Call onNext to proceed to the next screen
       onNext();
     } catch (error) {
       console.error('Error saving preferences:', error);
-      // Still proceed to next screen even if saving preferences fails
       onNext();
     }
   };
@@ -91,26 +81,26 @@ const PersonalizationSlide = ({ onNext, onPreferencesChange }) => {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          <Text style={styles.title}>Make Ramble Work for You</Text>
+          <Text style={styles.title}>Make Rambull Work for You</Text>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              When do you plan to use Ramble the most?
+              When do you plan to use Rambull?
             </Text>
             <View style={styles.optionsContainer}>
-              {usageTimes.map((time) => (
+              {usageTimeOptions.map((time) => (
                 <TouchableOpacity
                   key={time}
                   style={[
                     styles.optionButton,
-                    usageTime === time && styles.selectedOption,
+                    usageTimes.includes(time) && styles.selectedOption,
                   ]}
-                  onPress={() => setUsageTime(time)}
+                  onPress={() => handleUsageTimeToggle(time)}
                 >
                   <Text
                     style={[
                       styles.optionText,
-                      usageTime === time && styles.selectedOptionText,
+                      usageTimes.includes(time) && styles.selectedOptionText,
                     ]}
                   >
                     {time}
@@ -141,33 +131,6 @@ const PersonalizationSlide = ({ onNext, onPreferencesChange }) => {
                     ]}
                   >
                     {topic}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Which tools would you like to integrate with?
-            </Text>
-            <View style={styles.optionsContainer}>
-              {integrationOptions.map((integration) => (
-                <TouchableOpacity
-                  key={integration}
-                  style={[
-                    styles.optionButton,
-                    integrations.includes(integration) && styles.selectedOption,
-                  ]}
-                  onPress={() => handleIntegrationToggle(integration)}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      integrations.includes(integration) && styles.selectedOptionText,
-                    ]}
-                  >
-                    {integration}
                   </Text>
                 </TouchableOpacity>
               ))}

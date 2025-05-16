@@ -24,6 +24,7 @@ import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import * as Notifications from 'expo-notifications';
 import { ref, get } from 'firebase/database';
 import { db } from '../../config/firebase';
+import { OnboardingContext } from '../context/OnboardingContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -44,12 +45,6 @@ const screenOptions = {
 };
 
 const tabBarStyle = { backgroundColor: "#1B1D21" };
-
-// Create a context for sharing onboarding state
-export const OnboardingContext = React.createContext({
-  onboardingCompleted: false,
-  setOnboardingCompleted: () => {},
-});
 
 function HomeStack() {
     return (

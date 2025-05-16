@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  Image,
 } from 'react-native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,40 +14,25 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 
 const WelcomeSlide = ({ onNext }) => {
-  const pulseAnim = React.useRef(new Animated.Value(1)).current;
-
-  React.useEffect(() => {
-    const pulse = Animated.sequence([
-      Animated.timing(pulseAnim, {
-        toValue: 1.2,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-    ]);
-
-    Animated.loop(pulse).start();
-  }, []);
-
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Your Pocket Scribe</Text>
-        <Text style={styles.subtitle}>
-          Transform spoken thoughts into structured notes
-        </Text>
-        <Text style={styles.description}>
-          Record your thoughts while walking or commuting, and Ramble will organize them for you
+        <Image
+          source={require('/Users/zachary.nickerson/Desktop/vokko/assets/images/rambull-logo-black.png')}
+          style={styles.logoImage}
+        />
+        {/* <Text style={[styles.title, { color: '#4FBF67' }]}>Your Pocket Scribe</Text> */}
+        <Text style={styles.slogan}>
+          Capture your thoughts on the go and let Rambull turn them into organized notes.
         </Text>
         
         <View style={styles.animationContainer}>
-          <Animated.View style={[styles.micIcon, { transform: [{ scale: pulseAnim }] }]}>
-            <Ionicons name="mic" size={80} color="#4FBF67" />
-          </Animated.View>
+          <View style={styles.micIcon}>
+            <Image
+              source={require('/Users/zachary.nickerson/Desktop/vokko/assets/images/rambull-mascot.png')}
+              style={{ width: 260, height: 260, resizeMode: 'contain' }}
+            />
+          </View>
         </View>
       </View>
 
@@ -69,6 +55,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  logoImage: {
+    width: 220,
+    height: 60,
+    resizeMode: 'contain',
+    marginBottom: hp(1.5),
+    marginTop: hp(2),
+    alignSelf: 'center',
+  },
   title: {
     fontSize: wp(8),
     fontWeight: 'bold',
@@ -76,18 +70,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: hp(2),
   },
-  subtitle: {
-    fontSize: wp(5),
-    color: '#1B1D21',
-    textAlign: 'center',
-    marginBottom: hp(2),
-  },
-  description: {
-    fontSize: wp(4),
+  slogan: {
+    fontSize: wp(4.5),
     color: '#666',
     textAlign: 'center',
     marginBottom: hp(4),
     paddingHorizontal: wp(5),
+    lineHeight: hp(3),
   },
   animationContainer: {
     width: '100%',

@@ -8,18 +8,24 @@ import {
   Animated,
   SafeAreaView,
   Alert,
+  FlatList,
+  Image,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { Ionicons } from '@expo/vector-icons';
 import { ref, update } from 'firebase/database';
-import { db, auth } from '../../../config/firebase';
-import { OnboardingContext } from '../../navigation/appNavigation';
+import { db } from '../../../config/firebase';
+import { OnboardingContext } from '../../context/OnboardingContext';
+import { useAuth } from '../../../hooks/useAuth';
+import { requestNotificationPermissions } from '../../utils/permissions';
+import { auth } from '../../../config/firebase';
 
 // Import slides
 import WelcomeSlide from './slides/WelcomeSlide';
-import HowItWorksSlide from './slides/HowItWorksSlide';
+import HowItWorksSlide from './slides/HowItWorksSlide'; 
 import IntegrationsSlide from './slides/IntegrationsSlide';
 import PermissionsSlide from './slides/PermissionsSlide';
 import PersonalizationSlide from './slides/PersonalizationSlide';
@@ -37,8 +43,8 @@ const OnboardingScreen = () => {
   const slides = [
     { component: WelcomeSlide },
     { component: HowItWorksSlide },
-    { component: IntegrationsSlide },
     { component: PermissionsSlide },
+    { component: IntegrationsSlide },
     { component: PersonalizationSlide, props: { onPreferencesChange: setPreferences } },
   ];
 
@@ -128,12 +134,7 @@ const OnboardingScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#4FBF67', '#FFFFFF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.2 }}
-        style={styles.gradient}
-      >
+      <View style={styles.container}>
         <Animated.FlatList
           ref={slidesRef}
           data={slides}
@@ -158,13 +159,8 @@ const OnboardingScreen = () => {
 
         <View style={styles.footer}>
           {renderDots()}
-          {currentSlide >= 3 && (
-            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-              <Text style={styles.skipButtonText}>Skip</Text>
-            </TouchableOpacity>
-          )}
         </View>
-      </LinearGradient>
+      </View>
     </SafeAreaView>
   );
 };
@@ -173,9 +169,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  gradient: {
-    flex: 1,
   },
   footer: {
     flexDirection: 'row',
@@ -194,7 +187,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#4FBF67',
     marginHorizontal: 4,
   },
-  skipButton: {
+  skipButtonAbsolute: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
     padding: 10,
   },
   skipButtonText: {

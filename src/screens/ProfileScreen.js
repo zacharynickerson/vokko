@@ -7,9 +7,9 @@ import { FirebaseImage } from '../components/FirebaseImage';
 
       <View style={styles.avatarContainer}>
         <FirebaseImage
-          source={user?.avatar || 'avatars/male/user-photo.png'}
+          avatarName={user?.avatar}
           style={styles.avatar}
-          resizeMode="cover"
+          defaultImage={require('/Users/zachary.nickerson/Desktop/vokko/assets/images/default-prof-pic.png')}
         />
         <TouchableOpacity
           style={[styles.editButton, { backgroundColor: theme.colors.primary }]}
@@ -17,4 +17,4 @@ import { FirebaseImage } from '../components/FirebaseImage';
         >
           <Ionicons name="pencil" size={16} color="#fff" />
         </TouchableOpacity>
-      </View> 
+      </View>

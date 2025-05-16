@@ -263,7 +263,7 @@ export default function LibraryScreen({ navigation }) {
     if (item.type === 'solo') {
       const isLoading = item.status === 'recording' || item.status === 'processing';
       const onPress = () => {
-        if (item.status === 'completed') {
+        if (!isLoading) {
           navigation.navigate('VoiceNoteDetails', { voiceNote: item });
         }
       };

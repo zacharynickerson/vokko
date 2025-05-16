@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../../config/firebase';
 import useAuth from '../../hooks/useAuth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail, OAuthProvider } from 'firebase/auth';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import { ref, update } from 'firebase/database';
 
 export default function LoginScreen() {
     const navigation = useNavigation();
@@ -16,12 +14,8 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [passwordVisible, setPasswordVisible] = useState(false);
-    const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
+    const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [showEmailLogin, setShowEmailLogin] = useState(false);
-
-    useEffect(() => {
-        AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
-    }, []);
 
     const handleSubmit = async () => {
         setLoading(true);
@@ -53,28 +47,11 @@ export default function LoginScreen() {
             console.log("User signed in successfully with Google");
             navigation.navigate('Library', { screen: 'LibraryScreen' });
         } catch (error) {
+            if (error.code === statusCodes.SIGN_IN_CANCELLED || error.message?.includes('canceled') || error.message?.includes('cancelled')) {
+                return;
+            }
             console.error("Google Sign-In error:", error);
             Alert.alert('Google Sign-In Error', 'An error occurred during Google sign-in. Please try again.');
-        }
-    };
-
-    const handleAppleSignIn = async () => {
-        try {
-            const credential = await AppleAuthentication.signInAsync({
-                requestedScopes: [
-                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
-                ],
-            });
-            console.log("User signed in successfully with Apple");
-            navigation.navigate('Library', { screen: 'LibraryScreen' });
-        } catch (e) {
-            if (e.code === 'ERR_CANCELED') {
-                console.log('User cancelled Apple Sign-In');
-            } else {
-                console.error('Error during Apple Sign-In:', e);
-                Alert.alert('Apple Sign-In Error', 'An error occurred during Apple sign-in. Please try again.');
-            }
         }
     };
 
@@ -93,92 +70,111 @@ export default function LoginScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.content}>
-                <View style={styles.headerContainer}>
-                    <Text style={styles.title}>Let's Log You In</Text>
-                    <Text style={styles.subtitle}>Welcome back, you've been missed!</Text>
-                </View>
-
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity style={[styles.button, { backgroundColor: '#E6F6FE' }]} onPress={handleGoogleSignIn}>
-                        <Image source={require('../../assets/images/google.png')} style={styles.buttonIcon} />
-                        <Text style={styles.buttonText}>Connect with Google</Text>
-                    </TouchableOpacity>
-
-                    {isAppleSignInAvailable && (
-                        <TouchableOpacity style={[styles.button, { backgroundColor: '#F3F8FE' }]} onPress={handleAppleSignIn}>
-                            <Image source={require('../../assets/images/apple-logo-transparent.png')} style={styles.buttonIcon} />
-                            <Text style={styles.buttonText}>Connect with Apple</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity style={[styles.button, { backgroundColor: '#F9FAFA' }]} onPress={() => setShowEmailLogin(true)}>
-                        <View style={styles.emailIcon}>
-                            <Text style={styles.emailIconText}>✉️</Text>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+                <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+                    <View style={styles.content}>
+                        <View style={styles.headerContainer}>
+                            <Text style={styles.title}>Let's Log You In</Text>
+                            <Text style={styles.subtitle}>Welcome back, you've been missed!</Text>
                         </View>
-                        <Text style={styles.buttonText}>Connect with Email</Text>
-                    </TouchableOpacity>
-                </View>
 
-                {showEmailLogin && (
-                    <View style={styles.emailLoginContainer}>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Email Address</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="hannah.turin@email.com"
-                                placeholderTextColor="#999"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                            />
+                        <View style={styles.buttonContainer}>
+                            {/* Entry: Google + Show more options */}
+                            {!showMoreOptions && !showEmailLogin && (
+                                <>
+                                    <TouchableOpacity style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
+                                        <Image source={require('../../assets/images/google.png')} style={styles.buttonIcon} />
+                                        <Text style={styles.buttonText}>Connect with Google</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.button, { backgroundColor: '#F3F8FE' }]} onPress={() => setShowMoreOptions(true)}>
+                                        <Text style={styles.buttonText}>Show more options</Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                            {/* More options: Google + Email */}
+                            {(showMoreOptions || showEmailLogin) && (
+                                <>
+                                    <TouchableOpacity style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
+                                        <Image source={require('../../assets/images/google.png')} style={styles.buttonIcon} />
+                                        <Text style={styles.buttonText}>Connect with Google</Text>
+                                    </TouchableOpacity>
+                                    {!showEmailLogin && (
+                                        <TouchableOpacity style={[styles.button, { backgroundColor: '#F9FAFA' }]} onPress={() => setShowEmailLogin(true)}>
+                                            <View style={styles.emailIcon}>
+                                                <Text style={styles.emailIconText}>✉️</Text>
+                                            </View>
+                                            <Text style={styles.buttonText}>Connect with Email</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </>
+                            )}
                         </View>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Password</Text>
-                            <View style={styles.passwordInputContainer}>
-                                <TextInput
-                                    style={styles.passwordInput}
-                                    placeholder="••••••"
-                                    placeholderTextColor="#999"
-                                    secureTextEntry={!passwordVisible}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                />
+
+                        {showEmailLogin && (
+                            <View style={styles.emailLoginContainer}>
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.inputLabel}>Email Address</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="hannah.turin@email.com"
+                                        placeholderTextColor="#999"
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        keyboardType="email-address"
+                                    />
+                                </View>
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.inputLabel}>Password</Text>
+                                    <View style={styles.passwordInputContainer}>
+                                        <TextInput
+                                            style={styles.passwordInput}
+                                            placeholder="••••••"
+                                            placeholderTextColor="#999"
+                                            secureTextEntry={!passwordVisible}
+                                            value={password}
+                                            onChangeText={setPassword}
+                                        />
+                                        <TouchableOpacity 
+                                            onPress={() => setPasswordVisible(!passwordVisible)}
+                                            style={styles.passwordVisibilityButton}
+                                        >
+                                            <Text style={styles.showButtonText}>
+                                                {passwordVisible ? 'Hide' : 'Show'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <View style={styles.rememberForgotContainer}>
+                                    <TouchableOpacity onPress={navigateToForgotPassword}>
+                                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                    </TouchableOpacity>
+                                </View>
                                 <TouchableOpacity 
-                                    onPress={() => setPasswordVisible(!passwordVisible)}
-                                    style={styles.passwordVisibilityButton}
+                                    style={[styles.button, styles.loginButton]} 
+                                    onPress={handleSubmit}
+                                    disabled={loading}
                                 >
-                                    <Text style={styles.showButtonText}>
-                                        {passwordVisible ? 'Hide' : 'Show'}
-                                    </Text>
+                                    {loading ? (
+                                        <ActivityIndicator color="#FFF" />
+                                    ) : (
+                                        <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
+                                    )}
                                 </TouchableOpacity>
                             </View>
-                        </View>
-                        <View style={styles.rememberForgotContainer}>
-                            <TouchableOpacity onPress={navigateToForgotPassword}>
-                                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <TouchableOpacity 
-                            style={[styles.button, styles.loginButton]} 
-                            onPress={handleSubmit}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="#FFF" />
-                            ) : (
-                                <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
-                            )}
-                        </TouchableOpacity>
+                        )}
                     </View>
-                )}
-            </View>
-            <View style={styles.signUpPromptContainer}>
-                <Text style={styles.signUpPromptText}>Don't have an account? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('SignUpScreen')}>
-                    <Text style={styles.signUpLink}>Sign Up</Text>
-                </TouchableOpacity>
-            </View>
+                </ScrollView>
+                <View style={styles.signUpPromptContainer}>
+                    <Text style={styles.signUpPromptText}>Don't have an account? </Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('SignUpScreen')}>
+                        <Text style={styles.signUpLink}>Sign Up</Text>
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -316,10 +312,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     signUpPromptContainer: {
-        position: 'absolute',
-        bottom: 20,
-        left: 0,
-        right: 0,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
@@ -332,6 +324,17 @@ const styles = StyleSheet.create({
     signUpLink: {
         fontFamily: 'DM Sans',
         color: '#4FBF67',
+        fontWeight: 'bold',
+    },
+    googleButton: {
+        backgroundColor: '#E6F6FE',
+    },
+    moreOptionsButton: {
+        backgroundColor: '#F9FAFA',
+    },
+    moreOptionsText: {
+        fontFamily: 'DM Sans',
+        color: '#333',
         fontWeight: 'bold',
     },
 });

@@ -15,14 +15,14 @@ const HowItWorksSlide = ({ onNext }) => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Best Experience with Headphones</Text>
+        <Text style={styles.title}>Works Best With Headphones</Text>
         <Text style={styles.description}>
-          Ramble works best while on the move. Put in your headphones, start walking, and let your thoughts flow naturally. Ramble will handle the organizing and structuring of your ideas.
+          Put in your headphones, start walking, and let your thoughts flow naturally. Rambull handles the structuring of your ideas.
         </Text>
         
         <View style={styles.imageContainer}>
           <Image
-            source={require('../../../assets/images/walking-with-headphones.png')}
+            source={require('/Users/zachary.nickerson/Desktop/vokko/assets/images/rambull-mascot-headphones.png')}
             style={styles.image}
             resizeMode="contain"
           />
@@ -55,7 +55,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: hp(2),
   },
-  description: {
+  subheader: {
+    fontSize: wp(5),
+    color: '#1B1D21',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: hp(1.5),
+  },
+  supporting: {
     fontSize: wp(4),
     color: '#666',
     textAlign: 'center',
@@ -85,6 +92,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: wp(4.5),
     fontWeight: 'bold',
+  },
+  description: {
+    fontSize: wp(4),
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: hp(4),
+    paddingHorizontal: wp(5),
+    lineHeight: hp(3),
   },
 });
 

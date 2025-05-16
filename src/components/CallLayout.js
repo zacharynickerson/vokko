@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Svg, Path } from 'react-native-svg';
@@ -13,11 +13,18 @@ const CallLayout = ({
   guidePhoto, 
   userProfilePhoto,
   sessionTime,
-  gradientColor
+  gradientColor,
+  location
 }) => {
   const name = isGuidedSession ? guideName : `${userFirstName} ${userLastName}`;
   const sessionType = isGuidedSession ? moduleName : "Solo Session";
   const photo = isGuidedSession ? guidePhoto : userProfilePhoto;
+
+  // Memoize map URL generation
+  const mapUrl = useMemo(() => {
+    if (!location) return null;
+    return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${location.longitude},${location.latitude},14/400x200?access_token=${process.env.MAPBOX_TOKEN}`;
+  }, [location?.latitude, location?.longitude]);
 
   const Star = () => (
     <Svg width={wp(8)} height={wp(8)} viewBox="0 0 24 24" fill="white">
@@ -82,6 +89,16 @@ const CallLayout = ({
 
         <Text style={styles.timer}>{sessionTime} / 10:00</Text>
       </View>
+
+      {location && mapUrl && (
+        <View style={styles.mapContainer}>
+          <Image
+            source={{ uri: mapUrl }}
+            style={styles.mapImage}
+            resizeMode="cover"
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -139,6 +156,15 @@ const styles = StyleSheet.create({
   backgroundLines: {
     transform: [{ rotate: '30deg' }],
     position: 'absolute',
+  },
+  mapContainer: {
+    marginTop: hp(4),
+    height: hp(25),
+    width: '100%',
+  },
+  mapImage: {
+    width: '100%',
+    height: '100%',
   },
 });
 
