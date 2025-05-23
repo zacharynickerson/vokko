@@ -21,6 +21,7 @@ import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ScheduledSessionsScreen from '../screens/ScheduledSessionsScreen';
 import GuidedSessionsScreen from '../screens/GuidedSessionsScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
+import RamblingsScreen from '../screens/RamblingsScreen';
 import * as Notifications from 'expo-notifications';
 import { ref, get } from 'firebase/database';
 import { db } from '../../config/firebase';
@@ -50,6 +51,7 @@ function HomeStack() {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
+            <Stack.Screen name="RamblingsScreen" component={RamblingsScreen} />
             <Stack.Screen name="VoiceNoteDetails" component={VoiceNoteDetails} />
             <Stack.Screen name="GuidedSession" component={GuidedSession} />
             <Stack.Screen name="SoloSessionSetup" component={SoloSessionSetup} />

@@ -194,6 +194,8 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   touchableContainer: {
     backgroundColor: 'white',

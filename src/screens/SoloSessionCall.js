@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { auth, saveToFirebaseStorage, createVoiceNote, updateVoiceNote, functions, httpsCallable } from '../../config/firebase';
 import * as Location from 'expo-location';
+import FirebaseImage from '../components/FirebaseImage';
 
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
@@ -565,43 +566,58 @@ export default function SoloSessionCall() {
         isGuidedSession={false}
         userFirstName={userProfile?.name?.split(' ')[0] || "User"}
         userLastName={userProfile?.name?.split(' ').slice(1).join(' ') || ""}
-        userProfilePhoto={userPhoto || require('../../assets/images/user-photo.png')}
+        userProfilePhoto={
+          <FirebaseImage
+            avatarName={auth.currentUser?.avatar}
+            style={styles.profileImage}
+            defaultImage={require('../../assets/images/default-prof-pic.png')}
+          />
+        }
         sessionTime={sessionTime}
         location={location?.coords}
       />
       
       <SafeAreaView style={styles.controlsContainer}>
             <View style={styles.buttonContainer}>
-              {recording && (
-                <Animated.View style={[styles.controlButton, { left: wp(10) }, animatedButtonStyle]}>
-                  <Pressable onPress={cancelRecording}>
+              {!recording ? (
+                <>
+                  <Pressable
+                    style={[styles.controlButton, styles.cancelButton]}
+                    onPress={() => navigation.goBack()}
+                  >
                     <Icon name="close" size={30} color="white" />
                   </Pressable>
-                </Animated.View>
-              )}
-              <Pressable
-                style={[
-                  styles.recordButton,
-                  { backgroundColor: recording ? '#FF3B30' : '#4CAF50' }
-                ]}
-                onPress={recording ? (isPaused ? resumeRecording : pauseRecording) : startRecording}
-              >
-                {recording ? (
-                  isPaused ? (
-                    <Icon name="play" size={30} color="white" />
-                  ) : (
-                    <Icon name="pause" size={30} color="white" />
-                  )
-                ) : (
-                  <Icon name="mic" size={30} color="white" />
-                )}
-              </Pressable>
-              {recording && (
-                <Animated.View style={[styles.controlButton, { right: wp(10) }, animatedButtonStyle]}>
-                  <Pressable onPress={stopRecording}>
+                  <Pressable
+                    style={[
+                      styles.recordButton,
+                      { backgroundColor: '#4CAF50' }
+                    ]}
+                    onPress={startRecording}
+                  >
+                    <Icon name="mic" size={30} color="white" />
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    style={styles.controlButton}
+                    onPress={cancelRecording}
+                  >
+                    <Icon name="close" size={30} color="white" />
+                  </Pressable>
+                  <Pressable
+                    style={styles.controlButton}
+                    onPress={isPaused ? resumeRecording : pauseRecording}
+                  >
+                    <Icon name={isPaused ? "play" : "pause"} size={30} color="white" />
+                  </Pressable>
+                  <Pressable
+                    style={styles.controlButton}
+                    onPress={stopRecording}
+                  >
                     <Icon name="checkmark" size={30} color="white" />
                   </Pressable>
-                </Animated.View>
+                </>
               )}
             </View>
       </SafeAreaView>
@@ -628,9 +644,10 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: hp(2),
+    paddingHorizontal: wp(10),
   },
   recordButton: {
     width: wp(15),
@@ -641,12 +658,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   controlButton: {
-    position: 'absolute',
-    width: wp(12),
-    height: wp(12),
-    borderRadius: wp(6),
+    width: wp(15),
+    height: wp(15),
+    borderRadius: wp(7.5),
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#FF3B30',
+  },
+  profileImage: {
+    width: wp(60),
+    height: wp(60),
+    borderRadius: wp(30),
   },
 });

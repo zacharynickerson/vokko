@@ -101,4 +101,4 @@ yarn-error.*
 
 # Secrets
 deployment/secrets.yaml
-config/firebase-credentials.json
+config/firebase-credentials.jsonfirebase-debug.log

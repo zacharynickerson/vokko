@@ -78,11 +78,15 @@ const CallLayout = ({
         <Text style={styles.sessionType}>{sessionType}</Text>
 
         <View style={styles.photoContainer}>
-          <Image 
-            source={typeof photo === 'string' ? { uri: photo } : photo} 
-            style={styles.photo}
-            defaultSource={require('../../assets/images/user-photo.png')}
-          />
+          {React.isValidElement(photo) ? (
+            photo
+          ) : (
+            <Image 
+              source={typeof photo === 'string' ? { uri: photo } : photo} 
+              style={styles.photo}
+              defaultSource={require('../../assets/images/default-prof-pic.png')}
+            />
+          )}
           <View style={[styles.star, styles.starLeft]}><Star /></View>
           <View style={[styles.star, styles.starRight]}><Star /></View>
         </View>
@@ -109,8 +113,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: '40%', // This pushes the content down by 25% of the screen height
-
+    paddingTop: '40%',
     alignItems: 'center',
   },
   name: {

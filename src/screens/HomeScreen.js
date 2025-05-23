@@ -17,7 +17,7 @@ export default function HomeScreen() {
   const [isRetrying, setIsRetrying] = useState(false);
 
   const navigateToSettings = () => {
-    navigation.navigate('SettingsScreen');
+    navigation.navigate('RamblingsScreen');
   };
 
   const navigateToGuidedSessions = () => {
