@@ -1,39 +1,39 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView, Image, Clipboard, Linking } from 'react-native';
+import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, ScrollView, Image, Clipboard, Linking, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth, db, updateVoiceNote } from '../../config/firebase';
 import { ref as dbRef, onValue, remove, get, update } from 'firebase/database';
 import SoloVoiceNoteItem from '../components/SoloSessionItem';
-import GuidedSessionItem from '../components/GuidedSessionItem';
-// import { formatDateForDisplay } from '../utilities/helpers';
-// import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
-import MapPreviewModal from '../components/MapPreviewModal';
 import PropTypes from 'prop-types';
 import { getStaticMapUrl } from '../config/maps';
 import { sendToAI } from '../utils/integrations';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
-export default function VoiceNoteDetails({ route, navigation }) {
+export default function VoiceNoteDetails() {
+  const navigation = useNavigation();
+  const route = useRoute();
   const { voiceNote } = route.params;
-  const { id, type, location } = voiceNote;
+  const { id, location } = voiceNote;
 
   const [noteTitle, setNoteTitle] = useState('');
   const [formattedNote, setFormattedNote] = useState('');
   const [audioUri, setAudioUri] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
-  const [showMapPreview, setShowMapPreview] = useState(false);
   const playbackRef = useRef(null);
 
   const { width } = useWindowDimensions();
 
   const [isRetrying, setIsRetrying] = useState(false);
   const [showCopyFeedback, setShowCopyFeedback] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const mapImageUrl = useMemo(() => {
-    if (!location) return null;
+    if (!location?.latitude || !location?.longitude) return null;
     return getStaticMapUrl(location.latitude, location.longitude);
   }, [location]);
 
@@ -52,16 +52,13 @@ export default function VoiceNoteDetails({ route, navigation }) {
     console.log('=== VoiceNoteDetails useEffect START ===');
     console.log('voiceNote:', voiceNote);
     console.log('noteId:', id);
-    console.log('type:', type);
 
     const userId = auth.currentUser?.uid;
     if (!userId) return;
 
-    // Determine the correct path based on the type
-    const path = type === 'guided' ? 'guidedSessions' : 'voiceNotes';
-    const noteRef = dbRef(db, `/${path}/${userId}/${id}`);
+    const noteRef = dbRef(db, `/voiceNotes/${userId}/${id}`);
 
-    console.log('Firebase path:', `/${path}/${userId}/${id}`);
+    console.log('Firebase path:', `/voiceNotes/${userId}/${id}`);
 
     // Fetch note details from Firebase
     const unsubscribe = onValue(noteRef, (snapshot) => {
@@ -77,46 +74,35 @@ export default function VoiceNoteDetails({ route, navigation }) {
     });
 
     return () => unsubscribe();
-  }, [id, type, navigation]);
+  }, [id, navigation]);
 
   const handleBack = () => {
     navigation.goBack();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     Alert.alert(
-      "Delete Note",
-      "Are you sure you want to delete this note?",
+      "Delete Recording",
+      "Are you sure you want to delete this recording? This action cannot be undone.",
       [
         {
           text: "Cancel",
           style: "cancel"
         },
-        { 
-          text: "Yes", 
+        {
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
+            setIsDeleting(true);
             try {
-              const userId = auth.currentUser.uid;
-              const path = type === 'solo' ? 'voiceNotes' : 'guidedSessions';
-              const voiceNoteDbRef = dbRef(db, `/${path}/${userId}/${id}`);
-              await remove(voiceNoteDbRef);
-              
-              // Show success message
-              Alert.alert(
-                "Success",
-                "Note deleted successfully",
-                [
-                  {
-                    text: "OK",
-                    onPress: () => {
-                      navigation.goBack();
-                    }
-                  }
-                ]
-              );
+              const voiceNoteRef = dbRef(db, `voiceNotes/${auth.currentUser.uid}/${voiceNote.id}`);
+              await remove(voiceNoteRef);
+              navigation.goBack();
             } catch (error) {
-              console.error('Error deleting note:', error);
-              Alert.alert('Error', 'Failed to delete note. Please try again.');
+              console.error('Error deleting voice note:', error);
+              Alert.alert('Error', 'Failed to delete recording. Please try again.');
+            } finally {
+              setIsDeleting(false);
             }
           }
         }
@@ -148,12 +134,6 @@ export default function VoiceNoteDetails({ route, navigation }) {
       Alert.alert('Error', 'Failed to retry processing. Please try again later.');
     } finally {
       setIsRetrying(false);
-    }
-  };
-
-  const handleMapPress = () => {
-    if (location && mapImageUrl) {
-      setShowMapPreview(true);
     }
   };
 
@@ -269,7 +249,7 @@ export default function VoiceNoteDetails({ route, navigation }) {
       <View style={styles.headerContainer}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerIcon} onPress={handleBack}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="black" />
+            <Ionicons name="close" size={24} color="black" />
           </TouchableOpacity>
           <View style={styles.headerRightIcons}>
             <TouchableOpacity style={styles.headerIcon}>
@@ -301,20 +281,15 @@ export default function VoiceNoteDetails({ route, navigation }) {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.sessionItemContainer}>
-          {type === 'guided' ? (
-            <GuidedSessionItem item={voiceNote} />
-          ) : (
-            <SoloVoiceNoteItem
-              item={voiceNote}
-              onRetry={handleRetry}
-              onDelete={handleDelete}
-              isLoading={isRetrying}
-              enableMapClick={true}
-            />
-          )}
+          <SoloVoiceNoteItem
+            item={voiceNote}
+            onRetry={handleRetry}
+            onDelete={handleDelete}
+            isLoading={isRetrying}
+            enableMapClick={false}
+            isDetailView={true}
+          />
         </View>
-
-        <View style={styles.divider} />
 
         <View style={styles.contentContainer}>
           <RenderHtml
@@ -333,18 +308,10 @@ export default function VoiceNoteDetails({ route, navigation }) {
           color="#4FBF67" 
         />
       </TouchableOpacity>
-
-      {location && (
-        <MapPreviewModal
-          visible={showMapPreview}
-          onClose={() => setShowMapPreview(false)}
-          location={location}
-          mapImageUrl={mapImageUrl}
-        />
-      )}
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -371,12 +338,6 @@ const styles = StyleSheet.create({
   },
   sessionItemContainer: {
     paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 20,
     marginBottom: 10,
   },
   contentContainer: {
@@ -466,7 +427,6 @@ VoiceNoteDetails.propTypes = {
     params: PropTypes.shape({
       voiceNote: PropTypes.shape({
         id: PropTypes.string.isRequired,
-        type: PropTypes.string,
         location: PropTypes.shape({
           latitude: PropTypes.number,
           longitude: PropTypes.number,

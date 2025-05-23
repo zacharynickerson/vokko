@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, SafeAreaView, Text, TouchableOpacity, View, Alert, FlatList, TextInput, Image, StatusBar, Modal, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import SoloVoiceNoteItem from '../components/SoloSessionItem';
-import GuidedSessionItem from '../components/GuidedSessionItem';
 import { auth, db, updateVoiceNote, storage } from '../../config/firebase';
 import { ref, onValue, off, remove } from 'firebase/database';
 import { deleteObject } from 'firebase/storage';
@@ -29,6 +28,8 @@ export default function RamblingsScreen() {
   const [availableTags, setAvailableTags] = useState([]);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     // Set greeting based on time of day
@@ -47,14 +48,8 @@ export default function RamblingsScreen() {
     navigation.navigate('SettingsScreen');
   };
 
-  const navigateToGuidedSessions = () => {
-    navigation.navigate('GuidedSessionsScreen');
-  };
-
   const navigateToSoloSession = () => {
-    navigation.navigate('CallStack', {
-      screen: 'SoloSessionCall'
-    });
+    navigation.navigate('SoloSessionCall');
   };
 
   const fetchVoiceNotes = useCallback((voiceNotesRef) => {
@@ -86,35 +81,6 @@ export default function RamblingsScreen() {
     });
   }, []);
 
-  const fetchGuidedSessions = useCallback((guidedSessionsRef) => {
-    return new Promise((resolve, reject) => {
-      try {
-        onValue(guidedSessionsRef, (snapshot) => {
-          let guidedNotes = [];
-          if (snapshot.exists()) {
-            guidedNotes = Object.entries(snapshot.val()).map(([id, session]) => ({
-              id,
-              guidedSessionId: id,
-              createdDate: session.dateCreated,
-              title: session.title || 'Title pending',
-              guideId: session.guideId,
-              guideName: session.guideName,
-              moduleName: session.moduleName,
-              type: 'guided',
-              status: session.status,
-              summary: session.summary
-            }));
-          }
-          resolve(guidedNotes);
-        }, {
-          onlyOnce: true
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }, []);
-
   useEffect(() => {
     const userId = auth.currentUser?.uid;
     if (!userId) {
@@ -123,7 +89,6 @@ export default function RamblingsScreen() {
     }
 
     const voiceNotesRef = ref(db, `/voiceNotes/${userId}`);
-    const guidedSessionsRef = ref(db, `/guidedSessions/${userId}`);
 
     // Set up listeners for real-time updates
     const voiceNotesListener = onValue(voiceNotesRef, (snapshot) => {
@@ -143,43 +108,13 @@ export default function RamblingsScreen() {
         }));
       }
       
-      setSessions(prevSessions => {
-        const guidedSessions = prevSessions.filter(session => session.type === 'guided');
-        return sortSessionsChronologically([...guidedSessions, ...firebaseNotes]);
-      });
-    });
-
-    const guidedSessionsListener = onValue(guidedSessionsRef, (snapshot) => {
-      let guidedNotes = [];
-      if (snapshot.exists()) {
-        guidedNotes = Object.entries(snapshot.val()).map(([id, session]) => ({
-          id,
-          guidedSessionId: id,
-          createdDate: session.dateCreated,
-          title: session.title || 'Title pending',
-          guideId: session.guideId,
-          guideName: session.guideName,
-          moduleName: session.moduleName,
-          type: 'guided',
-          status: session.status,
-          summary: session.summary
-        }));
-      }
-
-      setSessions(prevSessions => {
-        const voiceNotes = prevSessions.filter(session => session.type === 'solo');
-        return sortSessionsChronologically([...voiceNotes, ...guidedNotes]);
-      });
+      setSessions(sortSessionsChronologically(firebaseNotes));
     });
 
     // Initial load
-    Promise.all([
-      fetchVoiceNotes(voiceNotesRef),
-      fetchGuidedSessions(guidedSessionsRef)
-    ])
-      .then(([voiceNotes, guidedSessions]) => {
-        const combinedSessions = [...voiceNotes, ...guidedSessions];
-        setSessions(sortSessionsChronologically(combinedSessions));
+    fetchVoiceNotes(voiceNotesRef)
+      .then((voiceNotes) => {
+        setSessions(sortSessionsChronologically(voiceNotes));
         setLoading(false);
       })
       .catch((error) => {
@@ -191,9 +126,8 @@ export default function RamblingsScreen() {
     // Cleanup listeners
     return () => {
       off(voiceNotesRef);
-      off(guidedSessionsRef);
     };
-  }, [fetchVoiceNotes, fetchGuidedSessions]);
+  }, [fetchVoiceNotes]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -263,34 +197,57 @@ export default function RamblingsScreen() {
     );
   };
 
-  const renderItem = ({ item }) => {
-    if (item.type === 'solo') {
-      const isLoading = item.status === 'recording' || item.status === 'processing';
-      const onPress = () => {
-        if (!isLoading) {
-          navigation.navigate('VoiceNoteDetails', { voiceNote: item });
-        }
-      };
+  const getFilteredSessions = useCallback(() => {
+    let filtered = sessions;
 
-      return (
-        <SoloVoiceNoteItem
-          item={item}
-          onPress={onPress}
-          onRetry={() => handleRetry(item.id)}
-          onDelete={() => handleDelete(item.id)}
-          isLoading={isLoading || isRetrying}
-          enableMapClick={false}
-        />
-      );
-    } else if (item.type === 'guided') {
-      return (
-        <GuidedSessionItem
-          item={item}
-          onPress={() => navigation.navigate('VoiceNoteDetails', { voiceNote: item })}
-        />
+    // Apply time filter
+    if (selectedMonth !== null || selectedYear !== null) {
+      filtered = filtered.filter(session => {
+        const sessionDate = new Date(session.createdDate);
+        const matchesMonth = selectedMonth === null || sessionDate.getMonth() === selectedMonth;
+        const matchesYear = selectedYear === null || sessionDate.getFullYear() === selectedYear;
+        return matchesMonth && matchesYear;
+      });
+    }
+
+    // Apply tag filter
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(session => 
+        session.tags && 
+        selectedTags.every(tag => session.tags.includes(tag))
       );
     }
-    return null;
+
+    // Apply search filter if exists
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(session => 
+        session.title?.toLowerCase().includes(query) ||
+        session.summary?.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [sessions, selectedMonth, selectedYear, selectedTags, searchQuery]);
+
+  const renderItem = ({ item }) => {
+    const isLoading = item.status === 'recording' || item.status === 'processing';
+    const onPress = () => {
+      if (!isLoading) {
+        navigation.navigate('VoiceNoteDetails', { voiceNote: item });
+      }
+    };
+
+    return (
+      <SoloVoiceNoteItem
+        item={item}
+        onPress={onPress}
+        onRetry={() => handleRetry(item.id)}
+        onDelete={() => handleDelete(item.id)}
+        isLoading={isLoading || isRetrying}
+        enableMapClick={false}
+      />
+    );
   };
 
   const renderFloatingActionButton = () => (
@@ -337,11 +294,11 @@ export default function RamblingsScreen() {
       <Text style={styles.quickTipsTitle}>Quick Tips</Text>
       <View style={styles.tipsList}>
         <View style={styles.tipItem}>
-          <MaterialCommunityIcons name="microphone" size={20} color="#71D7F4" />
+          <MaterialCommunityIcons name="microphone" size={20} color="#4CAF50" />
           <Text style={styles.tipText}>Tap the mic to start recording</Text>
         </View>
         <View style={styles.tipItem}>
-          <MaterialCommunityIcons name="text-search" size={20} color="#71D7F4" />
+          <MaterialCommunityIcons name="text-search" size={20} color="#4CAF50" />
           <Text style={styles.tipText}>Search your ramblings by title or content</Text>
         </View>
       </View>
@@ -363,39 +320,6 @@ export default function RamblingsScreen() {
       years: Array.from(years).sort((a, b) => b - a) // Most recent first
     };
   }, [sessions]);
-
-  const getFilteredSessions = useCallback(() => {
-    let filtered = sessions;
-
-    // Apply time filter
-    if (selectedMonth !== null || selectedYear !== null) {
-      filtered = filtered.filter(session => {
-        const sessionDate = new Date(session.createdDate);
-        const matchesMonth = selectedMonth === null || sessionDate.getMonth() === selectedMonth;
-        const matchesYear = selectedYear === null || sessionDate.getFullYear() === selectedYear;
-        return matchesMonth && matchesYear;
-      });
-    }
-
-    // Apply tag filter
-    if (selectedTags.length > 0) {
-      filtered = filtered.filter(session => 
-        session.tags && 
-        selectedTags.every(tag => session.tags.includes(tag))
-      );
-    }
-
-    // Apply search filter if exists
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(session => 
-        session.title?.toLowerCase().includes(query) ||
-        session.summary?.toLowerCase().includes(query)
-      );
-    }
-
-    return filtered;
-  }, [sessions, selectedMonth, selectedYear, selectedTags, searchQuery]);
 
   const getMonthName = (month) => {
     return new Date(2000, month, 1).toLocaleString('default', { month: 'long' });
@@ -578,23 +502,19 @@ export default function RamblingsScreen() {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.topBar}>
-        <View style={styles.searchContainer}>
+        <TouchableOpacity 
+          style={styles.searchContainer}
+          onPress={() => {
+            setIsSearchModalVisible(true);
+            // Small delay to ensure modal is visible before focusing
+            setTimeout(() => {
+              searchInputRef.current?.focus();
+            }, 100);
+          }}
+        >
           <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search ramblings..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#666"
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
-          )}
-        </View>
+          <Text style={styles.searchPlaceholder}>Search ramblings...</Text>
+        </TouchableOpacity>
         <TouchableOpacity 
           style={styles.profileButton}
           onPress={navigateToSettings}
@@ -661,6 +581,64 @@ export default function RamblingsScreen() {
     </View>
   );
 
+  const renderSearchModal = () => (
+    <Modal
+      visible={isSearchModalVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => {
+        setIsSearchModalVisible(false);
+        setSearchQuery('');
+      }}
+    >
+      <SafeAreaView style={styles.searchModalContainer}>
+        <View style={styles.searchModalContent}>
+          <View style={styles.searchModalHeader}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+              <TextInput
+                ref={searchInputRef}
+                style={styles.searchModalInput}
+                placeholder="Search ramblings..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor="#666"
+                autoFocus={true}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity 
+              style={styles.closeSearchButton}
+              onPress={() => {
+                setIsSearchModalVisible(false);
+                setSearchQuery('');
+              }}
+            >
+              <Ionicons name="close" size={24} color="#1B1D21" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={getFilteredSessions()}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.searchResultsList}
+            ListEmptyComponent={() => (
+              <View style={styles.emptySearchContainer}>
+                <Text style={styles.emptySearchText}>
+                  {searchQuery ? 'No results found' : 'Start typing to search'}
+                </Text>
+              </View>
+            )}
+          />
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
       <MaterialCommunityIcons name="microphone-off" size={48} color="#666" />
@@ -683,7 +661,7 @@ export default function RamblingsScreen() {
           <FlatList
             data={getFilteredSessions()}
             renderItem={renderItem}
-            keyExtractor={(item) => `${item.type}-${item.id}`}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={[
               styles.listContent,
               getFilteredSessions().length === 0 && styles.emptyListContent
@@ -695,6 +673,7 @@ export default function RamblingsScreen() {
           />
           {renderFloatingActionButton()}
           {renderFilterModal()}
+          {renderSearchModal()}
         </>
       )}
     </SafeAreaView>
@@ -729,11 +708,9 @@ const styles = StyleSheet.create({
   searchIcon: {
     marginRight: 8,
   },
-  searchInput: {
-    flex: 1,
+  searchPlaceholder: {
     fontSize: wp(4),
-    color: '#000',
-    paddingVertical: 8,
+    color: '#666',
   },
   profileButton: {
     width: 40,
@@ -1089,5 +1066,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  searchModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  searchModalContent: {
+    flex: 1,
+  },
+  searchModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    gap: 12,
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchModalInput: {
+    flex: 1,
+    fontSize: wp(4),
+    color: '#000',
+    paddingVertical: 8,
+  },
+  closeSearchButton: {
+    padding: 8,
+  },
+  searchResultsList: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  emptySearchContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 32,
+  },
+  emptySearchText: {
+    fontSize: wp(4),
+    color: '#666',
   },
 }); 

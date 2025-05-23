@@ -4,7 +4,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatDateForDisplay } from '../utilities/helpers';
 import { getStaticMapUrl } from '../config/maps';
 import PropTypes from 'prop-types';
-import MapPreviewModal from './MapPreviewModal';
 
 // Define threshold (e.g., 4 minutes in milliseconds)
 const STUCK_PROCESSING_THRESHOLD_MS = 4 * 60 * 1000; 
@@ -18,12 +17,8 @@ const stripHtmlTags = (html) => {
     .trim();
 };
 
-const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = false }) => {
+const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = false, isDetailView = false }) => {
   const { status, createdDate, title, location, summary, processingStartedAt, errorDetails } = item;
-  const [showMapPreview, setShowMapPreview] = useState(false);
-
-  // Debug location data
-  console.log('Location data:', location);
 
   const isCompleted = status === 'completed';
   const hasError = status === 'error';
@@ -60,21 +55,12 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
 
   const mapImageUrl = useMemo(() => {
     if (!location) return null;
-    console.log('Location data:', location);
-    const url = getStaticMapUrl(location.latitude, location.longitude);
-    console.log('Map URL:', url);
-    return url;
+    return getStaticMapUrl(location.latitude, location.longitude);
   }, [location]);
 
   const cleanSummary = useMemo(() => {
     return stripHtmlTags(summary);
   }, [summary]);
-
-  const handleMapPress = () => {
-    if (hasLocation && mapImageUrl && enableMapClick) {
-      setShowMapPreview(true);
-    }
-  };
 
   // Render the map with or without clickability
   const renderMap = () => {
@@ -104,20 +90,6 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
       </>
     );
 
-    // If map clicks are enabled, wrap in TouchableOpacity
-    if (enableMapClick) {
-      return (
-        <TouchableOpacity 
-          style={styles.mapContainer} 
-          onPress={handleMapPress}
-          activeOpacity={0.8}
-        >
-          {mapContent}
-        </TouchableOpacity>
-      );
-    }
-
-    // Otherwise, just return a normal View
     return (
       <View style={styles.mapContainer}>
         {mapContent}
@@ -126,7 +98,10 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      isDetailView && styles.detailViewContainer
+    ]}>
       <TouchableOpacity
         style={[
           styles.touchableContainer,
@@ -178,15 +153,6 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
           )}
         </View>
       </TouchableOpacity>
-
-      {enableMapClick && hasLocation && (
-        <MapPreviewModal
-          visible={showMapPreview}
-          onClose={() => setShowMapPreview(false)}
-          location={location}
-          mapImageUrl={mapImageUrl}
-        />
-      )}
     </View>
   );
 };
@@ -196,6 +162,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 16,
     paddingTop: 8,
+  },
+  detailViewContainer: {
+    marginBottom: 0,
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
   touchableContainer: {
     backgroundColor: 'white',
@@ -339,7 +310,8 @@ SoloVoiceNoteItem.propTypes = {
   onPress: PropTypes.func,
   onRetry: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
-  enableMapClick: PropTypes.bool
+  enableMapClick: PropTypes.bool,
+  isDetailView: PropTypes.bool
 };
 
 export default SoloVoiceNoteItem;

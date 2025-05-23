@@ -1,17 +1,22 @@
-import React from 'react';
-import { Alert, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Image, Switch } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Image, Switch, StyleSheet, TextInput, Modal } from 'react-native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import FirebaseImage from '../components/FirebaseImage';
+import { auth, db } from '../../config/firebase';
+import { ref, update } from 'firebase/database';
+import { updateProfile } from 'firebase/auth';
 
 export default function SettingsScreen() {
     const navigation = useNavigation();
     const { user, logOut } = useAuth();
-
-    const [pushNotifications, setPushNotifications] = React.useState(true);
-    const [promotionalNotifications, setPromotionalNotifications] = React.useState(true);
+    const [pushNotifications, setPushNotifications] = useState(true);
+    const [promotionalNotifications, setPromotionalNotifications] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [newName, setNewName] = useState(user?.displayName || '');
+    const [isModalVisible, setIsModalVisible] = useState(false);
 
     const onLogout = async () => {
         try {
@@ -22,6 +27,37 @@ export default function SettingsScreen() {
             Alert.alert("Logout Error", "An error occurred while trying to log out. Please try again.");
         }
     }
+
+    const handleEditName = () => {
+        setNewName(user?.displayName || '');
+        setIsModalVisible(true);
+    };
+
+    const handleSaveName = async () => {
+        try {
+            if (!newName.trim()) {
+                Alert.alert("Error", "Name cannot be empty");
+                return;
+            }
+
+            // Update in Firebase Realtime Database
+            const userRef = ref(db, `users/${user.uid}`);
+            await update(userRef, {
+                name: newName.trim()
+            });
+
+            // Update in Firebase Auth
+            await updateProfile(auth.currentUser, {
+                displayName: newName.trim()
+            });
+
+            setIsModalVisible(false);
+            Alert.alert("Success", "Name updated successfully");
+        } catch (error) {
+            console.error("Error updating name:", error);
+            Alert.alert("Error", "Failed to update name. Please try again.");
+        }
+    };
 
     const confirmLogout = () => {
         Alert.alert(
@@ -49,17 +85,22 @@ export default function SettingsScreen() {
         </TouchableOpacity>
     );
 
+    const renderHeader = () => (
+        <View style={styles.headerContainer}>
+            <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => navigation.navigate('RamblingsScreen')}
+            >
+                <Ionicons name="close" size={24} color="#1B1D21" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Settings</Text>
+            <View style={styles.placeholder} />
+        </View>
+    );
+
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.headerIcon}>
-                    <MaterialCommunityIcons name="view-grid" size={24} color="black" />
-                </TouchableOpacity>
-                <Text style={styles.title}>Profile</Text>
-                <TouchableOpacity style={styles.headerIcon}>
-                    <Ionicons name="notifications-outline" size={24} color="black" />
-                </TouchableOpacity>
-            </View>
+            {renderHeader()}
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.profileSection}>
@@ -68,9 +109,9 @@ export default function SettingsScreen() {
                         style={styles.profileImage}
                         defaultImage={require('/Users/zachary.nickerson/Desktop/vokko/assets/images/default-prof-pic.png')}
                     />
-                    <Text style={styles.profileName}>{user?.displayName || 'Zachary Nickerson'}</Text>
-                    <Text style={styles.profileEmail}>{user?.email || 'zacharynickerson96@gmail.com'}</Text>
-                    <TouchableOpacity style={styles.editButton}>
+                    <Text style={styles.profileName}>{user?.displayName || 'User'}</Text>
+                    <Text style={styles.profileEmail}>{user?.email || ''}</Text>
+                    <TouchableOpacity style={styles.editButton} onPress={handleEditName}>
                         <Text style={styles.editButtonText}>Edit</Text>
                     </TouchableOpacity>
                 </View>
@@ -144,30 +185,74 @@ export default function SettingsScreen() {
                     isLast={true}
                 />
             </ScrollView>
+
+            <Modal
+                visible={isModalVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setIsModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Edit Name</Text>
+                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                                <Ionicons name="close" size={24} color="#1B1D21" />
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput
+                            style={styles.nameInput}
+                            value={newName}
+                            onChangeText={setNewName}
+                            placeholder="Enter your name"
+                            autoFocus={true}
+                        />
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.cancelButton]} 
+                                onPress={() => setIsModalVisible(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.saveButton]} 
+                                onPress={handleSaveName}
+                            >
+                                <Text style={styles.saveButtonText}>Save</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
 
-const styles = {
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FFFFFF',
     },
-    header: {
+    headerContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+        backgroundColor: 'white',
     },
-    headerIcon: {
-        width: 24,
+    backButton: {
+        padding: 8,
     },
-    title: {
-        fontFamily: 'DMSans-Bold',
-        fontSize: wp(5),
-        fontWeight: 'bold',
-        textAlign: 'center',
-        flex: 1,
+    headerTitle: {
+        fontSize: wp(4.5),
+        fontWeight: '600',
+        color: '#1B1D21',
+    },
+    placeholder: {
+        width: 40, // Same width as backButton to maintain center alignment
     },
     scrollContent: {
         padding: 20,
@@ -249,4 +334,60 @@ const styles = {
     switch: {
         transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
     },
-};
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 20,
+        padding: 20,
+        width: wp(80),
+        maxWidth: 400,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: wp(5),
+        fontWeight: 'bold',
+        color: '#1B1D21',
+    },
+    nameInput: {
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        borderRadius: 10,
+        padding: 15,
+        fontSize: wp(4),
+        marginBottom: 20,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 10,
+    },
+    modalButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+    },
+    cancelButton: {
+        backgroundColor: '#F5F5F5',
+    },
+    saveButton: {
+        backgroundColor: '#4FBF67',
+    },
+    cancelButtonText: {
+        color: '#1B1D21',
+        fontWeight: '600',
+    },
+    saveButtonText: {
+        color: 'white',
+        fontWeight: '600',
+    },
+});

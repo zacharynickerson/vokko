@@ -349,7 +349,7 @@ export default function SoloSessionCall() {
       
       // Clear all timers
       if (timerRef.current) {
-      clearInterval(timerRef.current);
+        clearInterval(timerRef.current);
         timerRef.current = null;
       }
       
@@ -361,6 +361,7 @@ export default function SoloSessionCall() {
       // Process final chunk if recording exists
       if (recordingRef.current) {
         await processChunk();
+        await recordingRef.current.stopAndUnloadAsync();
         recordingRef.current = null;
       }
 
@@ -370,10 +371,10 @@ export default function SoloSessionCall() {
       
       // Update Firebase status
       if (voiceNoteIdRef.current) {
-      await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
-        status: 'processing',
-        processingStartedAt: new Date().toISOString(), 
-      });
+        await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
+          status: 'processing',
+          processingStartedAt: new Date().toISOString(), 
+        });
       }
 
       // Reset audio mode
@@ -383,27 +384,24 @@ export default function SoloSessionCall() {
         staysActiveInBackground: false,
       });
 
-      // Navigate to library
-      navigation.navigate('Library', { screen: 'LibraryScreen' });
+      // Navigate to RamblingsScreen
+      navigation.navigate('RamblingsScreen');
     } catch (error) {
       console.error('Error stopping recording:', error);
       
       // Update Firebase with error status
       if (voiceNoteIdRef.current) {
-      await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
-        status: 'error',
-        errorDetails: {
-          error: `Recording stop error: ${error.message}`,
-          timestamp: new Date().toISOString()
-        }
-      });
+        await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
+          status: 'error',
+          errorDetails: {
+            error: `Recording stop error: ${error.message}`,
+            timestamp: new Date().toISOString()
+          }
+        });
       }
 
-      // Navigate to library to show error
-      navigation.navigate('Library', { 
-        screen: 'LibraryScreen', 
-        params: { refresh: true } 
-      });
+      // Navigate to RamblingsScreen to show error
+      navigation.navigate('RamblingsScreen');
     }
   }
 
@@ -468,8 +466,8 @@ export default function SoloSessionCall() {
               staysActiveInBackground: false,
             });
 
-            console.log('Attempting to navigate to Home');
-            navigation.navigate('Home');
+            console.log('Attempting to navigate to RamblingsScreen');
+            navigation.navigate('RamblingsScreen');
             console.log('Navigation dispatched');
             } catch (error) {
               console.error('Error canceling recording:', error);
@@ -563,7 +561,6 @@ export default function SoloSessionCall() {
   return (
     <View style={styles.container}>
       <CallLayout
-        isGuidedSession={false}
         userFirstName={userProfile?.name?.split(' ')[0] || "User"}
         userLastName={userProfile?.name?.split(' ').slice(1).join(' ') || ""}
         userProfilePhoto={
@@ -575,53 +572,67 @@ export default function SoloSessionCall() {
         }
         sessionTime={sessionTime}
         location={location?.coords}
-      />
+        onEndCall={cancelRecording}
+        onToggleMute={() => {}}
+        onToggleCamera={() => {}}
+        isMuted={false}
+        isCameraOff={false}
+      >
+        <View style={styles.waveformContainer}>
+          <Animated.Text style={[styles.recordingText, animatedRecordingTextStyle]}>
+            Recording...
+          </Animated.Text>
+          <Animated.Text style={[styles.readyText, animatedReadyTextStyle]}>
+            Ready to record
+          </Animated.Text>
+        </View>
+      </CallLayout>
       
       <SafeAreaView style={styles.controlsContainer}>
-            <View style={styles.buttonContainer}>
-              {!recording ? (
-                <>
-                  <Pressable
-                    style={[styles.controlButton, styles.cancelButton]}
-                    onPress={() => navigation.goBack()}
-                  >
-                    <Icon name="close" size={30} color="white" />
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.recordButton,
-                      { backgroundColor: '#4CAF50' }
-                    ]}
-                    onPress={startRecording}
-                  >
-                    <Icon name="mic" size={30} color="white" />
-                  </Pressable>
-                </>
-              ) : (
-                <>
-                  <Pressable
-                    style={styles.controlButton}
-                    onPress={cancelRecording}
-                  >
-                    <Icon name="close" size={30} color="white" />
-                  </Pressable>
-                  <Pressable
-                    style={styles.controlButton}
-                    onPress={isPaused ? resumeRecording : pauseRecording}
-                  >
-                    <Icon name={isPaused ? "play" : "pause"} size={30} color="white" />
-                  </Pressable>
-                  <Pressable
-                    style={styles.controlButton}
-                    onPress={stopRecording}
-                  >
-                    <Icon name="checkmark" size={30} color="white" />
-                  </Pressable>
-                </>
-              )}
-            </View>
+        <View style={styles.buttonContainer}>
+          {!recording ? (
+            <>
+              <Pressable
+                style={[styles.controlButton, styles.cancelButton]}
+                onPress={() => navigation.goBack()}
+              >
+                <Icon name="close" size={30} color="white" />
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.recordButton,
+                  { backgroundColor: '#4CAF50' }
+                ]}
+                onPress={startRecording}
+              >
+                <Icon name="mic" size={30} color="white" />
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Pressable
+                style={styles.controlButton}
+                onPress={cancelRecording}
+              >
+                <Icon name="close" size={30} color="white" />
+              </Pressable>
+              <Pressable
+                style={styles.controlButton}
+                onPress={isPaused ? resumeRecording : pauseRecording}
+              >
+                <Icon name={isPaused ? "play" : "pause"} size={30} color="white" />
+              </Pressable>
+              <Pressable
+                style={styles.controlButton}
+                onPress={stopRecording}
+              >
+                <Icon name="checkmark" size={30} color="white" />
+              </Pressable>
+            </>
+          )}
+        </View>
       </SafeAreaView>
-    </View> 
+    </View>
   );
 }
 
@@ -632,7 +643,7 @@ const styles = StyleSheet.create({
   },
   controlsContainer: {
     position: 'absolute',
-    bottom: hp(10), // Increased this value to move the buttons up
+    bottom: hp(10),
     left: 0,
     right: 0,
     paddingBottom: hp(5),
@@ -641,6 +652,18 @@ const styles = StyleSheet.create({
     height: hp(20),
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  recordingText: {
+    color: '#4CAF50',
+    fontSize: wp(5),
+    fontWeight: '600',
+    position: 'absolute',
+  },
+  readyText: {
+    color: '#FFFFFF',
+    fontSize: wp(5),
+    fontWeight: '600',
+    position: 'absolute',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -653,7 +676,7 @@ const styles = StyleSheet.create({
     width: wp(15),
     height: wp(15),
     borderRadius: wp(7.5),
-    backgroundColor: '#9D3033',
+    backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
   },

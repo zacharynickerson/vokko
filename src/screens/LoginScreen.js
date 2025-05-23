@@ -22,7 +22,7 @@ export default function LoginScreen() {
         try {
             await signIn(email, password);
             console.log("User signed in successfully");
-            navigation.navigate('Library', { screen: 'LibraryScreen' });
+            // No need to navigate - the AppNavigation will handle this based on auth state
         } catch (err) {
             console.error("Login error:", err);
             Alert.alert('Login Error', err.message);
@@ -45,7 +45,7 @@ export default function LoginScreen() {
             });
             
             console.log("User signed in successfully with Google");
-            navigation.navigate('Library', { screen: 'LibraryScreen' });
+            // No need to navigate - the AppNavigation will handle this based on auth state
         } catch (error) {
             if (error.code === statusCodes.SIGN_IN_CANCELLED || error.message?.includes('canceled') || error.message?.includes('cancelled')) {
                 return;
