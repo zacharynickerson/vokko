@@ -3,7 +3,7 @@ import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicato
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeftIcon } from 'react-native-heroicons/solid';
 import { useNavigation } from '@react-navigation/native';
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, updateProfile } from 'firebase/auth';
 import { ref, set, get } from 'firebase/database';
 import useAuth from '../../hooks/useAuth';
 import { auth, createUser, db, functions, storage} from '../../config/firebase';
@@ -46,11 +46,30 @@ export default function SignUpScreen() {
             const { idToken, user } = await GoogleSignin.signIn();
             const googleCredential = GoogleAuthProvider.credential(idToken);
             const userCredential = await signInWithCredential(auth, googleCredential);
-            await createUser(userCredential.user.uid, {
+            
+            // Get the photo URL from Google user object
+            const photoURL = user.photo || user.photoURL;
+            console.log('Google photo URL:', photoURL);
+            
+            // Update the user's display name in Firebase Auth
+            await updateProfile(userCredential.user, {
+                displayName: user.name,
+                photoURL: photoURL
+            });
+            
+            // Save user data to Realtime Database
+            const userRef = ref(db, `users/${userCredential.user.uid}`);
+            await set(userRef, {
                 name: user.name,
                 email: user.email,
-                photoURL: user.photo
+                photoURL: photoURL,
+                createdAt: new Date().toISOString(),
+                lastLoginAt: new Date().toISOString(),
+                settings: {
+                    notifications: true,
+                }
             });
+            
             navigation.navigate('Onboarding');
         } catch (error) {
             if (error.code === statusCodes.SIGN_IN_CANCELLED || error.message?.includes('canceled') || error.message?.includes('cancelled')) {
@@ -101,88 +120,79 @@ export default function SignUpScreen() {
                                 <Text style={styles.buttonText}>Sign up with Google</Text>
                             </TouchableOpacity>
 
-                            {!showMoreOptions && !showEmailSignup && (
-                                <TouchableOpacity style={[styles.button, { backgroundColor: '#F3F8FE' }]} onPress={() => setShowMoreOptions(true)}>
-                                    <Text style={styles.buttonText}>Show more options</Text>
+                            {!showEmailSignup ? (
+                                <TouchableOpacity 
+                                    style={[styles.button, { backgroundColor: '#F9FAFA' }]} 
+                                    onPress={() => setShowEmailSignup(true)}
+                                >
+                                    <View style={styles.emailIcon}>
+                                        <Text style={styles.emailIconText}>✉️</Text>
+                                    </View>
+                                    <Text style={styles.buttonText}>Sign up with Email</Text>
                                 </TouchableOpacity>
-                            )}
-
-                            {(showMoreOptions || showEmailSignup) && (
-                                <>
-                                    {!showEmailSignup && (
-                                        <TouchableOpacity style={[styles.button, { backgroundColor: '#F9FAFA' }]} onPress={() => setShowEmailSignup(true)}>
-                                            <View style={styles.emailIcon}>
-                                                <Text style={styles.emailIconText}>✉️</Text>
-                                            </View>
-                                            <Text style={styles.buttonText}>Sign up with Email</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </>
+                            ) : (
+                                <View style={styles.emailSignupContainer}>
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.inputLabel}>Name</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Your name"
+                                            placeholderTextColor="#999"
+                                            value={name}
+                                            onChangeText={setName}
+                                        />
+                                    </View>
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.inputLabel}>Email Address</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="hannah.turin@email.com"
+                                            placeholderTextColor="#999"
+                                            value={email}
+                                            onChangeText={setEmail}
+                                            keyboardType="email-address"
+                                        />
+                                    </View>
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.inputLabel}>Password</Text>
+                                        <View style={styles.passwordInputContainer}>
+                                            <TextInput
+                                                style={styles.passwordInput}
+                                                placeholder="••••••"
+                                                placeholderTextColor="#999"
+                                                secureTextEntry={!passwordVisible}
+                                                value={password}
+                                                onChangeText={setPassword}
+                                            />
+                                            <TouchableOpacity 
+                                                onPress={() => setPasswordVisible(!passwordVisible)}
+                                                style={styles.passwordVisibilityButton}
+                                            >
+                                                <Text style={styles.showButtonText}>
+                                                    {passwordVisible ? 'Hide' : 'Show'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity 
+                                        style={[styles.button, styles.signupButton]} 
+                                        onPress={handleEmailSignUp}
+                                        disabled={loading}
+                                    >
+                                        {loading ? (
+                                            <ActivityIndicator color="#FFF" />
+                                        ) : (
+                                            <Text style={[styles.buttonText, styles.signupButtonText]}>Signup</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
                             )}
                         </View>
-
-                        {showEmailSignup && (
-                            <View style={styles.emailSignupContainer}>
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.inputLabel}>Name</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Your name"
-                                        placeholderTextColor="#999"
-                                        value={name}
-                                        onChangeText={setName}
-                                    />
-                                </View>
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.inputLabel}>Email Address</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="hannah.turin@email.com"
-                                        placeholderTextColor="#999"
-                                        value={email}
-                                        onChangeText={setEmail}
-                                        keyboardType="email-address"
-                                    />
-                                </View>
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.inputLabel}>Password</Text>
-                                    <View style={styles.passwordInputContainer}>
-                                        <TextInput
-                                            style={styles.passwordInput}
-                                            placeholder="••••••"
-                                            placeholderTextColor="#999"
-                                            secureTextEntry={!passwordVisible}
-                                            value={password}
-                                            onChangeText={setPassword}
-                                        />
-                                        <TouchableOpacity 
-                                            onPress={() => setPasswordVisible(!passwordVisible)}
-                                            style={styles.passwordVisibilityButton}
-                                        >
-                                            <Text style={styles.showButtonText}>
-                                                {passwordVisible ? 'Hide' : 'Show'}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                                <TouchableOpacity 
-                                    style={[styles.button, styles.signupButton]} 
-                                    onPress={handleEmailSignUp}
-                                    disabled={loading}
-                                >
-                                    {loading ? (
-                                        <ActivityIndicator color="#FFF" />
-                                    ) : (
-                                        <Text style={[styles.buttonText, styles.signupButtonText]}>Signup</Text>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        )}
                     </View>
                 </ScrollView>
                 <View style={styles.loginPromptContainer}>
                     <Text style={styles.loginPromptText}>Already have an account? </Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                         <Text style={styles.loginLink}>Login</Text>
                     </TouchableOpacity>
                 </View>

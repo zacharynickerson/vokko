@@ -24,6 +24,7 @@ export default function VoiceNoteDetails() {
   const [formattedNote, setFormattedNote] = useState('');
   const [audioUri, setAudioUri] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
   const playbackRef = useRef(null);
 
   const { width } = useWindowDimensions();
@@ -110,12 +111,6 @@ export default function VoiceNoteDetails() {
     );
   };
 
-  const toggleOptions = () => {
-    setShowOptions(!showOptions);
-  };
-
-  const formattedHtml = useMemo(() => formatNoteContent(formattedNote), [formattedNote]);
-
   const handleRetry = async () => {
     if (isRetrying) return;
     
@@ -136,6 +131,8 @@ export default function VoiceNoteDetails() {
       setIsRetrying(false);
     }
   };
+
+  const formattedHtml = useMemo(() => formatNoteContent(formattedNote), [formattedNote]);
 
   const handleCopyToClipboard = () => {
     const formattedDate = new Date(voiceNote.createdDate).toLocaleDateString();
@@ -246,67 +243,129 @@ export default function VoiceNoteDetails() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerIcon} onPress={handleBack}>
-            <Ionicons name="close" size={24} color="black" />
-          </TouchableOpacity>
-          <View style={styles.headerRightIcons}>
-            <TouchableOpacity style={styles.headerIcon}>
-              <Ionicons name="paper-plane-outline" size={24} color="black" />
+      <TouchableOpacity 
+        style={styles.container} 
+        activeOpacity={1} 
+        onPress={() => {
+          setShowOptions(false);
+          setShowShareOptions(false);
+        }}
+      >
+        <View style={styles.headerContainer}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.headerIcon} onPress={handleBack}>
+              <Ionicons name="close" size={24} color="black" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIcon} onPress={toggleOptions}>
-              <Ionicons name="ellipsis-vertical" size={24} color="black" />
-            </TouchableOpacity>
+            <View style={styles.headerRightIcons}>
+              <TouchableOpacity 
+                style={styles.headerIcon} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setShowShareOptions(!showShareOptions);
+                  setShowOptions(false);
+                }}
+              >
+                <Ionicons name="paper-plane-outline" size={24} color="black" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.headerIcon} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setShowOptions(!showOptions);
+                  setShowShareOptions(false);
+                }}
+              >
+                <Ionicons name="ellipsis-vertical" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
           </View>
+
+          {showShareOptions && (
+            <View style={styles.optionsMenu}>
+              <TouchableOpacity 
+                style={styles.optionItem} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleSendToAI('chatgpt');
+                  setShowShareOptions(false);
+                }}
+              >
+                <Text style={styles.optionText}>Send to ChatGPT</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.optionItem} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleSendToAI('claude');
+                  setShowShareOptions(false);
+                }}
+              >
+                <Text style={styles.optionText}>Send to Claude</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.optionItem} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleSendToGoogleDocs();
+                  setShowShareOptions(false);
+                }}
+              >
+                <Text style={styles.optionText}>Send to Google Docs</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {showOptions && (
+            <View style={styles.optionsMenu}>
+              <TouchableOpacity 
+                style={styles.optionItem} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDelete();
+                  setShowOptions(false);
+                }}
+              >
+                <Text style={styles.optionText}>Delete Note</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {showOptions && (
-          <View style={styles.optionsMenu}>
-            <TouchableOpacity style={styles.optionItem} onPress={() => handleSendToAI('chatgpt')}>
-              <Text style={styles.optionText}>Send to ChatGPT</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.optionItem} onPress={() => handleSendToAI('claude')}>
-              <Text style={styles.optionText}>Send to Claude</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.optionItem} onPress={handleDelete}>
-              <Text style={styles.optionText}>Delete Note</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.optionItem} onPress={handleSendToGoogleDocs}>
-              <Text style={styles.optionText}>Send to Google Docs</Text>
-            </TouchableOpacity>
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.sessionItemContainer}>
+            <SoloVoiceNoteItem
+              item={voiceNote}
+              onRetry={handleRetry}
+              onDelete={handleDelete}
+              isLoading={isRetrying}
+              enableMapClick={false}
+              isDetailView={true}
+            />
           </View>
-        )}
-      </View>
 
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.sessionItemContainer}>
-          <SoloVoiceNoteItem
-            item={voiceNote}
-            onRetry={handleRetry}
-            onDelete={handleDelete}
-            isLoading={isRetrying}
-            enableMapClick={false}
-            isDetailView={true}
+          <View style={styles.contentContainer}>
+            <RenderHtml
+              contentWidth={width - 40}
+              source={{ html: formattedHtml }}
+              tagsStyles={tagsStyles}
+              baseStyle={styles.formattedNoteText}
+            />
+          </View>
+        </ScrollView>
+
+        <TouchableOpacity 
+          style={styles.editButton} 
+          onPress={(e) => {
+            e.stopPropagation();
+            handleCopyToClipboard();
+          }}
+        >
+          <MaterialCommunityIcons 
+            name={showCopyFeedback ? "check" : "content-copy"} 
+            size={24} 
+            color="#4FBF67" 
           />
-        </View>
-
-        <View style={styles.contentContainer}>
-          <RenderHtml
-            contentWidth={width - 40} // Adjusted for padding
-            source={{ html: formattedHtml }}
-            tagsStyles={tagsStyles}
-            baseStyle={styles.formattedNoteText}
-          />
-        </View>
-      </ScrollView>
-
-      <TouchableOpacity style={styles.editButton} onPress={handleCopyToClipboard}>
-        <MaterialCommunityIcons 
-          name={showCopyFeedback ? "check" : "content-copy"} 
-          size={24} 
-          color="#4FBF67" 
-        />
+        </TouchableOpacity>
       </TouchableOpacity>
     </SafeAreaView>
   );
