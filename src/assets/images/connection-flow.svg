@@ -15,6 +15,6 @@
   
   <!-- Service labels -->
   <text x="80" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#4A4A4A">ChatGPT</text>
-  <text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#4A4A4A">Vokko</text>
+  <text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#4A4A4A">Rambull</text>
   <text x="320" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#4A4A4A">Notion</text>
 </svg> 

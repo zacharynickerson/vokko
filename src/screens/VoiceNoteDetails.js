@@ -261,16 +261,6 @@ export default function VoiceNoteDetails() {
                 style={styles.headerIcon} 
                 onPress={(e) => {
                   e.stopPropagation();
-                  setShowShareOptions(!showShareOptions);
-                  setShowOptions(false);
-                }}
-              >
-                <Ionicons name="paper-plane-outline" size={24} color="black" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.headerIcon} 
-                onPress={(e) => {
-                  e.stopPropagation();
                   setShowOptions(!showOptions);
                   setShowShareOptions(false);
                 }}
@@ -282,36 +272,6 @@ export default function VoiceNoteDetails() {
 
           {showShareOptions && (
             <View style={styles.optionsMenu}>
-              <TouchableOpacity 
-                style={styles.optionItem} 
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleSendToAI('chatgpt');
-                  setShowShareOptions(false);
-                }}
-              >
-                <Text style={styles.optionText}>Send to ChatGPT</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionItem} 
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleSendToAI('claude');
-                  setShowShareOptions(false);
-                }}
-              >
-                <Text style={styles.optionText}>Send to Claude</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionItem} 
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleSendToGoogleDocs();
-                  setShowShareOptions(false);
-                }}
-              >
-                <Text style={styles.optionText}>Send to Google Docs</Text>
-              </TouchableOpacity>
             </View>
           )}
 

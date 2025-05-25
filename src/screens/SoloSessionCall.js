@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, SafeAreaView, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, SafeAreaView, Pressable, StyleSheet, Alert, Image } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -17,6 +17,7 @@ import { ref as dbRef, remove } from 'firebase/database';
 import { db } from '../../config/firebase'; // Ensure this path is correct
 import { CommonActions } from '@react-navigation/native'; // Ensure this is imported
 import { ref, get } from 'firebase/database';
+import { getGeocodingUrl, extractAddressComponents } from '../config/maps';
 
 const CHUNK_DURATION = 60000; // 1 minute chunks
 const MAX_RECORDING_DURATION = 1200000; // 20 minutes
@@ -48,18 +49,25 @@ export default function SoloSessionCall() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const newLocation = await Location.getCurrentPositionAsync({});
+        const newLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High
+        });
         
-        // Only update if location has changed significantly (more than 10 meters)
-        if (!lastLocationRef.current || 
-            calculateDistance(
-              lastLocationRef.current.coords.latitude,
-              lastLocationRef.current.coords.longitude,
-              newLocation.coords.latitude,
-              newLocation.coords.longitude
-            ) > 10) {
-          lastLocationRef.current = newLocation;
-          setLocation(newLocation);
+        const locationData = {
+          latitude: newLocation.coords.latitude,
+          longitude: newLocation.coords.longitude
+        };
+        
+        console.log('Setting new location:', locationData);
+        lastLocationRef.current = locationData;
+        setLocation(locationData);
+
+        // Update voice note with new location if recording
+        if (voiceNoteIdRef.current && recordingRef.current) {
+          console.log('Updating voice note with new location:', locationData);
+          await updateVoiceNote(auth.currentUser.uid, voiceNoteIdRef.current, {
+            location: locationData
+          });
         }
       }
     } catch (error) {
@@ -101,7 +109,7 @@ export default function SoloSessionCall() {
       // Initial location update
       updateLocation();
 
-      // Set up periodic updates (every 10 seconds instead of 5)
+      // Set up periodic updates (every 10 seconds)
       locationUpdateTimeoutRef.current = setInterval(updateLocation, 10000);
 
       return () => {
@@ -217,12 +225,12 @@ export default function SoloSessionCall() {
     }
 
     try {
-    // Check for audio recording permission
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') {
+      // Check for audio recording permission
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
         Alert.alert('Permission required', 'You need to grant permission to use audio recording.');
         return;
-    }
+      }
 
       console.log('Starting recording...');
 
@@ -242,17 +250,19 @@ export default function SoloSessionCall() {
       recordingRef.current = newRecording;
       setRecording(newRecording);
       
-      // Create voice note entry in Firebase
+      // Create voice note entry in Firebase with initial location
+      const initialLocation = lastLocationRef.current || null;
+      console.log('Creating voice note with initial location:', initialLocation);
+      
       voiceNoteIdRef.current = await createVoiceNote(auth.currentUser.uid, {
         status: 'recording',
         totalDuration: 0,
         totalChunks: 0,
-        location: location ? {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        } : null
+        location: initialLocation
       });
       
+      // Start location updates
+      updateLocation();
       startChunkUpload();
     } catch (err) {
       console.error('Failed to start recording', err);
@@ -564,10 +574,9 @@ export default function SoloSessionCall() {
         userFirstName={userProfile?.name?.split(' ')[0] || "User"}
         userLastName={userProfile?.name?.split(' ').slice(1).join(' ') || ""}
         userProfilePhoto={
-          <FirebaseImage
-            avatarName={auth.currentUser?.avatar}
+          <Image 
+            source={require('../../assets/images/default-prof-pic.png')}
             style={styles.profileImage}
-            defaultImage={require('../../assets/images/default-prof-pic.png')}
           />
         }
         sessionTime={sessionTime}
@@ -577,6 +586,7 @@ export default function SoloSessionCall() {
         onToggleCamera={() => {}}
         isMuted={false}
         isCameraOff={false}
+        sessionType={recording ? "Rambling" : "Ready to Ramble?"}
       >
         <View style={styles.waveformContainer}>
           <Animated.Text style={[styles.recordingText, animatedRecordingTextStyle]}>

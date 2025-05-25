@@ -44,7 +44,6 @@ const OnboardingScreen = () => {
     { component: WelcomeSlide },
     { component: HowItWorksSlide },
     { component: PermissionsSlide },
-    { component: IntegrationsSlide },
     { component: PersonalizationSlide, props: { onPreferencesChange: setPreferences } },
   ];
 
@@ -70,6 +69,11 @@ const OnboardingScreen = () => {
         
         // Update the onboarding state to trigger navigation
         setOnboardingCompleted(true);
+        // Navigate to RamblingsScreen and reset the navigation stack
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'RamblingsScreen' }],
+        });
       } catch (error) {
         console.error('Error updating preferences:', error);
         Alert.alert('Error', 'Failed to save preferences. Please try again.');

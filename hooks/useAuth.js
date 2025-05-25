@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { auth, createUser, updateUser as updateUserInDB } from '../config/firebase';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
 
 export default function useAuth() {
   const [user, setUser] = useState(null);
@@ -23,10 +23,17 @@ export default function useAuth() {
     // Get the user's photo URL from their auth profile
     const photoURL = userCredential.user.photoURL || null;
     
+    // Update the user's display name in Firebase Auth
+    await updateProfile(userCredential.user, {
+      displayName: name,
+      photoURL
+    });
+    
+    // Save user data to Realtime Database
     await createUser(userCredential.user.uid, { 
       email, 
       name,
-      photoURL // Save the photo URL to the user's profile
+      photoURL
     });
     
     setUser(userCredential.user);

@@ -102,7 +102,7 @@ export default function LoginScreen() {
                         <View style={styles.buttonContainer}>
                             <TouchableOpacity style={[styles.button, styles.googleButton]} onPress={handleGoogleSignIn}>
                                 <Image source={require('../../assets/images/google.png')} style={styles.buttonIcon} />
-                                <Text style={styles.buttonText}>Connect with Google</Text>
+                                <Text style={styles.buttonText}>Log in with Google</Text>
                             </TouchableOpacity>
 
                             {!showEmailLogin ? (
@@ -113,7 +113,7 @@ export default function LoginScreen() {
                                     <View style={styles.emailIcon}>
                                         <Text style={styles.emailIconText}>✉️</Text>
                                     </View>
-                                    <Text style={styles.buttonText}>Connect with Email</Text>
+                                    <Text style={styles.buttonText}>Log in with Email</Text>
                                 </TouchableOpacity>
                             ) : (
                                 <View style={styles.emailLoginContainer}>

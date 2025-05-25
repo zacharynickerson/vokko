@@ -14,10 +14,11 @@ const CallLayout = ({
   userProfilePhoto,
   sessionTime,
   gradientColor,
-  location
+  location,
+  sessionType
 }) => {
   const name = isGuidedSession ? guideName : `${userFirstName} ${userLastName}`;
-  const sessionType = isGuidedSession ? moduleName : "Solo Session";
+  const displaySessionType = isGuidedSession ? moduleName : (sessionType || "Voice Note");
   const photo = isGuidedSession ? guidePhoto : userProfilePhoto;
 
   // Memoize map URL generation
@@ -75,7 +76,7 @@ const CallLayout = ({
 
       <View style={styles.content}>
         <Text style={styles.name}>{name}</Text>
-        <Text style={styles.sessionType}>{sessionType}</Text>
+        <Text style={styles.sessionType}>{displaySessionType}</Text>
 
         <View style={styles.photoContainer}>
           {React.isValidElement(photo) ? (

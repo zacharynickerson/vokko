@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Image, Switch, StyleSheet, TextInput, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Alert, SafeAreaView, ScrollView, Text, TouchableOpacity, View, Image, Switch, StyleSheet, TextInput, Modal, Linking } from 'react-native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import FirebaseImage from '../components/FirebaseImage';
 import { auth, db } from '../../config/firebase';
-import { ref, update } from 'firebase/database';
+import { ref, update, onValue } from 'firebase/database';
 import { updateProfile } from 'firebase/auth';
+import * as Notifications from 'expo-notifications';
 
 export default function SettingsScreen() {
     const navigation = useNavigation();
@@ -17,6 +18,62 @@ export default function SettingsScreen() {
     const [isEditing, setIsEditing] = useState(false);
     const [newName, setNewName] = useState(user?.displayName || '');
     const [isModalVisible, setIsModalVisible] = useState(false);
+
+    // Fetch promotionalNotifications preference on mount
+    useEffect(() => {
+        if (!user?.uid) return;
+        const promoRef = ref(db, `users/${user.uid}/promotionalNotifications`);
+        const unsubscribe = onValue(promoRef, (snapshot) => {
+            if (snapshot.exists()) {
+                setPromotionalNotifications(snapshot.val());
+            } else {
+                // If not set, default to true
+                setPromotionalNotifications(true);
+            }
+        });
+        return () => unsubscribe();
+    }, [user?.uid]);
+
+    // Handler for promotional notifications toggle
+    const handlePromotionalToggle = async (value) => {
+        setPromotionalNotifications(value);
+        const userRef = ref(db, `users/${user.uid}`);
+        try {
+            await update(userRef, { promotionalNotifications: value });
+            Alert.alert(
+                'Success',
+                value ? 'You will receive promotional notifications.' : 'You have opted out of promotional notifications.'
+            );
+        } catch (error) {
+            Alert.alert('Error', 'Failed to update preference. Please try again.');
+            // Optionally revert the toggle if update fails
+            setPromotionalNotifications((prev) => !prev);
+        }
+    };
+
+    // Handler for push notifications toggle
+    const handlePushNotificationsToggle = async (value) => {
+        if (value) {
+            // Request notification permissions
+            const { status } = await Notifications.requestPermissionsAsync();
+            if (status === 'granted') {
+                setPushNotifications(true);
+                Alert.alert('Success', 'Push notifications enabled.');
+                // Optionally, update in database:
+                // const userRef = ref(db, `users/${user.uid}`);
+                // await update(userRef, { pushNotifications: true });
+            } else {
+                setPushNotifications(false);
+                Alert.alert('Error', 'Permission denied. Please enable notifications in your device settings.');
+            }
+        } else {
+            setPushNotifications(false);
+            Alert.alert('Success', 'Push notifications disabled.');
+            // Optionally, update in database:
+            // const userRef = ref(db, `users/${user.uid}`);
+            // await update(userRef, { pushNotifications: false });
+        }
+    };
 
     const onLogout = async () => {
         try {
@@ -74,6 +131,21 @@ export default function SettingsScreen() {
         );
     };
 
+    // Handler for manage subscription
+    const handleManageSubscription = () => {
+        Alert.alert('🎉 Beta Program', "Congratulations, you are in the beta program and won't need a subscription.");
+    };
+
+    // Handler for contact us
+    const handleContactUs = () => {
+        Linking.openURL('https://www.rambull.app/contact');
+    };
+
+    // Handler for refer your friends
+    const handleReferFriends = () => {
+        Alert.alert('Referral Program', 'Referral Program Coming Soon!');
+    };
+
     const SettingsItem = ({ icon, title, subtitle, onPress, showArrow = true, isLast = false }) => (
         <TouchableOpacity style={[styles.settingsItem, isLast && styles.lastSettingsItem]} onPress={onPress}>
             <Ionicons name={icon} size={24} color="black" style={styles.settingsIcon} />
@@ -122,19 +194,13 @@ export default function SettingsScreen() {
                     icon="card-outline" 
                     title="Subscription" 
                     subtitle="Manage your plan"
-                    onPress={() => {}}
-                />
-                <SettingsItem 
-                    icon="add-circle-outline" 
-                    title="Add Integration" 
-                    subtitle="Connect Notion to send notes"
-                    onPress={() => {}}
+                    onPress={handleManageSubscription}
                 />
                 <SettingsItem 
                     icon="share-outline" 
                     title="Refer Your Friends" 
                     subtitle="Get more sessions for referring friends"
-                    onPress={() => {}}
+                    onPress={handleReferFriends}
                 />
 
                 <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
@@ -147,7 +213,7 @@ export default function SettingsScreen() {
                     </View>
                     <Switch
                         value={pushNotifications}
-                        onValueChange={setPushNotifications}
+                        onValueChange={handlePushNotificationsToggle}
                         trackColor={{ false: "#767577", true: "#4FBF67" }}
                         thumbColor={pushNotifications ? "#f4f3f4" : "#f4f3f4"}
                         style={styles.switch}
@@ -162,7 +228,7 @@ export default function SettingsScreen() {
                     </View>
                     <Switch
                         value={promotionalNotifications}
-                        onValueChange={setPromotionalNotifications}
+                        onValueChange={handlePromotionalToggle}
                         trackColor={{ false: "#767577", true: "#4FBF67" }}
                         thumbColor={promotionalNotifications ? "#f4f3f4" : "#f4f3f4"}
                         style={styles.switch}
@@ -175,7 +241,7 @@ export default function SettingsScreen() {
                     icon="call-outline" 
                     title="Contact Us" 
                     subtitle="For more information"
-                    onPress={() => {}}
+                    onPress={handleContactUs}
                 />
                 <SettingsItem 
                     icon="log-out-outline" 

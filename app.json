@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "VokkoApp",
-    "slug": "VokkoApp",
+    "name": "Rambull",
+    "slug": "Rambull",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/images/rambulllogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -20,7 +20,7 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app needs access to the microphone to record audio for guided sessions.",
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe audio to text.",
-        "NSPhotoLibraryUsageDescription": "Vokko needs access to your photo library to allow file system operations and to choose and upload photos within the app.",
+        "NSPhotoLibraryUsageDescription": "Rambull needs access to your photo library to allow file system operations and to choose and upload photos within the app.",
         "UIBackgroundModes": [
           "audio"
         ],
@@ -80,8 +80,8 @@
       [
         "@react-native-voice/voice",
         {
-          "microphonePermission": "Allow Vokko to access the microphone",
-          "speechRecognitionPermission": "Allow Vokko to securely recognize user speech"
+          "microphonePermission": "Allow Rambull to access the microphone",
+          "speechRecognitionPermission": "Allow Rambull to securely recognize user speech"
         }
       ],
       "expo-router",
@@ -103,7 +103,7 @@
         "secretName": "OPENAI_API_KEY"
       }
     },
-    "scheme": "Vokko",
+    "scheme": "Rambull",
     "notification": {
       "icon": "./assets/notification-icon.png",
       "color": "#ffffff",

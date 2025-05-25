@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, ScrollView } from 'react-native';
+import { Image, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeftIcon } from 'react-native-heroicons/solid';
 import { useNavigation } from '@react-navigation/native';
@@ -21,13 +21,25 @@ export default function SignUpScreen() {
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [showEmailSignup, setShowEmailSignup] = useState(false);
+    const [promotionalOptIn, setPromotionalOptIn] = useState(true);
 
 
     const handleEmailSignUp = async () => {
         setLoading(true);
         try {
             await signUp(email, password, name);
-            navigation.navigate('Onboarding');
+            // Save promotional opt-in to database
+            const userRef = ref(db, `users/${auth.currentUser.uid}`);
+            await set(userRef, {
+                name,
+                email,
+                createdAt: new Date().toISOString(),
+                lastLoginAt: new Date().toISOString(),
+                promotionalNotifications: promotionalOptIn,
+                settings: {
+                    notifications: true,
+                }
+            });
         } catch (err) {
             console.error("Signup error:", err);
             if (err.code === 'auth/email-already-in-use') {
@@ -65,12 +77,11 @@ export default function SignUpScreen() {
                 photoURL: photoURL,
                 createdAt: new Date().toISOString(),
                 lastLoginAt: new Date().toISOString(),
+                promotionalNotifications: promotionalOptIn,
                 settings: {
                     notifications: true,
                 }
             });
-            
-            navigation.navigate('Onboarding');
         } catch (error) {
             if (error.code === statusCodes.SIGN_IN_CANCELLED || error.message?.includes('canceled') || error.message?.includes('cancelled')) {
                 return;
@@ -173,6 +184,18 @@ export default function SignUpScreen() {
                                                 </Text>
                                             </TouchableOpacity>
                                         </View>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                                        <Switch
+                                            value={promotionalOptIn}
+                                            onValueChange={setPromotionalOptIn}
+                                            trackColor={{ false: '#767577', true: '#4FBF67' }}
+                                            thumbColor={promotionalOptIn ? '#f4f3f4' : '#f4f3f4'}
+                                            style={{ marginRight: 8 }}
+                                        />
+                                        <Text style={{ color: '#666', fontSize: 14, flex: 1 }}>
+                                            I agree to receive promotional notifications and marketing materials.
+                                        </Text>
                                     </View>
                                     <TouchableOpacity 
                                         style={[styles.button, styles.signupButton]} 

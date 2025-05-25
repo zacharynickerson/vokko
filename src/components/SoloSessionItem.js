@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatDateForDisplay } from '../utilities/helpers';
@@ -54,17 +54,32 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
   }, [location]);
 
   const mapImageUrl = useMemo(() => {
-    if (!location) return null;
+    if (!hasLocation) return null;
     return getStaticMapUrl(location.latitude, location.longitude);
-  }, [location]);
+  }, [location, hasLocation]);
 
   const cleanSummary = useMemo(() => {
     return stripHtmlTags(summary);
   }, [summary]);
 
+  const [mapImageError, setMapImageError] = useState(false);
+
+  useEffect(() => {
+    setMapImageError(false);
+  }, [location]);
+
+  // Get marker color based on status
+  const getMarkerColor = () => {
+    if (isCompleted) return '#4CAF50';
+    if (hasError) return '#FF4D4F';
+    if (isProcessing) return '#FFA500';
+    if (isRecording) return '#2196F3';
+    return '#FF4D4F';
+  };
+
   // Render the map with or without clickability
   const renderMap = () => {
-    if (!hasLocation) {
+    if (!hasLocation || mapImageError) {
       return (
         <View style={styles.mapContainer}>
           <Image 
@@ -76,23 +91,22 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
       );
     }
 
-    const mapContent = (
-      <>
+    return (
+      <View style={styles.mapContainer}>
         <Image 
           source={{ uri: mapImageUrl }} 
           style={styles.mapImage}
           resizeMode="cover"
-          onError={(e) => console.log('Image loading error:', e.nativeEvent.error)}
+          onError={() => setMapImageError(true)}
+          onLoad={() => setMapImageError(false)}
         />
         <View style={styles.mapOverlay}>
-          <MaterialCommunityIcons name="map-marker" size={24} color="#FF4D4F" />
+          <MaterialCommunityIcons 
+            name="map-marker" 
+            size={24} 
+            color={getMarkerColor()} 
+          />
         </View>
-      </>
-    );
-
-    return (
-      <View style={styles.mapContainer}>
-        {mapContent}
       </View>
     );
   };
@@ -114,9 +128,6 @@ const SoloVoiceNoteItem = ({ item, onPress, onRetry, onDelete, enableMapClick = 
       >
         <View style={styles.imageContainer}>
           {renderMap()}
-          <View style={styles.typeIndicator}>
-            <Text style={styles.typeText}>Solo</Text>
-          </View>
         </View>
         <View style={styles.contentContainer}>
           <Text style={styles.title} numberOfLines={2}>{displayTitle}</Text>
@@ -196,30 +207,18 @@ const styles = StyleSheet.create({
     marginLeft: -12,
     marginTop: -24,
   },
-  placeholderMap: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: '#666',
-    fontSize: 12,
-  },
-  typeIndicator: {
+  addressContainer: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: '#1B1D21',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 18,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 4,
   },
-  typeText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 12,
+  addressText: {
+    color: 'white',
+    fontSize: 10,
+    textAlign: 'center',
   },
   contentContainer: {
     padding: 16,
@@ -300,6 +299,8 @@ SoloVoiceNoteItem.propTypes = {
     location: PropTypes.shape({
       latitude: PropTypes.number,
       longitude: PropTypes.number,
+      address: PropTypes.string,
+      placeName: PropTypes.string,
     }),
     summary: PropTypes.string,
     processingStartedAt: PropTypes.string,

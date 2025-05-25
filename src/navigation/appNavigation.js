@@ -138,10 +138,10 @@ export default function AppNavigation() {
                     </>
                 ) : (
                     <>
+                        <Stack.Screen name="Welcome" component={WelcomeScreen} />
                         <Stack.Screen name="Login" component={LoginScreen} />
                         <Stack.Screen name="SignUp" component={SignUpScreen} />
                         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                        <Stack.Screen name="Welcome" component={WelcomeScreen} />
                     </>
                 )}
             </Stack.Navigator>

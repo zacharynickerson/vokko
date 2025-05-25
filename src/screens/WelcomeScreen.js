@@ -25,28 +25,34 @@ const WelcomeScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <Image
-                source={require('../../assets/images/WelcomeImage.webp')}
+                source={require('../../assets/images/welcome-background.png')}
                 style={[StyleSheet.absoluteFill, { width, height }]}
                 resizeMode="cover"
                 fadeDuration={0}
             />
-            {/* <View style={styles.logoContainer}>
+            <View style={styles.centerContent}>
                 <Image
-                    source={require('../../assets/images/rambulllogo.png')}
-                    style={styles.logoImage}
-                    fadeDuration={0}
+                    source={require('../../assets/images/welcome-mascot.png')}
+                    style={styles.mascotImage}
+                    resizeMode="contain"
                 />
-            </View> */}
+                <Image
+                    source={require('../../assets/images/rambull-logo-white.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                />
+                <Text style={styles.subtitle}>Pocket Scribe</Text>
+            </View>
             <View style={styles.buttonSection}>
                 <TouchableOpacity 
                     style={styles.signupButton} 
-                    onPress={() => navigation.navigate('SignUpScreen')}
+                    onPress={() => navigation.navigate('SignUp')}
                 >
                     <Text style={styles.buttonText}>Signup</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={styles.loginButton} 
-                    onPress={() => navigation.navigate('LoginScreen')}
+                    onPress={() => navigation.navigate('Login')}
                 >
                     <Text style={styles.loginButtonText}>Log in</Text>
                 </TouchableOpacity>
@@ -61,13 +67,31 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF',
         justifyContent: 'flex-end',
     },
-    logoContainer: {
-        position: 'absolute',
-        top: 60,
-        left: 0,
-        right: 0,
+    centerContent: {
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 2,
+        marginTop: 40,
+    },
+    mascotImage: {
+        width: 344,
+        height: 344,
+        marginBottom: 8,
+    },
+    logoImage: {
+        width: 260,
+        height: 70,
+        marginTop: -32,
+        marginBottom: 0,
+    },
+    subtitle: {
+        color: 'white',
+        fontSize: 22,
+        fontFamily: 'Lacquer_400Regular', // Use your app's subtitle font
+        textAlign: 'center',
+        marginTop: -8,
+        marginBottom: 8,
+        letterSpacing: 1.2,
     },
     buttonSection: {
         alignItems: 'center',
@@ -102,21 +126,6 @@ const styles = StyleSheet.create({
         color: '#4FBF67',
         fontWeight: 'bold',
         fontSize: 16,
-    },
-    logoImage: {
-        width: 360,
-        height: 120,
-        resizeMode: 'contain',
-    },
-    backgroundImageContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 0,
     },
 });
 
