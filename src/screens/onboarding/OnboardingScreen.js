@@ -26,7 +26,6 @@ import { auth } from '../../../config/firebase';
 // Import slides
 import WelcomeSlide from './slides/WelcomeSlide';
 import HowItWorksSlide from './slides/HowItWorksSlide'; 
-import IntegrationsSlide from './slides/IntegrationsSlide';
 import PermissionsSlide from './slides/PermissionsSlide';
 import PersonalizationSlide from './slides/PersonalizationSlide';
 
